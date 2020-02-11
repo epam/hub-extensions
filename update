@@ -1,0 +1,4 @@
+#!/bin/sh -xe
+
+git pull
+npm install
