@@ -1,0 +1,23 @@
+#!/bin/sh
+
+pipe_to=bash
+
+for arg in "$@"; do
+case $arg in
+    --help|-h)
+        cat $(dirname $0)/hub-pull.md
+        exit 0
+        ;;
+
+    --show|-s)
+        if which pygmentize >/dev/null; then
+            pipe_to='pygmentize -l bash'
+        else
+            pipe_to=cat
+        fi
+        shift
+        ;;
+esac
+done
+
+exec node $(dirname $0)/hub-pull.js "$@" | $pipe_to

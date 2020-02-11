@@ -17,3 +17,6 @@ CLI flags and arguments are not parsed by Hub CLI - they are passed as is to the
 
     HUB_DEBUG=1 hub ext ...
 
+### hub pull
+
+For `pull` extension you need Node.js installed.
