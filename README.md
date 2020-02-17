@@ -10,6 +10,7 @@ There are some extensions well-known to Hub CLI:
 - ls
 - show
 - configure
+- toolbox
 
 Well-known extensions can be called directly via `hub <extension name>`. Extensions whose names are not compiled into Hub CLI binary can be called via `hub ext <extension-name>`.
 
@@ -19,4 +20,4 @@ CLI flags and arguments are not parsed by Hub CLI - they are passed as is to the
 
 ### hub pull
 
-For `pull` extension you need Node.js installed.
+For `pull` extension you need Node.js and NPM installed.
