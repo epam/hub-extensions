@@ -1,0 +1,28 @@
+#!/bin/bash -e
+usage()
+{
+    echo "Print list of stacks accessible by the user"
+    echo "usage: $0 [-a] [-p kubernetes]... [-c tiller]...  [-h]"
+    exit 0
+}
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -p | --provides )
+            shift
+            PROVIDES='select(.provides and (.provides|to_entries[].key | contains("'$1'"))) |'
+            ;;
+        -c | --with-component )   
+            shift
+            COMPONENTS='select(.componentsEnabled[] | contains("'$1'")) |'
+            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        * )                 usage
+                            exit 1
+    esac
+    shift
+done
+
+hub api instance get -j | jq -rSM ". | if type==\"array\" then .[] else . end | [ $COMPONENTS $PROVIDES .domain ] | unique []"

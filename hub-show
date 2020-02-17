@@ -1,0 +1,121 @@
+#!/bin/bash -e
+
+usage()
+{
+cat << EOF
+Print info about stack in JSON format. Stack parameters and outputs are merged by default with the precedence to the outputs. Execute current script with parameter "-o" to see outputs separately
+
+Usage: $(basename $0) -s STACK_DOMAIN [-o] [-t]
+
+Parameters:
+    -s --stack      domain name of the stack
+    -o --split      split stack outpus from parameters
+    -m --machine    transform parameters as nested objects for easy parsing
+    -c --compact    compact json output (similar to jq -c)
+    -M --monochrome monochrome json output (similar to jq -M)
+    -R --raw-json   raw json (simlar to jq -r)
+    -y --yaml       yaml output instead of json (requires yq)
+    -r --raw        unconverted output from hub api
+    -q -jq --query  jq style query for the results (Implicitly enables -m)
+    -h --help       print current messag
+EOF
+}
+
+FORMAT="${FORMAT:-json}"
+JQ_ARGS="${JQ_ARGS:- -S}"
+
+if test -z "$1"; then
+    usage;
+    exit 1
+fi
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --stack )      shift
+                            STACK=$1
+                            ;;
+        -o | --split )      SPLIT_OUTPUTS=1
+                            ;;
+        -m | --machine )    TRANSFORM=1
+                            ;;
+        -c | --compact )    JQ_ARGS="$JQ_ARGS -c"
+                            ;;
+        -M | --monochrome ) JQ_ARGS="$JQ_AGRS -M"
+                            ;;
+        -R | --raw-json )   JQ_ARGS="$JQ_ARGS -r"
+                            ;;
+        -y | --yaml )       FORMAT="yaml"
+                            ;;
+        -r | --raw )        RAW_OUTPUT=1
+                            ;;
+        -q | -jq |--query ) shift
+                            TRANSFORM=1
+                            JQ_QUERY="$1"
+                            ;;
+        - )                 STACK=$(cat /dev/stdin | xargs | cut -d " " -f1)
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        * )                 usage
+                            exit 1
+    esac
+    shift
+done
+
+#HUB_ARGS=${HUB_ARGS:- --deref-secrets}
+
+RESP=`hub api instance get -j \
+    | jq -S '. | if type=="array" then . else [.] end' \
+    | jq -cMr '.[] | select(.domain=="'$STACK'")'`
+
+if test -z "$RESP"; then 
+    echo "Stack $STACK not found";
+    exit 404;
+fi
+
+if test ! -z "$RAW_OUTPUT"; then
+    test "$FORMAT" = "yaml" \
+        && echo $RESP | yq r - \
+        || echo $RESP | jq $JQ_ARGS . 
+    exit 0
+fi
+
+PARAMETERS=`echo $RESP | jq -cMr '.parameters[] | {(.name):.value}'`
+OUTPUTS=`echo $RESP | jq -cMr '.outputs[] | {(.name):.value}'`
+
+to_obj() {
+    echo $1 | jq -r \
+        'to_entries | .[]
+            | {"key": .key | split(".") | reverse, "value": .value}
+            | reduce .key[] as $item (.value; {($item): .})';
+}
+
+if test ! -z "$TRANSFORM"; then
+    PARAMETERS=`to_obj "$PARAMETERS"`;
+    OUTPUTS=`to_obj "$OUTPUTS"`;
+fi
+PARAMETERS=$(echo $PARAMETERS | jq -cMs 'reduce .[] as $item ({}; . * $item)')
+OUTPUTS=$(echo $OUTPUTS | jq -cMs 'reduce .[] as $item ({}; . * $item)')
+
+if test ! -z "$SPLIT_OUTPUTS"; then
+    DOCEXT="$(echo $PARAMETERS | jq -cM '{"parameters": .}')"
+    DOCEXT="$DOCEXT $(echo $OUTPUTS | jq -cM '{"outputs": .}')"
+else
+    DOCEXT="$(echo $PARAMETERS | jq -cM '{"parameters": .}')"
+    DOCEXT="$DOCEXT $(echo $OUTPUTS | jq -cM '{"parameters": .}')"
+fi
+
+DOCBASE=`echo $RESP | jq -crM '{
+    "environment": .environment.name,
+    "provides": [.provides|to_entries|.[].key],
+    "components": .componentsEnabled,
+    "state": .stateFiles[0],
+    "template": .template.name,
+    "tags": .tags
+}'`
+
+test "$FORMAT" = "yaml" \
+    && echo $DOCBASE $DOCEXT | jq -cMs 'reduce .[] as $item ({}; . * $item)' $JQ_QUERY | yq r - \
+    || echo $DOCBASE $DOCEXT | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY"
+
