@@ -86,14 +86,17 @@ if test ! -f "$ENVFILE" || test ! -z "$FORCE"; then
             echo '`# Error writing configuration! Troubleshoot: '$(basename $0) --verbose'`'
         exit $EXITCODE
     fi
-   
-    if ! cmp --silent $TMPFILE $ENVFILE; then
-        test -f $ENVFILE && \
-            mv -f  "$ENVFILE" "$BACKUPFILE"
+
+    if ! test -f $ENVFILE; then
+        cat "$TMPFILE" > "$ENVFILE"
+    elif ! cmp --silent $TMPFILE $ENVFILE; then
+        mv -f  "$ENVFILE" "$BACKUPFILE"
         cat "$TMPFILE" > "$ENVFILE"
         EXITCODE=$?
         test -z "$SILENT" && \
             echo '`# configuration has been saved to '$envfile'`'
+    else 
+        echo '`# no changes detected '$envfile'`'
     fi
 else
     test -z "$SILENT" && \
