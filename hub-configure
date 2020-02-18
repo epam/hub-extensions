@@ -54,7 +54,7 @@ if test -z "$STACK"; then
         STACK="$(basename $(readlink $HUB_CONTEXT) .env)"
         IGNORE=1
     fi
-    for i in $(hub-ls -p 'kubernetes'); do
+    for i in $(hub ls -p 'kubernetes'); do
         test "$i" = "$STACK" \
             && echo "* $i" \
             || echo "$i";
@@ -69,7 +69,7 @@ BACKUPFILE=$ENVDIR/$STACK.bak
 
 kubeconfig=".hub/env/kubeconfig.$STACK.yaml"
 KUBECONFIG="$(pwd)/$kubeconfig"
-HUB_DOMAIN_NAME=`hub-show -c -M -R -s "$STACK" -q '.parameters.dns.domain'`
+HUB_DOMAIN_NAME=`hub show -c -M -R -s "$STACK" -q '.parameters.dns.domain'`
 
 export STACK ENVFILE HUB_CONTEXT KUBECONFIG
 
@@ -87,7 +87,7 @@ if test ! -f "$ENVFILE" || test ! -z "$FORCE"; then
         exit $EXITCODE
     fi
    
-    if cmp --silent $TMPFILE $ENVFILE; then
+    if ! cmp --silent $TMPFILE $ENVFILE; then
         test -f $ENVFILE && \
             mv -f  "$ENVFILE" "$BACKUPFILE"
         cat "$TMPFILE" > "$ENVFILE"
@@ -116,7 +116,7 @@ else
         echo '`# '$hub_context' points to '$envfile'`'
 fi
 
-hub-kubeconfig -k -s "$HUB_DOMAIN_NAME" > /dev/null || true
+hub ext kubeconfig -k -s "$HUB_DOMAIN_NAME" > /dev/null || true
 test -z "$SILENT" && { \
     echo '`# kubeconfig has been saved in '$kubeconfig'.`'
     echo '`# to start working with '$HUB_DOMAIN_NAME' cluster run following command`'
