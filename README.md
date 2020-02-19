@@ -2,7 +2,7 @@
 
 Extensions are scripts written to extend Hub CLI functionality.
 
-Extensions usually resides in `~/.hub/` directory and they are installed there with `hub extensions install` command. Extensions follow simple calling convention where Hub CLI searches for `<extension-name>` by looking for `hub-<extension-name>` executable in `$PATH`, `./.hub/`, and then `~/.hub/`. Exit code of Hub CLI is that of the extension; stdin, stdout, stderr are passed through.
+Extensions usually resides in `~/.hub/` directory and they are installed there with `hub extensions install` command. Extensions follow simple calling convention where Hub CLI searches for `<extension-name>` by looking for `hub-<extension-name>` executable in `./.hub/`, `$HUB_EXTENSIONS` (could be a relative path), `~/.hub/`, `/usr/(local/)share/hub`, and finally in `$PATH`. Exit code of Hub CLI is that of the extension; stdin, stdout, stderr are passed through.
 
 There are some extensions well-known to Hub CLI:
 
