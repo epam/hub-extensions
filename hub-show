@@ -24,7 +24,7 @@ EOF
 FORMAT="${FORMAT:-json}"
 JQ_ARGS="${JQ_ARGS:- -S}"
 
-if test -z "$1"; then
+if test -z "$1" && test -z "$STACK"; then
     usage;
     exit 1
 fi
