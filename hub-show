@@ -52,6 +52,8 @@ while [ "$1" != "" ]; do
                             TRANSFORM=1
                             JQ_QUERY="$1"
                             ;;
+        -v | --verbose )    set -x
+                            ;;
         - )                 STACK=$(cat /dev/stdin | xargs | cut -d " " -f1)
                             ;;
         -h | --help )       usage
@@ -81,11 +83,11 @@ if test ! -z "$RAW_OUTPUT"; then
     exit 0
 fi
 
-PARAMETERS=`echo $RESP | jq -cMr '.parameters[] | {(.name):.value}'`
-OUTPUTS=`echo $RESP | jq -cMr '.outputs[] | {(.name):.value}'`
+PARAMETERS=`echo $RESP | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}'`
+OUTPUTS=`echo $RESP | jq -cMr 'select(.outputs).outputs[] | {(.name):.value}'`
 
 to_obj() {
-    echo $1 | jq -r \
+    echo $1 | jq -cMr \
         'to_entries | .[]
             | {"key": .key | split(".") | reverse, "value": .value}
             | reduce .key[] as $item (.value; {($item): .})';
