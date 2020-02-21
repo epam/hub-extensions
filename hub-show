@@ -11,9 +11,9 @@ Parameters:
     -s --stack      domain name of the stack
     -o --split      split stack outpus from parameters
     -m --machine    transform parameters as nested objects for easy parsing
-    -c --compact    compact json output (similar to jq -c)
+    -c --component    compact json output (similar to jq -c)
+    -C --compact    compact json output (similar to jq -c)
     -M --monochrome monochrome json output (similar to jq -M)
-    -R --raw-json   raw json (simlar to jq -r)
     -y --yaml       yaml output instead of json (requires yq)
     -r --raw        unconverted output from hub api
     -q -jq --query  jq style query for the results (Implicitly enables -m)
@@ -34,15 +34,17 @@ while [ "$1" != "" ]; do
         -s | --stack )      shift
                             STACK=$1
                             ;;
+        -c | --COMPONENT )  shift
+                            HUB_COMPONENT=$1
+                            SPLIT_OUTPUTS=1
+                            ;;
         -o | --split )      SPLIT_OUTPUTS=1
                             ;;
         -m | --machine )    TRANSFORM=1
                             ;;
-        -c | --compact )    JQ_ARGS="$JQ_ARGS -c"
+        -C | --compact )    JQ_ARGS="$JQ_ARGS -c"
                             ;;
         -M | --monochrome ) JQ_ARGS="$JQ_AGRS -M"
-                            ;;
-        -R | --raw-json )   JQ_ARGS="$JQ_ARGS -r"
                             ;;
         -y | --yaml )       FORMAT="yaml"
                             ;;
@@ -73,7 +75,7 @@ RESP=`hub api instance get -j \
 
 if test -z "$RESP"; then 
     echo "Stack $STACK not found";
-    exit 404;
+    exit 2;
 fi
 
 if test ! -z "$RAW_OUTPUT"; then
@@ -83,15 +85,24 @@ if test ! -z "$RAW_OUTPUT"; then
     exit 0
 fi
 
-PARAMETERS=`echo $RESP | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}'`
-OUTPUTS=`echo $RESP | jq -cMr 'select(.outputs).outputs[] | {(.name):.value}'`
-
 to_obj() {
     echo $1 | jq -cMr \
         'to_entries | .[]
             | {"key": .key | split(".") | reverse, "value": .value}
             | reduce .key[] as $item (.value; {($item): .})';
 }
+
+if test ! -z "$HUB_COMPONENT"; then 
+    if test "$(echo $RESP | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
+      echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo $RESP | jq -cMr '.componentsEnabled') of \"$STACK\""
+      exit 3
+    fi
+
+    OUTPUTS=$(echo $RESP | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
+else 
+    PARAMETERS=$(echo $RESP | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
+    OUTPUTS=$(echo $RESP | jq -cMr 'select(.outputs).outputs[] | {(.name):.value}')
+fi
 
 if test ! -z "$TRANSFORM"; then
     PARAMETERS=`to_obj "$PARAMETERS"`;
