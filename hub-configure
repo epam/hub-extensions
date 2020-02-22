@@ -69,7 +69,9 @@ BACKUPFILE=$ENVDIR/$STACK.bak
 
 kubeconfig=".hub/env/kubeconfig.$STACK.yaml"
 KUBECONFIG="$(pwd)/$kubeconfig"
-HUB_DOMAIN_NAME=`hub show -c -M -R -s "$STACK" -q '.parameters.dns.domain'`
+# shellcheck disable=SC2034
+JQ_ARGS="-rMc"
+HUB_DOMAIN_NAME=`hub show -s "$STACK" -q '.parameters.dns.domain'`
 
 export STACK ENVFILE HUB_CONTEXT KUBECONFIG
 
