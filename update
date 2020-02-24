@@ -1,4 +1,4 @@
 #!/bin/sh -xe
 
 git pull
-npm install
+which npm && npm install || echo '`hub pull` is not be available until you install Node.js and NPM'
