@@ -24,6 +24,10 @@ EOF
 FORMAT="${FORMAT:-json}"
 JQ_ARGS="${JQ_ARGS:- -S}"
 
+if ! test -t 0; then
+    STACK=$(cat /dev/stdin | xargs | cut -d " " -f1 | tr -d '"')
+fi
+
 if test -z "$1" && test -z "$STACK"; then
     usage;
     exit 1
@@ -99,6 +103,7 @@ if test ! -z "$HUB_COMPONENT"; then
     fi
 
     OUTPUTS=$(echo $RESP | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
+    PARAMETERS=$(echo $RESP | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
 else 
     PARAMETERS=$(echo $RESP | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
     OUTPUTS=$(echo $RESP | jq -cMr 'select(.outputs).outputs[] | {(.name):.value}')
