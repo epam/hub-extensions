@@ -121,7 +121,7 @@ else
         echo '`# '$hub_context' points to '$envfile'`'
 fi
 
-hub ext kubeconfig -k -s "$HUB_DOMAIN_NAME" > /dev/null || true
+hub ext kubeconfig -k -s "$STACK" > /dev/null || true
 test -z "$SILENT" && { \
     echo '`# kubeconfig has been saved in '$kubeconfig'.`'
     echo '`# to start working with '$HUB_DOMAIN_NAME' cluster run following command`'
