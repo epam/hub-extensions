@@ -8,7 +8,7 @@ Usage: $(basename $0) -s STACK_DOMAIN [-f] [-i] [-s] [-v]
 
 Parameters:
     -s --stack      domain name of the stack
-    -f --force      overwrite context file
+    -f --force      overwrite dotenv and kubeconfig files
     -i --ignore     do not switch configuration
     -S --silent     suppress outputs
     -v --verbose    verbose output for debugging purpose (set -x)
@@ -16,8 +16,8 @@ Parameters:
 EOF
 }
 
-hub_context='.env'
-HUB_CONTEXT="$(pwd)/$hub_context"
+hub_dotenv='.env'
+export HUB_DOTENV="$(pwd)/$hub_dotenv"
 
 while [ "$1" != "" ]; do
     case $1 in
@@ -71,7 +71,6 @@ kubeconfig=".hub/env/kubeconfig.$STACK.yaml"
 KUBECONFIG="$(pwd)/$kubeconfig"
 # shellcheck disable=SC2034
 JQ_ARGS="-rMc"
-HUB_DOMAIN_NAME=`hub show -s "$STACK" -q '.parameters.dns.domain'`
 
 export STACK ENVFILE HUB_CONTEXT KUBECONFIG
 
@@ -85,7 +84,7 @@ if test ! -f "$ENVFILE" || test ! -z "$FORCE"; then
 
     if test $EXITCODE -ne 0; then
         test -z "$SILENT" && \
-            echo '`# Error writing configuration! Troubleshoot: '$(basename $0) --verbose'`'
+            echo "Error writing configuration! Troubleshoot: $(basename $0) --verbose"
         exit $EXITCODE
     fi
 
@@ -96,38 +95,28 @@ if test ! -f "$ENVFILE" || test ! -z "$FORCE"; then
         cat "$TMPFILE" > "$ENVFILE"
         EXITCODE=$?
         test -z "$SILENT" && \
-            echo '`# configuration has been saved to '$envfile'`'
-    else 
-        echo '`# no changes detected '$envfile'`'
+            echo "Configuration has been saved to $envfile"
     fi
 else
     test -z "$SILENT" && \
-        echo '`# '$envfile' exists. To override file: '$(basename $0) -f'`'
+        echo "$envfile' exists. To override file: $(basename $0) -f"
     EXITCODE=1
 fi
 
 if test -f "$ENVFILE" && test ! -z "$IGNORE"; then
     test -z "$SILENT" && { \
-        echo '`# hub current context has NOT been switched`'
-        echo '`# to switch please run follwoing command`'
-        echo
-        echo '`# ln -sf "'$ENVFILE'" "'$HUB_CONTEXT'"`'
-        echo
+        echo "To change environment please run: ln -sf $ENVFILE $HUB_DOTENV"
     }
     EXITCODE=2
 else
-    ln -sf "$ENVFILE" "$HUB_CONTEXT"
-    test -z "$SILENT" && \
-        echo '`# '$hub_context' points to '$envfile'`'
+    ln -sf "$ENVFILE" "$HUB_DOTENV"
 fi
 
 hub ext kubeconfig -k -s "$STACK" > /dev/null || true
 test -z "$SILENT" && { \
-    echo '`# kubeconfig has been saved in '$kubeconfig'.`'
-    echo '`# to start working with '$HUB_DOMAIN_NAME' cluster run following command`'
+    echo "kubeconfig has been saved to '$kubeconfig'"
+    echo "To apply environment for '$HUB_DOMAIN_NAME' run the following"
     echo
-    echo 'source '$hub_context''
-    echo
-    echo '`# PS these help texts are "eval" safe`'
+    echo "source $hub_dotenv"
 }
 exit $EXITCODE
