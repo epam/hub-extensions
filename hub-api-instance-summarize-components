@@ -1,0 +1,6 @@
+#!/bin/sh -xe
+
+HUB=${HUB:-hub}
+
+$HUB api instance get -j "$@" |
+    node $(dirname $0)/hub-api-instance-summarize-components.js
