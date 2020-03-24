@@ -44,8 +44,8 @@ if (!isEmpty(splits)) {
     cmds.push('\n# extract components sources from subdirectories into `split` branches');
     // TODO optimize for a single `git checkout` per remote+ref combination
     cmds = cmds.concat(splits.map(({name, git: {remote, ref, subDir}}) =>
-        `git checkout -B ${localBranchName(remote, ref)} ${remoteBranchName(remote, ref)}\n` +
-        `git subtree split --prefix=${subDir} -b ${splitBranchName(name)}`));
+        `git checkout -B ${localBranchName(remote, ref)} ${remoteBranchName(remote, ref)}\n`
+        + `git subtree split --prefix=${subDir} -b ${splitBranchName(name)}`));
     cmds.push('popd');
 }
 

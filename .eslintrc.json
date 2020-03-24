@@ -21,7 +21,9 @@
     }],
     "object-curly-newline": "off",
     "function-paren-newline": "off",
-    "prefer-promise-reject-errors": "off"
+    "prefer-promise-reject-errors": "off",
+    "implicit-arrow-linebreak": "off",
+    "no-console": "off"
   },
   "env": {
     "node": true
