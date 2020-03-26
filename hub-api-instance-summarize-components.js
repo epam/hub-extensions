@@ -10,13 +10,13 @@ const table = {};
 
 instances.forEach((instance) => {
     const {components = []} = instance.status || {};
-    // TODO use component `origin` instead of `name`
-    components.forEach(({name, meta: {version = '<none>'}}) => {
-        const comp = table[name] || {};
+    components.forEach(({name, meta: {origin, version = '<none>'}}) => {
+        const trueName = origin || name;
+        const comp = table[trueName] || {};
         const compVersion = comp[version] || [];
         compVersion.push(instance.domain);
         comp[version] = compVersion;
-        table[name] = comp;
+        table[trueName] = comp;
     });
 });
 
