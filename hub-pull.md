@@ -1,4 +1,4 @@
-`hub-pull` is to read `hub.yaml` `components[].source.git` stanzas and emit `git` shell commands to pull updates from upstream. The subtrees must be already in-place. To add new components - see below.
+`hub-pull` is to read `hub.yaml` `components[].source.git` stanzas and emit `git` shell commands to pull updates from upstream. If no subtree exist then it will be added.
 
 Usage:
 
@@ -6,7 +6,7 @@ Usage:
 
 Temporary `worktree` is necessary to perform subtree split for components that resides under `subDir` in a Git repo.
 
-To add new component as Git subtree - for component occupying whole repository, for example:
+To manually add new component as Git subtree - for component occupying whole repository, for example:
 
     # add upstream remote
     git remote add github-com-agilestacks-tls-host-controller \
@@ -17,7 +17,7 @@ To add new component as Git subtree - for component occupying whole repository, 
     git subtree add --squash -m 'Add tls-host-controller' --prefix=tls-host-controller \
         github-com-agilestacks-tls-host-controller/master
 
-To add new component as Git subtree - for component residing in a directory of a monorepo, for example:
+To manually add new component as Git subtree - for component residing in a directory of a monorepo, for example:
 
     git remote add github-com-agilestacks-components \
         https://github.com/agilestacks/components.git

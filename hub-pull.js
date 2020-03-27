@@ -55,13 +55,15 @@ cmds.push('git stash save -a');
 if (!isEmpty(splits)) {
     cmds.push('\n# merge `split` branches');
     cmds = cmds.concat(splits.map(({name, dir}) =>
-        `git subtree merge --squash -m '${name} updates' --prefix=${dir} ${splitBranchName(name)}`));
+        `if test -d ${dir}; then verb=merge; else verb=add; fi\n`
+        + `git subtree $verb --squash -m "${name} $verb" --prefix=${dir} ${splitBranchName(name)}`));
 }
 
 if (!isEmpty(singles)) {
     cmds.push('\n# merge changes from repositiories with component source on top level');
     cmds = cmds.concat(singles.map(({dir, git: {remote, ref}}) =>
-        `git subtree merge --squash -m '${dir} updates' --prefix=${dir} ${remoteBranchName(remote, ref)}`));
+        `if test -d ${dir}; then verb=merge; else verb=add; fi\n`
+        + `git subtree $verb --squash -m "${dir} $verb" --prefix=${dir} ${remoteBranchName(remote, ref)}`));
 }
 
 cmds.push('git stash pop');
