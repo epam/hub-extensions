@@ -5,11 +5,11 @@ normal=$(tput sgr0)
 
 usageApi()
 {
-    echo
-    echo "Print list of stacks accessible by the user"
-    echo "usage: $0 [-a] [-p kubernetes]... [-c tiller]...  [-h]"
-    echo
-    exit 0
+  echo
+  echo "Print list of stacks accessible by the user"
+  echo "usage: $0 [-a] [-p kubernetes]... [-c tiller]...  [-h]"
+  echo
+  exit 0
 }
 
 usageLocal()
