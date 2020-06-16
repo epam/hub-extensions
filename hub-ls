@@ -73,8 +73,8 @@ echo -e "Kube context name,ASI Platform configuration name\n , \n$platforms" | \
   sed 's/\t/,|,/g' | column -s ',' -t
 echo
 
-current=$(readlink .env)
-filename=$(basename "$current")
+current=$(readlink .env || true)
+filename=$(basename "$current" || true)
 if test -n "$filename"; then
   echo "Current configuration: ${bold}$filename${normal}"
   echo
