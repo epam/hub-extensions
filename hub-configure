@@ -1,5 +1,11 @@
 #!/bin/bash -e
 # shellcheck disable=SC2006,SC2016,SC2086
+
+if test -z "$HUB_TOKEN"; then
+  hub ext configure-local "$@"
+  exit
+fi
+
 usage() {
 cat << EOF
 Prints environment configuration for the stack
