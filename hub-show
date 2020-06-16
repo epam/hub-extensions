@@ -1,23 +1,25 @@
 #!/bin/bash -e
 
+# shellcheck disable=SC2086
+bold=$(tput bold)
+normal=$(tput sgr0)
+
 usage()
 {
 cat << EOF
 Print info about stack in JSON format. Stack parameters and outputs are merged by default with the precedence to the outputs. Execute current script with parameter "-o" to see outputs separately
-
-Usage: $(basename $0) -s STACK_DOMAIN [-o] [-t]
-
+Usage: $(basename "$0") -s STACK_DOMAIN [-o] [-t]
 Parameters:
     -s --stack      domain name of the stack
     -o --split      split stack outpus from parameters
     -m --machine    transform parameters as nested objects for easy parsing
-    -c --component    compact json output (similar to jq -c)
+    -c --component  display parameters and outputs for the given component
     -C --compact    compact json output (similar to jq -c)
     -M --monochrome monochrome json output (similar to jq -M)
     -y --yaml       yaml output instead of json (requires yq)
-    -r --raw        unconverted output from hub api
+    -r --raw        unconverted output from hub
     -q -jq --query  jq style query for the results (Implicitly enables -m)
-    -h --help       print current messag
+    -h --help       print current message
 EOF
 }
 
@@ -25,7 +27,7 @@ FORMAT="${FORMAT:-json}"
 JQ_ARGS="${JQ_ARGS:- -S}"
 
 if ! test -t 0; then
-    STACK=$(cat /dev/stdin | xargs | cut -d " " -f1 | tr -d '"')
+    STACK=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
 fi
 
 if test -z "$1" && test -z "$STACK"; then
@@ -60,7 +62,7 @@ while [ "$1" != "" ]; do
                             ;;
         -v | --verbose )    set -x
                             ;;
-        - )                 STACK=$(cat /dev/stdin | xargs | cut -d " " -f1)
+        - )                 STACK=$(< /dev/stdin xargs | cut -d " " -f1)
                             ;;
         -h | --help )       usage
                             exit
@@ -71,69 +73,106 @@ while [ "$1" != "" ]; do
     shift
 done
 
-#HUB_ARGS=${HUB_ARGS:- --deref-secrets}
+if test -z "$HUB_TOKEN"; then
+  HUBDIR="$(pwd)/.hub";
+  STATEFILE="$HUBDIR/$STACK.yaml.state";
 
-RESP=`hub api instance get -j \
-    | jq -S '. | if type=="array" then . else [.] end' \
-    | jq -cMr '.[] | select(.domain=="'$STACK'")'`
+  if test ! -f "$STATEFILE"; then
+    echo
+    echo "State file of the stack ${bold}$STACK ${normal}has not been found in ${bold}$HUBDIR";
+    echo "${normal}Have you ran ${bold}hub ext deploy${normal}?";
+    echo
+    exit 2;
+  fi
+  RESP="$(hub explain "$STATEFILE" --json)";
 
-if test -z "$RESP"; then 
+else
+  RESP=$(hub api instance get -j \
+      | jq -S '. | if type=="array" then . else [.] end' \
+      | jq -cMr '.[] | select(.domain=="'$STACK'")')
+fi
+
+
+if test -z "$RESP"; then
     echo "Stack $STACK not found";
     exit 2;
 fi
 
 if test ! -z "$RAW_OUTPUT"; then
-    test "$FORMAT" = "yaml" \
-        && echo $RESP | yq r - \
-        || echo $RESP | jq $JQ_ARGS . 
-    exit 0
+  if test "$FORMAT" = "yaml"; then
+    echo "$RESP" | yq r -
+  else
+    echo "$RESP" | jq $JQ_ARGS .
+  fi
+  exit 0
 fi
 
 to_obj() {
-    echo $1 | jq -cMr \
+    echo "$1" | jq -cMr \
         'to_entries | .[]
             | {"key": .key | split(".") | reverse, "value": .value}
             | reduce .key[] as $item (.value; {($item): .})';
 }
 
-if test ! -z "$HUB_COMPONENT"; then 
-    if test "$(echo $RESP | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
-      echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo $RESP | jq -cMr '.componentsEnabled') of \"$STACK\""
-      exit 3
+if test ! -z "$HUB_COMPONENT"; then
+    if test -z "$HUB_TOKEN"; then
+      if test "$(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key] | index("'$HUB_COMPONENT'")')" == "null"; then
+        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$STACK\""
+        exit 3
+      fi
+      OUTPUTS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value.outputs')
+      PARAMETERS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value.parameters')
+    else
+      if test "$(echo "$RESP" | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
+        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$STACK\""
+        exit 3
+      fi
+      OUTPUTS=$(echo "$RESP" | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
+      PARAMETERS=$(echo "$RESP" | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
     fi
-
-    OUTPUTS=$(echo $RESP | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
-    PARAMETERS=$(echo $RESP | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
-else 
-    PARAMETERS=$(echo $RESP | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
-    OUTPUTS=$(echo $RESP | jq -cMr 'select(.outputs).outputs[] | {(.name):.value}')
+else
+    if test -z "$HUB_TOKEN"; then
+      PARAMETERS=$(echo "$RESP" | jq -cMr 'select(.stackParameters != null).stackParameters');
+      OUTPUTS=$(echo "$RESP" | jq -cMr 'select(.stackOutputs != null).stackOutputs');
+    else
+      PARAMETERS=$(echo "$RESP" | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
+      OUTPUTS=$(echo "$RESP" | jq -cMr 'select(.outputs).outputs[] | {(.name):.value}')
+    fi
 fi
 
 if test ! -z "$TRANSFORM"; then
-    PARAMETERS=`to_obj "$PARAMETERS"`;
-    OUTPUTS=`to_obj "$OUTPUTS"`;
+    PARAMETERS=$(to_obj "$PARAMETERS");
+    OUTPUTS=$(to_obj "$OUTPUTS");
 fi
-PARAMETERS=$(echo $PARAMETERS | jq -cMs 'reduce .[] as $item ({}; . * $item)')
-OUTPUTS=$(echo $OUTPUTS | jq -cMs 'reduce .[] as $item ({}; . * $item)')
+PARAMETERS=$(echo "$PARAMETERS" | jq -cMs 'reduce .[] as $item ({}; . * $item)')
+OUTPUTS=$(echo "$OUTPUTS" | jq -cMs 'reduce .[] as $item ({}; . * $item)')
 
 if test ! -z "$SPLIT_OUTPUTS"; then
-    DOCEXT="$(echo $PARAMETERS | jq -cM '{"parameters": .}')"
-    DOCEXT="$DOCEXT $(echo $OUTPUTS | jq -cM '{"outputs": .}')"
+    DOCEXT="$(echo "$PARAMETERS" | jq -cM '{"parameters": .}')"
+    DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"outputs": .}')"
 else
-    DOCEXT="$(echo $PARAMETERS | jq -cM '{"parameters": .}')"
-    DOCEXT="$DOCEXT $(echo $OUTPUTS | jq -cM '{"parameters": .}')"
+    DOCEXT="$(echo "$PARAMETERS" | jq -cM '{"parameters": .}')"
+    DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"parameters": .}')"
 fi
 
-DOCBASE=`echo $RESP | jq -crM '{
-    "environment": .environment.name,
-    "provides": [.provides|to_entries|.[].key],
-    "components": .componentsEnabled,
-    "state": .stateFiles[0],
-    "template": .template.name,
-    "tags": .tags
-}'`
+if test -z "$HUB_TOKEN"; then
+  DOCBASE=$(echo "$RESP" | jq -crM '{
+      "components" : [.components|to_entries[]|.key],
+      "provides" : [.provides|to_entries[]|.key]
+  }')
+else
+  DOCBASE=$(echo "$RESP" | jq -crM '{
+      "environment": .environment.name,
+      "provides": [.provides|to_entries[]|.key],
+      "components": .componentsEnabled,
+      "state": .stateFiles[0],
+      "template": .template.name,
+      "tags": .tags
+  }')
+fi
 
-test "$FORMAT" = "yaml" \
-    && echo $DOCBASE $DOCEXT | jq -cMs 'reduce .[] as $item ({}; . * $item)' $JQ_QUERY | yq r - \
-    || echo $DOCBASE $DOCEXT | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY"
-
+if test "$FORMAT" = "yaml"; then
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item)' $JQ_QUERY | yq r -
+else
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS $JQ_QUERY
+fi
