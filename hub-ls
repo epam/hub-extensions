@@ -75,18 +75,21 @@ if test -n "$filename"; then
   echo "Current configuration: $filename"
   echo
 fi
-echo "-----"
-echo
-echo "List of Kubernetes cluster contexts (from your local Kubeconfig) \
-without Agile Stacks platform configuration:"
-echo
 
 clusters=$(kubectl config get-contexts --output='name')
 
 while IFS= read -r cluster ;
 do
   if test -z "$(echo "$platforms" | grep "$cluster")"; then
-		  echo "$cluster";
+		  output="$output\n$cluster";
 	fi
 done <<< "$clusters"
-echo
+
+if test -n "$output"; then
+  echo "-----"
+  echo
+  echo "List of Kubernetes cluster contexts (from your local Kubeconfig) \
+without Agile Stacks platform configuration:"
+  echo -e "$output"
+  echo
+fi
