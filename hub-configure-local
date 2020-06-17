@@ -3,7 +3,7 @@
 bold=$(tput bold)
 normal=$(tput sgr0)
 
-bubbles="https://api.superhub.io/dns"
+bubbles="https://api.agilestacks.io/dns"
 asi_domain="devops.delivery"
 
 usage() {
