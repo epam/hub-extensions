@@ -1,8 +1,6 @@
 #!/bin/bash -e
 
 # shellcheck disable=SC2086
-bold=$(tput bold)
-normal=$(tput sgr0)
 
 usage()
 {
@@ -79,8 +77,8 @@ if test -z "$HUB_TOKEN"; then
 
   if test ! -f "$STATEFILE"; then
     echo
-    echo "State file of the stack ${bold}$STACK ${normal}has not been found in ${bold}$HUBDIR";
-    echo "${normal}Have you ran ${bold}hub ext deploy${normal}?";
+    echo "State file of the stack $STACK has not been found in $HUBDIR";
+    echo "Have you ran hub ext deploy?";
     echo
     exit 2;
   fi

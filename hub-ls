@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-bold=$(tput bold)
-normal=$(tput sgr0)
-
 usageApi()
 {
   echo
@@ -63,26 +60,25 @@ touch "$mappingfile"
 platforms=$(<"$mappingfile")
 
 if test -z "$platforms"; then
-  platforms="N/A Run ${bold}hub configure -p <KUBE CONTEXT NAME> ${normal}to add"
+  platforms="N/A Run hub configure -p <KUBE CONTEXT NAME> to add"
 fi
 
 echo
-echo "${bold}List of Agile Stacks platform configurations:${normal}"
+echo "List of Agile Stacks platform configurations:"
 echo
-echo -e "Kube context name,ASI Platform configuration name\n , \n$platforms" | \
-  sed 's/\t/,|,/g' | column -s ',' -t
+echo -e "Kube context name,ASI Platform configuration name\n , \n$platforms" | column -s ',' -t
 echo
 
 current=$(readlink .env || true)
 filename=$(basename "$current" || true)
 if test -n "$filename"; then
-  echo "Current configuration: ${bold}$filename${normal}"
+  echo "Current configuration: $filename"
   echo
 fi
 echo "-----"
 echo
-echo "${bold}List of Kubernetes cluster contexts (from your local Kubeconfig) \
-without Agile Stacks platform configuration:${normal}"
+echo "List of Kubernetes cluster contexts (from your local Kubeconfig) \
+without Agile Stacks platform configuration:"
 echo
 
 clusters=$(kubectl config get-contexts --output='name')
