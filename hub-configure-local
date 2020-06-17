@@ -3,8 +3,8 @@
 bold=$(tput bold)
 normal=$(tput sgr0)
 
-bubbles="https://api.app.vou9.dev.superhub.io/dns"
-asi_domain="dev.superhub.io"
+bubbles="https://api.superhub.io/dns"
+asi_domain="devops.delivery"
 
 usage() {
 cat << EOF
