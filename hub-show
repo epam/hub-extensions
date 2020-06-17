@@ -120,8 +120,8 @@ if test ! -z "$HUB_COMPONENT"; then
         echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$STACK\""
         exit 3
       fi
-      OUTPUTS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value.outputs')
-      PARAMETERS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value.parameters')
+      OUTPUTS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.outputs != null).outputs')
+      PARAMETERS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.parameters != null).parameters')
     else
       if test "$(echo "$RESP" | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
         echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$STACK\""
