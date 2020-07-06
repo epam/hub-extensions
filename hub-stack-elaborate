@@ -1,0 +1,89 @@
+#!/bin/bash -e
+
+usage() {
+cat << EOF
+
+Runs reconciliation for all parameters of this stack components
+and this stack prerequisites
+
+Usage: 
+$ $(basename "$0")
+
+Parameters:
+    -s  --silent          Suppress console outputs in favor of result codes
+    --skip-guide          Supperess "What's next" messages
+    -V  --verbose         Verbose outputs for debug purpose
+    -h --help             Show this message
+
+EOF
+}
+
+GUIDE=${GUIDE:-true}
+SILENT=${SILENT:-false}
+while [ "$1" != "" ]; do
+    case $1 in
+    --skip-guide )      SKIP_GUIDE=false
+                        ;;
+    -V | --verbose )    set -x
+                        ;;
+    -S | --silent )     SILENT=true
+                        GUIDE=false
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 usage
+                        exit 1
+    esac
+    shift
+done
+
+$SILENT || cat << EOF
+Reconciling deployment plan for $HUB_DOMAIN_NAME
+EOF
+
+if [[ ! -f .env ]]; then
+  $SILENT || echo "* Error: configuration '.env' has not been found" 
+
+  GUIDE && cat << EOF
+
+## What's next?
+
+To resolve run following command:
+
+$ hub configure --current-kubecontext
+EOF
+
+  exit 1
+fi
+# shellcheck disable=SC1091
+source .env
+$SILENT || echo "* Using domain name: $HUB_DOMAIN_NAME"
+
+
+HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
+HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
+
+if test -f "$HUB_STATE_FILE"; then
+  $SILENT || echo "* Using hub state file: $HUB_STATE_FILE"
+  HUB_ELABORATE_OPTS="$HUB_ELABORATE_OPTS -s $HUB_STATE_FILE"
+fi
+
+HUB_DEPLOY_OPTS="--clouds=aws $HUB_DEPLOY_OPTS"
+
+# shellcheck disable=SC2086
+hub elaborate hub.yaml params.yaml -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS
+
+$SILENT || echo "* Result saved to to: $HUB_ELABORATE_FILE"
+
+$GUIDE || cat << EOF
+
+Deployment plan has been recalculated, stored and ready to deploy 
+
+## What's next. 
+
+To apply plan run:
+
+$ hub ext stack deploy
+
+EOF

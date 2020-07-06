@@ -1,0 +1,122 @@
+#!/bin/bash -e
+# shellcheck disable=SC2006,SC2016,SC2086
+
+usage() {
+cat << EOF
+Prints environment configuration for the stack
+
+Usage: $(basename $0) -s STACK_DOMAIN [-f] [-i] [-s] [-v]
+
+Parameters:
+    -s --stack      domain name of the stack
+    -f --force      overwrite dotenv and kubeconfig files
+    -i --ignore     do not switch configuration
+    -S --silent     suppress outputs
+    -v --verbose    verbose output for debugging purpose (set -x)
+    -h --help       print current message
+EOF
+}
+
+hub_dotenv='.env'
+export HUB_DOTENV="$(pwd)/$hub_dotenv"
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --stack )      shift
+                            STACK=$1
+                            ;;
+        -f | --force )      FORCE=1
+                            ;;
+        -i | --ignore )     IGNORE=1
+                            ;;
+        -S | --silent )     SILENT=1
+                            ;;
+        -e | --envfile )    shift
+                            hub_context=$1
+                            ;;
+        -t | --template )   shift 
+                            TEMPLATE=$1
+                            ;;
+        -v | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        - )                 STACK=$(cat /dev/stdin | xargs | cut -d " " -f1)
+                            ;;
+        * )                 usage
+                            exit 1
+    esac
+    shift
+done
+
+if test -z "$STACK"; then
+    if test -f "$HUB_CONTEXT"; then
+        STACK="$(basename $(readlink $HUB_CONTEXT) .env)"
+        IGNORE=1
+    fi
+    for i in $(hub ls -p 'kubernetes'); do
+        test "$i" = "$STACK" \
+            && echo "* $i" \
+            || echo "$i";
+    done
+    SILENT=1
+fi
+
+envfile=".hub/env/$STACK.env"
+ENVFILE="$(pwd)/$envfile"
+ENVDIR="$(dirname $ENVFILE)"
+BACKUPFILE=$ENVDIR/$STACK.bak
+
+kubeconfig=".hub/env/kubeconfig.$STACK.yaml"
+KUBECONFIG="$(pwd)/$kubeconfig"
+# shellcheck disable=SC2034
+JQ_ARGS="-rMc"
+
+export STACK ENVFILE HUB_CONTEXT KUBECONFIG
+
+TMPFILE=`mktemp /tmp/superhub.XXXXXX` || exit 1
+trap "rm -f $TMPFILE" EXIT
+
+if test ! -f "$ENVFILE" || test ! -z "$FORCE"; then
+    mkdir -p "$ENVDIR"
+    .hub/env/configure | awk 'NF' > $TMPFILE
+    EXITCODE=$?
+
+    if test $EXITCODE -ne 0; then
+        test -z "$SILENT" && \
+            echo "Error writing configuration! Troubleshoot: $(basename $0) --verbose"
+        exit $EXITCODE
+    fi
+
+    if ! test -f $ENVFILE; then
+        cat "$TMPFILE" > "$ENVFILE"
+    elif ! cmp --silent $TMPFILE $ENVFILE; then
+        mv -f  "$ENVFILE" "$BACKUPFILE"
+        cat "$TMPFILE" > "$ENVFILE"
+        EXITCODE=$?
+        test -z "$SILENT" && \
+            echo "Configuration has been saved to $envfile"
+    fi
+else
+    test -z "$SILENT" && \
+        echo "$envfile' exists. To override file: $(basename $0) -f"
+    EXITCODE=1
+fi
+
+if test -f "$ENVFILE" && test ! -z "$IGNORE"; then
+    test -z "$SILENT" && { \
+        echo "To change environment please run: ln -sf $ENVFILE $HUB_DOTENV"
+    }
+    EXITCODE=2
+else
+    ln -sf "$ENVFILE" "$HUB_DOTENV"
+fi
+
+hub ext kubeconfig -k -s "$STACK" > /dev/null || true
+test -z "$SILENT" && { \
+    echo "kubeconfig has been saved to '$kubeconfig'"
+    echo
+    echo "source $hub_dotenv"
+}
+exit $EXITCODE
