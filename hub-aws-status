@@ -56,7 +56,9 @@ else
   $GUIDE && cat << EOF
 * Configuration file .env exists: NO
 
-***
+Error: cannot find stack configuration
+
+## What's next
 
 To resolve please run: 
 
@@ -100,9 +102,9 @@ fi
 if ! $SUCCESS; then 
   $GUIDE && cat << EOF
 
-## What's next?
+Error: one or multiple prerequisites has not been deployed
 
-One or multiple prerequisites has not been deployed
+## What's next?
 
 To resolve, please run: 
 

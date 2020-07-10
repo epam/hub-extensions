@@ -48,9 +48,7 @@ if test ! -f .env; then
   SILENT || echo "Error: configuration file '.env' does not exist"
   GUIDE && cat << EOF
 
-***
-
-# What's next?
+## What's next?
 
 Please run:
   
@@ -61,33 +59,32 @@ EOF
 fi
 
 echo "Deploying AWS prerequisites for $HUB_DOMAIN_NAME stack"
-
 pwd=$(dirname "$0")
 
-set +e
-echo -n "* Route53 hosted zone for $HUB_DOMAIN_NAME: "
-# shellcheck disable=SC2046,SC2068
-NS=$($pwd/aws/route53-zone/deploy --domain-name "$HUB_DOMAIN_NAME" --json)
-if test "$?" = "0"; then 
-  echo "Deployed"
-else
-  echo "Failed"
-  exit 3
-fi
-
-echo -n "* S3 bucket $HUB_STATE_BUCKET for deployment state: "
+echo -n "* S3 bucket $HUB_STATE_BUCKET for deployment state... "
 $pwd/aws/s3-bucket/deploy \
   --bucket-name "$HUB_STATE_BUCKET" \
   --aws-region "$AWS_REGION" \
   --acl "private"
   
 if test "$?" = "0"; then 
-  echo "Deployed"
+  echo "Done"
 else
   echo "Failed"
   exit 4
 fi
 set -e
+
+set +e
+echo -n "* Route53 hosted zone for $HUB_DOMAIN_NAME... "
+# shellcheck disable=SC2046,SC2068
+NS=$($pwd/aws/route53-zone/deploy --domain-name "$HUB_DOMAIN_NAME" --json)
+if test "$?" = "0"; then 
+  echo "Done"
+else
+  echo "Failed"
+  exit 3
+fi
 
 echo -n "* Sending $HUB_DOMAIN_NAME DNS delegation set: "
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \

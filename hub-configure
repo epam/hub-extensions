@@ -2,8 +2,8 @@
 # shellcheck disable=SC2046,SC2068
 
 if test -n "$HUB_TOKEN"; then
-  $(dirname "$0")/hub-configure-api $@
+  hub-configure-api $@
 else
   # TODO: we need properly detect eks cluster
-  $(dirname "$0")/hub-configure-eks $@
+  hub-configure-eks $@
 fi

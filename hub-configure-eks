@@ -143,8 +143,8 @@ export KUBECONFIG="$kubeconfig"
 EOF
 
   $SILENT || cat << EOF
- * New domain name: $domain_name
- * Configuration has been saved to: $envdir/$domain_name.env
+* New domain name: $domain_name
+* Configuration has been saved to: $envdir/$domain_name.env
 EOF
 fi
 
@@ -207,5 +207,5 @@ EOF
   fi
   $SILENT || echo "* Created kubeconfig $kubeconfig "
 fi
-
+echo 
 hub ext aws status
