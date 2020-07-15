@@ -208,4 +208,4 @@ EOF
   $SILENT || echo "* Created kubeconfig $kubeconfig "
 fi
 echo 
-hub ext aws status
+hub-aws-status
