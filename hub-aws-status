@@ -49,7 +49,7 @@ while [ "$1" != "" ]; do
     shift
 done
 
-$SILENT || echo "Checking AWS account prerequisites:"
+$SILENT || echo "Checking AWS prerequisites:"
 if test -f ".env"; then
   $SILENT || echo "* Configuration file .env exists: YES"
 else
@@ -79,7 +79,36 @@ hosted_zone_exists() {
     --query 'HostedZones[?Name==`'$1'.`].Id' \
     | xargs | cut -d " " -f1)"
 }
+SUCCESS=true
 
+$SILENT || echo -n "* checking connectivity to cluster $HUB_STATE_BUCKET: "
+if kubectl get cluster-info; then
+  $SILENT || echo "YES"
+else
+  $SILENT || echo "NO"
+
+$GUIDE && cat << EOF
+
+Error: kubernetes cluster has not been reachable.
+
+## What's next?
+1. You might want to check connectivity to your cluster
+
+$ kubectl cluster-info
+
+2. Check if '.env' poits to correct config file
+
+$ readlink -n .env
+
+3. If (2) doesn't, then re-apply configuration with
+
+$ hub configure --kubecontext <desired-cluster>
+or
+$ hub configure --current-kubecontext
+
+EOF
+  exit 4  
+fi
 
 $SILENT || echo -n "* s3 bucket $HUB_STATE_BUCKET exists: "
 SUCCESS=true

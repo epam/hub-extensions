@@ -100,7 +100,14 @@ else
 echo "Done"
 fi
 
-$SILENT || cat << EOF
+set +e
+$SILENT || echo "Validating cloud setup"
+hub ext aws status --skip-guide
+hub_aws_rv="$?"
+set -e
+
+if test "$hub_aws_rv" = "0"; then
+  $SILENT || cat << EOF
 
 All prerequisites has been deployed. Ready to deploy $HUB_DOMAIN_NAME stack.
 
@@ -111,3 +118,18 @@ Please feel free to run:
 $ hub ext stack deploy
 
 EOF
+elif test "$hub_aws_rv" = "3"; then
+  $SILENT || cat << EOF
+
+One or few prerequisites has not been deployed successfully. 
+
+## What's next?
+
+Please login to AWS console to troubleshoot
+
+Then run again:
+
+$ hub ext aws init 
+
+EOF
+fi

@@ -132,7 +132,7 @@ export HUB_STATE_FILE="$hubdir/$domain_name.state"
 export HUB_ELABORATE_FILE="$hubdir/$domain_name.elaborate"
 # Name and region of S3 bucket to store deployment state
 export HUB_STATE_BUCKET="$STATE_BUCKET"
-export HUB_STATE_REGION="$STATE_REGION"
+export HUB_STATE_REGION=$STATE_REGION
 
 # Please double check if corresponds to your EKS cluster
 export K8S_PROVIDER="eks"
