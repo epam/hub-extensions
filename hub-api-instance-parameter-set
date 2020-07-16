@@ -1,0 +1,14 @@
+#!/bin/bash -e
+
+set -o pipefail
+
+HUB=${HUB:-hub}
+domain=$1
+parameter=$2
+value=$3
+
+test -n "$domain" -a -n "$parameter"
+# TODO jq to add parameter if missing
+$HUB api instance get -j "$domain" |
+    jq "{parameters: [.parameters[] | (select(.name == \"${parameter}\")) += {value: \"${value}\"}]}" |
+    $HUB api instance patch "$domain"
