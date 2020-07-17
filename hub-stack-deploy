@@ -29,7 +29,7 @@ EOF
 }
 
 FULL_STACK=true
-GUIDE=${GUIDE:-true}
+NOGUIDE=${NOGUIDE:-false}
 SILENT=${SILENT:-false}
 CLOUD_CHECK=true
 WITH_PREREQS=false
@@ -55,7 +55,10 @@ while test "$1" != ""; do
                             FULL_STACK=false
                             CLOUD_CHECK=false
                             ;;
+        --skip-guide )      NOGUIDE=true
+                            ;;
         -S | --silent )     SILENT=true
+                            NOGUIDE=true
                             exit
                             ;;
         -V | --verbose )    set -x

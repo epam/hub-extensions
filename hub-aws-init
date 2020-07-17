@@ -17,7 +17,7 @@ EOF
 }
 
 SILENT=${SILENT:-false}
-GUIDE=${GUIDE:-true}
+NOGUIDE=${NOGUIDE:-false}
 
 test -f ".env" && source .env
 
@@ -30,8 +30,9 @@ while [ "$1" != "" ]; do
                         export AWS_PROFILE="$1"
                         ;;
     -S | --silent )     SILENT=true
+                        NOGUIDE=true
                         ;;
-    --skip-guide )      GUIDE=false
+    --skip-guide )      NOGUIDE=true
                         ;;
     -V | --verbose )    set -x
                         ;;
@@ -45,8 +46,8 @@ while [ "$1" != "" ]; do
 done
 
 if test ! -f .env; then
-  SILENT || echo "Error: configuration file '.env' does not exist"
-  GUIDE && cat << EOF
+  $SILENT || echo "Error: configuration file '.env' does not exist"
+  $NOGUIDE ||cat << EOF
 
 ## What's next?
 

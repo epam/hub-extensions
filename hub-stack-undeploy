@@ -25,7 +25,8 @@ Parameters:
 EOF
 }
 
-SILENT=false
+SILENT=${SILENT:-false}
+NOGUIDE=${NOGUIDE:-false}
 while [ "$1" != "" ]; do
     case $1 in
         -c | --component )  shift
@@ -39,6 +40,8 @@ while [ "$1" != "" ]; do
         -V | --verbose )    set -x
                             export HUB_TRACE=1
                             export HUB_DEBUG=1
+                            ;;
+        --skip-guide )      NOGUIDE=true
                             ;;
         -h | --help )       usage
                             exit

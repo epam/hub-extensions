@@ -10,17 +10,14 @@ Parameters:
     --aws-region          AWS Region
     --aws-profile         AWS Profile
     -s  --silent          Suppress console outputs in favor of result codes
-    --skip-guide          Suppress "what's next" message
-    -V --verbose          Provides verbosity for debug purposes
-    -s  --silent          Suppress console outputs in favor of result codes
-    --skip-guide          Suppress "What's next messages"
     -V  --verbose         Verbose outputs for debug purpose
+    --skip-guide          Suppress "What's next messages"
     -h  --help            Print this message
 EOF
 }
 
 SILENT=${SILENT:-false}
-GUIDE=${GUIDE:-true}
+NOGUIDE=${NOGUIDE:-false}
 
 # shellcheck disable=SC1091
 test -f ".env" && source ".env"
@@ -34,9 +31,9 @@ while [ "$1" != "" ]; do
                           export AWS_PROFILE="$1"
                           ;;
         -S | --silent )   SILENT=true
-                          GUIDE=false
+                          NOGUIDE=true
                           ;;
-        --skip-guide  )   GUIDE=false
+        --skip-guide  )   NOGUIDE=true
                           ;;
         -V | --verbose )  set -x
                           ;;
@@ -53,7 +50,7 @@ $SILENT || echo "Checking AWS prerequisites:"
 if test -f ".env"; then
   $SILENT || echo "* Configuration file .env exists: YES"
 else
-  $GUIDE && cat << EOF
+  $NOGUIDE || cat << EOF
 * Configuration file .env exists: NO
 
 Error: cannot find stack configuration
@@ -111,7 +108,7 @@ else
 fi
 
 if ! $SUCCESS; then 
-  $GUIDE && cat << EOF
+  $NOGUIDE || cat << EOF
 
 Error: one or multiple prerequisites has not been deployed
 
@@ -125,7 +122,7 @@ EOF
   exit 3
 fi
 
-$GUIDE && cat << EOF
+$NOGUIDE || cat << EOF
 
 ## What's next?
 

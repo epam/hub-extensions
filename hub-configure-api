@@ -12,7 +12,7 @@ Parameters:
     -f --force      overwrite dotenv and kubeconfig files
     -i --ignore     do not switch configuration
     -S --silent     suppress outputs
-    -v --verbose    verbose output for debugging purpose (set -x)
+    -V --verbose    verbose output for debugging purpose (set -x)
     -h --help       print current message
 EOF
 }

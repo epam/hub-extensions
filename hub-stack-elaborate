@@ -18,7 +18,7 @@ Parameters:
 EOF
 }
 
-GUIDE=${GUIDE:-true}
+NOGUIDE=${NOGUIDE:-false}
 SILENT=${SILENT:-false}
 while [ "$1" != "" ]; do
     case $1 in
@@ -27,7 +27,9 @@ while [ "$1" != "" ]; do
     -V | --verbose )    set -x
                         ;;
     -S | --silent )     SILENT=true
-                        GUIDE=false
+                        NOGUIDE=false
+                        ;;
+    --skip-guide )      NOGUIDE=true
                         ;;
     -h | --help )       usage
                         exit
@@ -45,7 +47,7 @@ EOF
 if [[ ! -f .env ]]; then
   $SILENT || echo "* Error: configuration '.env' has not been found" 
 
-  GUIDE && cat << EOF
+  $NOGUIDE || cat << EOF
 
 ## What's next?
 
@@ -76,7 +78,7 @@ hub elaborate hub.yaml params.yaml -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS
 
 $SILENT || echo "* Result saved to to: $HUB_ELABORATE_FILE"
 
-$GUIDE || cat << EOF
+$NOGUIDE || cat << EOF
 
 Deployment plan has been recalculated, stored and ready to deploy 
 

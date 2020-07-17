@@ -11,21 +11,23 @@ the existing platform
 Usage: $(basename "$0") [-c KUBECONTEXT]
 
 Parameters:
-    -k --kubeconfig       Path to the kubeconfig. If not specified then use default to kubectl
-    -c --kubecontext      Name of Kubernetes context in Kubeconfig file
-                           "-" or "_" are the shorthands for "current context"
-    --current-kubecontext Use current kubecontext existing
+    -k --kubeconfig        Path to the kubeconfig. If not specified then use default to kubectl
+    -c --kubecontext       Name of Kubernetes context in Kubeconfig file
+                             "-" or "_" are the shorthands for "current context"
+    --current-kubecontext  Use current kubecontext existing
                            configuration (mandatory)
-    -f --force             To recreate configuration
-    -S --silent            Silence outputs
     --aws-region           AWS Region
     --aws-profile          AWS Profile
+    -f --force             To recreate configuration
+    -S --silent            Silence outputs
+    --skip-guide           Suppress "What's next messages"
+    -V  --verbose          Verbose outputs for debug purpose
 
 Use: $(basename "$0") [-c -] or [-c _] or [--current-kubecontext] for current kubecontext
 EOF
 }
 
-GUIDE=${GUIDE:-true}
+NOGUIDE=${NOGUIDE:-false}
 SILENT=${SILENT:-false}
 while [ "$1" != "" ]; do
   case "$1" in
@@ -37,17 +39,20 @@ while [ "$1" != "" ]; do
                              ;;
     -f | --force )           FORCE=1
                              ;;
-    -k | --kubeconfig )     shift
+    -k | --kubeconfig )      shift
                              export KUBECONFIG="$1"
                              ;; 
-    -c | --kubecontext )    shift
+    -c | --kubecontext )     shift
                              kubecontext="$1"
                              ;;
-    --current-kubecontext ) kubecontext="_"
+    --current-kubecontext )  kubecontext="_"
                              ;;
     -S | --silent )          SILENT=true
+                             NOGUIDE=true
                              ;;
-    -V | --verbose )         set +x
+    --skip-guide  )          NOGUIDE=true
+                             ;;
+    -V | --verbose )         set -x
                              ;;
     -h | --help )            usage
                              exit
@@ -58,6 +63,8 @@ while [ "$1" != "" ]; do
   shift
 done
 
+export NOGUIDE SILENT
+
 if test -z "$kubecontext"; then
   usage
   exit 1
@@ -66,8 +73,6 @@ fi
 if test "$kubecontext" == "-" || test "$kubecontext" == "_"; then
   kubecontext="$(kubectl config current-context)"
 fi
-
-export GUIDE SILENT
 
 $SILENT || cat <<EOF
 Configuring stack:
