@@ -81,42 +81,19 @@ hosted_zone_exists() {
 }
 SUCCESS=true
 
-# $SILENT || echo -n "* checking connectivity to cluster $HUB_STATE_BUCKET: "
-# set +e
-# kubectl cluster-info >/dev/null 2>&1
-# kubectl_rv=$?
-# set -e
-
-# if test "$kubectl_rv" = "0"; then
-#   $SILENT || echo "YES"
-# else
-#   $SILENT || echo "NO"
-
-# $GUIDE && cat << EOF
-
-# Error: kubernetes cluster has not been reachable.
-
-# ## What's next?
-# 1. You might want to check connectivity to your cluster
-
-# $ kubectl cluster-info
-
-# 2. Check if '.env' poits to correct config file
-
-# $ readlink -n .env
-
-# 3. If (2) doesn't, then re-apply configuration with
-
-# $ hub configure --kubecontext <desired-cluster>
-# or
-# $ hub configure --current-kubecontext
-
-# EOF
-#   exit 4  
-# fi
+$SILENT || echo -n "* Checking connectivity to cluster $(kubectl config current-context): "
+set +e
+stderr=$(kubectl cluster-info 2>&1 > /dev/null)
+rv=$?
+set -e
+if test "$rv" = "0"; then
+  echo "YES"
+else
+  echo "NO ($stderr)"
+  SUCCESS=false
+fi
 
 $SILENT || echo -n "* s3 bucket $HUB_STATE_BUCKET exists: "
-SUCCESS=true
 if bucket_exists "$HUB_STATE_BUCKET"; then
   $SILENT || echo "YES"
 else 
