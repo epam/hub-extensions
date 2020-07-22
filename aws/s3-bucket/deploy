@@ -46,7 +46,13 @@ bucket_exists() {
   aws s3api head-bucket --bucket="$1" 2>/dev/null
 }
 
-# bucket_exists "$BUCKET_NAME" && exit
+set +e
+bucket_exists "$BUCKET_NAME"
+if test "$?" = "0"; then
+  echo "Bucket already exists"
+  exit 0
+fi
+set -e
 
 if test "$AWS_REGION" != "us-east-1"; then
   LOCATION="--create-bucket-configuration LocationConstraint=$AWS_REGION"
@@ -60,6 +66,7 @@ RESULT=$(aws s3api create-bucket \
         --region="$AWS_REGION" $LOCATION 2>&1 >/dev/null)
 if test "$?" != "0"; then 
   if echo "$RESULT" | grep "BucketAlreadyOwnedByYou" >/dev/null; then
+    echo "Bucket already exists"
     exit
   fi
 else
@@ -69,3 +76,4 @@ fi
 set -e
 
 aws s3api wait bucket-exists --bucket="$BUCKET_NAME"
+echo "Done"

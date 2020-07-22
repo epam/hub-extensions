@@ -64,17 +64,9 @@ pwd=$(dirname "$0")
 
 echo -n "* S3 bucket $HUB_STATE_BUCKET for deployment state... "
 $pwd/aws/s3-bucket/deploy \
-  --bucket-name "$HUB_STATE_BUCKET" \
-  --aws-region "$AWS_REGION" \
-  --acl "private"
-  
-if test "$?" = "0"; then 
-  echo "Done"
-else
-  echo "Failed"
-  exit 4
-fi
-set -e
+    --bucket-name "$HUB_STATE_BUCKET" \
+    --aws-region "$AWS_REGION" \
+    --acl "private" || exit 4
 
 set +e
 echo -n "* Route53 hosted zone for $HUB_DOMAIN_NAME... "
