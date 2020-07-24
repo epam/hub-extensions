@@ -81,6 +81,9 @@ EOF
     exit 2
   fi
 
+  test -n "$POLICY_NAME" || \
+    POLICY_NAME="hub-$CLUSTER_NAME-$(basename "$POLICY_DOC" | cut -f 1 -d '.')"
+    
   echo -n "* Creating role policy: ... "
   aws iam get-policy \
     --policy-arn "$POLICY_ARN" \
