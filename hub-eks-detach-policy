@@ -1,0 +1,98 @@
+#!/bin/bash -e
+
+usage() {
+  cat << EOF
+Attaches custom user role policy for cluster node group
+
+Usage: $(basename "$0") -c lorem-ipsum --all
+
+Usage: $(basename "$0") -c lorem-ipsum -p AmazonS3FullAccess
+
+Parameters:
+    -c --eks-cluster      Name of the eks cluster (required)
+    -a --all              Detach all role policies
+    --aws-region          AWS Region
+    --aws-profile         AWS Profile
+    -V  --verbose         Verbose outputs for debug purpose
+EOF
+}
+
+test -f ".env" && source .env
+
+ALL_POLICIES=false
+POLICY_NAME="$CLUSTER_NAME-custompolicy"
+
+while [ "$1" != "" ]; do
+  case $1 in
+    -c | --eks-cluster ) shift
+                         CLUSTER_NAME="$1"
+                         ;;
+    -a | --all )         ALL_POLICIES=true
+                         ;;
+    -p | --policy )      shift
+                         POLICY_NAME="$1"
+                         ;;
+    --aws-region )       shift
+                         export AWS_REGION="$1"
+                         ;;
+    --aws-profile )      shift
+                         export AWS_PROFILE="$1"
+                         ;;
+    -V | --verbose )     set -x
+                         ;;
+    -h | --help )        usage
+                         exit
+                         ;;
+    * )                  usage
+                         sexit 1
+  esac
+  shift
+done
+
+if test -z "$CLUSTER_NAME"; then
+  usage
+  exit 1
+fi
+
+export AWS_DEFAULT_OUTPUT=text
+
+# POLICYDOC=$(mktemp)
+# trap "{ rm -f $POLICYDOC; }" EXIT
+echo "Detaching iam policies from $CLUSTER_NAME node group:"
+echo "* Using region: $AWS_REGION"
+
+echo -n "* Using node group role: ... "
+ROLE_ARN=$(eksctl get iamidentitymapping --cluster "$CLUSTER_NAME" -o json | jq -r '.[0].rolearn')
+ROLE_NAME=$(basename $ROLE_ARN)
+echo "$ROLE_NAME"f
+
+ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account')
+
+if $ALL_POLICIES; then
+  ARNS=$(aws iam list-attached-role-policies \
+                --role-name "$ROLE_NAME" \
+                --query 'AttachedPolicies[].PolicyArn')
+else
+  ARNS=$(aws iam list-attached-role-policies \
+                --role-name "$ROLE_NAME" \
+                --query "AttachedPolicies[?PolicyName==\`$POLICY_NAME\`].PolicyArn")
+fi
+
+set +e
+for ARN in $ARNS; do
+  echo -n "* Detaching $(basename $ARN) policy: "
+  aws iam detach-role-policy \
+    --role-name "$ROLE_NAME" \
+    --policy-arn "$ARN" && echo "Done" || echo " (Ignoring)"
+done 
+
+if aws iam get-policy --policy-arn "$POLICY_ARN" --query 'Policy.Arn' 2>/dev/null; then
+  echo -n "* Deleting $POLICY_NAME policy: "
+  aws iam delete-policy --policy-arn "arn:aws:iam::$ACCOUNT_ID:policy/$POLICY_NAME"
+  echo "Done"
+fi
+
+cat << EOF
+
+Done!
+EOF
