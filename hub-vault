@@ -1,0 +1,126 @@
+#!/bin/bash -e
+
+usage() {
+cat << EOF
+Wrapper script around vault. With only difference it uses a port-forward
+
+Usage: $(basename "$0") [-c KUBECONTEXT]
+
+Parameters:
+    -n --namespace         Vault namespace
+    -k --kubeconfig        Path to the kubeconfig. If not specified then use default to kubectl
+    -c --kubecontext       Name of Kubernetes context in Kubeconfig file
+                             "-" or "_" are the shorthands for "current context"
+    --current-kubecontext  Use current kubecontext existing
+                           configuration (mandatory)
+    -s --silent            Silent
+    -V --verbose           Add some verbosity to output
+    -h --help              Print this message
+
+Use: 
+
+$(basename "$0") [-c _] or [--current-kubecontext] for current kubecontext
+
+EOF
+}
+
+context="_"
+namespace="vault"
+VAULT_SVC="svc/vault"
+VAULT_LOCAL_PORT=$(awk 'BEGIN{srand();print int(rand()*(63000-2000))+2000 }')
+SILENT=false
+VAULT_ARGS=
+
+# shellcheck disable=SC1091
+test ! -f ".env" || source ".env"
+
+while [ "$1" != "" ]; do
+  case "$1" in
+    -n | --namespace )      shift
+                            namespace="$1"
+                            ;; 
+    -k | --kubeconfig )     shift
+                            export KUBECONFIG="$1"
+                            ;; 
+    -c | --kubecontext )    shift
+                            context="$1"
+                            ;;
+    -s | --service )        shift
+                            VAULT_SVC="$1"
+                            ;;
+    --current-kubecontext ) context="_"
+                            ;;
+    -s | --silent )         SILENT=true
+                            ;;
+    -h | --help )           usage
+                            exit 0
+                            ;;
+    -V | --verbose )        set -x
+                            ;;
+    * )                     VAULT_ARGS="$VAULT_ARGS $1"
+                            ;;
+  esac
+  shift
+done
+
+if test "$context" == "_"; then
+  context="$(kubectl config current-context)"
+fi
+
+$SILENT || cat << EOF 
+Proceeding to initialize: $VAULT_SVC
+* Using context: $context
+* Using namespace: $namespace
+EOF
+VAULT_ADDR="http://127.0.0.1:$VAULT_LOCAL_PORT"
+export VAULT_ADDR
+
+KUBECTL=${KUBECTL:-kubectl --context="$context" --namespace="$namespace"}
+set +e
+SERVICE_PAYLOAD=$($KUBECTL get -o json $VAULT_SVC)
+if test "$?" != "0"; then
+  $SILENT || echo "Error: cannot find service $COMPONENT_NAME"
+  exit 2
+fi
+set -e
+
+VAULT_PORT=$(echo $SERVICE_PAYLOAD \
+             | jq -r '.spec.ports[] | select(.name=="http").port | if . == "" then 8200 else . end' \
+            )
+$SILENT || echo "* Using resource: $VAULT_SVC:$VAULT_PORT"
+
+connect() {
+  $SILENT || echo "* Starting port forward to $VAULT_LOCAL_PORT"
+  $KUBECTL port-forward "$VAULT_SVC" "$1:$VAULT_PORT" >/dev/null 2>&1 & 
+  trap 'kill $(jobs -p)' EXIT
+  sleep 3
+}
+
+connect "$VAULT_LOCAL_PORT"
+$SILENT || echo -n "* Checking vault at $VAULT_ADDR: "
+statuscode=$(curl -sLko /dev/null -w "%{http_code}" $VAULT_ADDR/v1/sys/health)
+case "$statuscode" in
+"200" )
+  STATUS="Running" ;;
+"429" )s
+  STATUS="Unsealed" ;;
+"472" )
+  STATUS="Disaster recovery" ;;
+"473" )
+  STATUS="Standby" ;;
+"501" )
+  STATUS="Not initialized" ;;
+"503" )
+  STATUS="Not initialized" ;;
+"000" )
+  STATUS="No HTTP response" ;;
+*)
+  STATUS="Status code $statuscode" ;;
+esac
+
+$SILENT || echo "$STATUS"
+
+$SILLENT || echo "* Running: vault $VAULT_ARGS"
+
+# shellcheck disable=SC2086
+vault $VAULT_ARGS
