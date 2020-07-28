@@ -4,7 +4,12 @@ usage() {
 cat << EOF
 Wrapper script around vault. With only difference it uses a port-forward
 
-Usage: $(basename "$0") [-c KUBECONTEXT]
+Usage: 
+  $(basename "$0") [args] [vault sub-command] [vault args]
+
+Current kubecontext:
+  $(basename "$0") [no arg] or [-c _] or [--current-kubecontext]
+
 
 Parameters:
     -n --namespace         Vault namespace
@@ -13,15 +18,18 @@ Parameters:
                              "-" or "_" are the shorthands for "current context"
     --current-kubecontext  Use current kubecontext existing
                            configuration (mandatory)
+    -S --service           Reference to vault service
     -s --silent            Silent
     -V --verbose           Add some verbosity to output
     -h --help              Print this message
 
-Use: 
+Example: 
+  $(basename "$0") [-c _] status
+  $(basename "$0") [-c _] -S svc/vault list
 
-$(basename "$0") [-c _] or [--current-kubecontext] for current kubecontext
-
+Sub-command $(basename "$0"):
 EOF
+  vault $VAULT_ARGS --help
 }
 
 context="_"
@@ -44,7 +52,7 @@ while [ "$1" != "" ]; do
     -c | --kubecontext )    shift
                             context="$1"
                             ;;
-    -s | --service )        shift
+    -S | --service )        shift
                             VAULT_SVC="$1"
                             ;;
     --current-kubecontext ) context="_"
