@@ -27,7 +27,6 @@ EOF
 context="_"
 namespace="vault"
 VAULT_SVC="svc/vault"
-VAULT_LOCAL_PORT=$(awk 'BEGIN{srand();print int(rand()*(63000-2000))+2000 }')
 SILENT=false
 VAULT_ARGS=
 
@@ -72,14 +71,18 @@ Proceeding to initialize: $VAULT_SVC
 * Using context: $context
 * Using namespace: $namespace
 EOF
+
+VAULT_LOCAL_PORT=$(awk 'BEGIN{srand();print int(rand()*(63000-2000))+2000 }')
 VAULT_ADDR="http://127.0.0.1:$VAULT_LOCAL_PORT"
 export VAULT_ADDR
 
 KUBECTL=${KUBECTL:-kubectl --context="$context" --namespace="$namespace"}
+
+$SILENT || echo -n "* Using service: $VAULT_SVC"
 set +e
 SERVICE_PAYLOAD=$($KUBECTL get -o json $VAULT_SVC)
 if test "$?" != "0"; then
-  $SILENT || echo "Error: cannot find service $COMPONENT_NAME"
+  $SILENT || echo " Error: cannot find service $COMPONENT_NAME"
   exit 2
 fi
 set -e
@@ -87,15 +90,15 @@ set -e
 VAULT_PORT=$(echo $SERVICE_PAYLOAD \
              | jq -r '.spec.ports[] | select(.name=="http").port | if . == "" then 8200 else . end' \
             )
-$SILENT || echo "* Using resource: $VAULT_SVC:$VAULT_PORT"
 
 connect() {
-  $SILENT || echo "* Starting port forward to $VAULT_LOCAL_PORT"
+  $SILENT || echo "* Port forwarding to $1"
   $KUBECTL port-forward "$VAULT_SVC" "$1:$VAULT_PORT" >/dev/null 2>&1 & 
   trap 'kill $(jobs -p)' EXIT
   sleep 3
 }
 
+$SILENT || echo ":$VAULT_PORT"
 connect "$VAULT_LOCAL_PORT"
 $SILENT || echo -n "* Checking vault at $VAULT_ADDR: "
 statuscode=$(curl -sLko /dev/null -w "%{http_code}" $VAULT_ADDR/v1/sys/health)
