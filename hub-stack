@@ -23,22 +23,24 @@ if test -z "$@"; then
   exit 1
 fi
 
+HUB=${HUB:-hub}
+
 while [ "$1" != "" ]; do
   case $1 in
-    deploy )      hub-stack-deploy $@      
+    deploy )      $HUB stack deploy $@
                   ;;
-    undeploy )    hub-stack-undeploy $@      
+    undeploy )    $HUB stack undeploy $@
                   ;;
-    elaborate )    hub-stack-elaborate $@      
+    elaborate )   $HUB stack elaborate $@
                   ;;
-    configure )   hub-configure $@      
-                  ;;  
+    configure )   $HUB configure $@
+                  ;;
     ls )          echo "Not yet implemented"
-                  exit 1 
+                  exit 1
                   ;;
     show )        echo "Not yet implemented"
-                  exit 1 
-                  ;;               
+                  exit 1
+                  ;;
     -h | --help ) usage
                   exit
                   ;;

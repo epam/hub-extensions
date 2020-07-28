@@ -27,6 +27,7 @@ Use: $(basename "$0") [-c -] or [-c _] or [--current-kubecontext] for current ku
 EOF
 }
 
+HUB=${HUB:-hub}
 NOGUIDE=${NOGUIDE:-false}
 SILENT=${SILENT:-false}
 while [ "$1" != "" ]; do
@@ -41,7 +42,7 @@ while [ "$1" != "" ]; do
                              ;;
     -k | --kubeconfig )      shift
                              export KUBECONFIG="$1"
-                             ;; 
+                             ;;
     -c | --kubecontext )     shift
                              kubecontext="$1"
                              ;;
@@ -100,7 +101,7 @@ if aws $AWS_OPTS s3api head-bucket --bucket="$STATE_BUCKET" 2>/dev/null; then
   STATE_REGION="$(aws $AWS_OPTS s3api get-bucket-location \
     --bucket="$STATE_BUCKET" --query 'LocationConstraint' \
     | sed -e 's/null/us-east-1/g')"
-else 
+else
   STATE_REGION="$AWS_REGION"
 fi
 
@@ -202,7 +203,7 @@ if test ! -f "$kubeconfig" || test -n "$FORCE"; then
   "current-context": "$domain_name"
 }
 EOF
-  
+
   if ! test -f "$kubeconfig"; then
     cat "$tmpfile2" > "$kubeconfig"
   elif ! cmp -s "$tmpfile2" "$kubeconfig"; then
@@ -212,5 +213,5 @@ EOF
   fi
   $SILENT || echo "* Created kubeconfig $kubeconfig "
 fi
-echo 
-hub-aws-status
+echo
+$HUB aws status

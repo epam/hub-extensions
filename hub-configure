@@ -1,9 +1,11 @@
 #!/bin/bash -e
 # shellcheck disable=SC2046,SC2068
 
+HUB=${HUB:-hub}
+
 if test -n "$HUB_TOKEN"; then
-  hub-configure-api $@
+  $HUB configure api $@
 else
   # TODO: we need properly detect eks cluster
-  hub-configure-eks $@
+  $HUB configure eks $@
 fi

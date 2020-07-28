@@ -18,13 +18,15 @@ if test -z "$@"; then
   exit 1
 fi
 
+HUB=${HUB:-hub}
+
 while [ "$1" != "" ]; do
   case $1 in
-    init )        hub-aws-init $@      
+    init )        $HUB aws init $@
                   ;;
-    undeploy )    hub-aws-undeploy $@      
-                  ;;                  
-    status )      hub-aws-status $@      
+    undeploy )    $HUB aws undeploy $@
+                  ;;
+    status )      $HUB aws status $@
                   ;;
     -h | --help ) usage
                   exit
@@ -34,4 +36,3 @@ while [ "$1" != "" ]; do
   esac
   shift
 done
-
