@@ -10,18 +10,16 @@ Usage:
 Current kubecontext:
   $(basename "$0") [no arg] or [-c _] or [--current-kubecontext]
 
-
 Parameters:
-    -n --namespace         Vault namespace
-    -k --kubeconfig        Path to the kubeconfig. If not specified then use default to kubectl
-    -c --kubecontext       Name of Kubernetes context in Kubeconfig file
-                             "-" or "_" are the shorthands for "current context"
-    --current-kubecontext  Use current kubecontext existing
-                           configuration (mandatory)
-    -S --service           Reference to vault service
-    -s --silent            Silent
-    -V --verbose           Add some verbosity to output
-    -h --help              Print this message
+  -n --namespace         Vault namespace
+  -k --kubeconfig        Path to the kubeconfig. If not specified then use default to kubectl
+  -c --kubecontext       Name of Kubernetes context in Kubeconfig file
+                         "_" are the shorthands for "current context"
+  --current-kubecontext  Use current kubecontext existing
+  -S --service           Reference to vault service
+  -s --silent            Silent
+  -V --verbose           Add some verbosity to output
+  -h --help              Print this message
 
 Example: 
   $(basename "$0") [-c _] status
@@ -130,29 +128,22 @@ connect() {
 
 $SILENT || echo ":$VAULT_PORT"
 connect "$VAULT_LOCAL_PORT"
-$SILENT || echo -n "* Checking vault at $VAULT_ADDR: "
-
-# see: https://www.vafultproject.io/api-docs/system/health#read-health-information
-statuscode=$(curl -sLko /dev/null -w "%{http_code}" "$VAULT_ADDR/v1/sys/health")
-case "$statuscode" in
-"200" )
-  STATUS="Running" ;;
-"429" )s
-  STATUS="Unsealed" ;;
-"472" )
-  STATUS="Disaster recovery" ;;
-"473" )
-  STATUS="Standby" ;;
-"501" )
-  STATUS="Not initialized" ;;
-"503" )
-  STATUS="Not initialized" ;;
-"000" )
-  STATUS="No HTTP response" ;;
-*)
-  STATUS="Status code $statuscode" ;;
-esac
-$SILENT || echo "$STATUS"
-$SILENT || echo "* Running: vault $VAULT_ARGS"
+if ! $SILENT; then
+  echo -n "* Checking vault at $VAULT_ADDR: "
+  # see: https://www.vafultproject.io/api-docs/system/health#read-health-information
+  code=$(curl -sLko /dev/null -w "%{http_code}" "$VAULT_ADDR/v1/sys/health")
+  case "$code" in
+    "200" ) STATUS="Running" ;;
+    "429" ) STATUS="Unsealed" ;;
+    "472" ) STATUS="Disaster recovery" ;;
+    "473" ) STATUS="Standby" ;;
+    "501" ) STATUS="Not initialized" ;;
+    "503" ) STATUS="Not initialized" ;;
+    "000" ) STATUS="No HTTP response" ;;
+    * )     STATUS="Status code $code" ;;
+  esac
+  echo "$STATUS"
+  echo "* Running: vault $VAULT_ARGS"
+fi
 # shellcheck disable=SC2086
 vault $VAULT_ARGS
