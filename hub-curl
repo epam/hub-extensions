@@ -1,0 +1,183 @@
+#!/bin/bash -e
+
+usage() {
+cat << EOF
+Wrapper script around curl. This script establishes 
+a port forward connection to kubernetes service and 
+makes CURL request and prints response
+
+Exit code 0 if http respone code is 200 OK
+otherwise scrip exit is HTTP response code
+
+Usage: 
+  $(basename "$0") [args] CONTEXT-PATH -- [curl-args]
+
+Current kubecontext:
+  $(basename "$0") [no arg] or [-c _] or [--current-kubecontext]
+
+Parameters:
+  -r --k8s-resource      Reference to vault service
+  -p --port              Name of the port or it's number
+  -n --namespace         Vault namespace
+  -k --kubeconfig        Path to the kubeconfig. If not specified then use default to kubectl
+  -c --kubecontext       Name of Kubernetes context in Kubeconfig file
+                            "_" are the shorthands for "current context"
+  --current-kubecontext  Use current kubecontext existing
+                          configuration (mandatory)
+  -s --silent            Silent
+  -V --verbose           Add some verbosity to output
+  -h --help              Print this message
+  --                     After this symbol you supply curl arguments
+
+Example: 
+  $(basename "$0") -c _ -p http -S svc/vault /healz
+  $(basename "$0") -c _ -p 8200 -S svc/vault /healz -- -so /dev/null -w '%{http_code}
+
+curl arguments help:
+EOF
+  curl --help
+}
+
+context="_"
+NAMESPACE=$(kubectl config view --minify -o json | jq -r '.contexts[0].context.namespace')
+K8S_RESOURCE="svc/vault"
+SILENT=${SILENT:-false}
+
+# shellcheck disable=SC1091
+test ! -f ".env" || source ".env"
+
+HAS_SEPARATOR=false
+CURL_ARGS=
+CONTEXT_PATH=
+while [ "$1" != "" ]; do
+  if ! $HAS_SEPARATOR; then
+    case "$1" in
+      -n | --namespace )      shift
+                              NAMESPACE="$1"
+                              ;; 
+      -k | --kubeconfig )     shift
+                              export KUBECONFIG="$1"
+                              ;; 
+      -c | --kubecontext )    shift
+                              context="$1"
+                              ;;
+      --current-kubecontext ) context="_"
+                              ;;
+      -r | --k8s-resource )   shift
+                              K8S_RESOURCE="$1"
+                              ;;
+      -p | --port )           shift
+                              if "$1" =~ '^[0-9]+$'; then 
+                                PORT_NUMBER="$1"
+                              else 
+                                PORT_NAME="$1"
+                              fi
+                              ;;
+      -s | --silent )         SILENT=true
+                              ;;
+      -h | --help )           usage
+                              exit 0
+                              ;;
+      -V | --verbose )        set -x
+                              ;;
+      -- )                    HAS_SEPARATOR=true
+                              break
+                              ;;
+      * )                     
+                              CONTEXT_PATH=$1
+                              ;;
+    esac
+  else
+    CURL_ARGS="$CURL_ARGS $1"
+  fi
+  shift
+done
+
+if test -z "$CONTEXT_PATH"; then
+  usage
+  exit 1
+fi
+
+if test "$(echo $CONTEXT_PATH | head -c 1)" == "/"; then
+  CONTEXT_PATH=$(echo "$CONTEXT_PATH" | tail -c +2)
+fi
+
+if test -z "$CURL_ARGS"; then
+  CURL_ARGS=-s
+fi
+
+if test "$context" == "_"; then
+  context="$(kubectl config current-context)"
+fi
+
+$SILENT || cat << EOF 
+Proceeding to initialize: $K8S_RESOURCE
+* Using context: $context
+* Using namespace: $NAMESPACE
+* Using resource: $K8S_RESOURCE
+EOF
+
+KUBECTL=${KUBECTL:-kubectl --context="$context" --namespace="$NAMESPACE"}
+
+set +e
+KUBECTL_RESP=$($KUBECTL get -o json $K8S_RESOURCE)
+if test "$?" != "0"; then
+  $SILENT || echo " Error: cannot get $K8S_RESOURCE"
+  exit 2
+fi
+set -e
+
+KIND=$(echo $KUBECTL_RESP | jq -r '.kind')
+case $KIND in
+  "Service" )
+    # shellcheck disable=SC2086
+    if test -n "$PORT_NAME"; then 
+      PORT_NUMBER=$(echo "$KUBECTL_RESP" | jq -r '.spec.ports[] | select(.name=="'$PORT_NAME'").port')
+    else
+      PORT_NUMBER=$(echo "$KUBECTL_RESP" | jq -r '.spec.ports[0].port')
+    fi
+    ;;
+  * ) 
+     echo "Error: $KIND not yet supported"
+     exit 2
+    ;;
+esac
+
+LOCAL_PORT=$(awk 'BEGIN{srand();print int(rand()*(63000-2000))+2000 }')
+K8S_ADDR="127.0.0.1:$LOCAL_PORT"
+export K8S_RSC_ADDR
+
+trap 'kill $(jobs -p) || exit 0' EXIT
+$SILENT || echo    "* Using port number: $PORT_NUMBER"
+$SILENT || echo -n "* Starting port forwarding to $LOCAL_PORT: "
+
+kfctl_pid=0
+set +e
+for _ in $(seq 30); do
+  $SILENT || echo -n "."
+  if ! ps -p $kfctl_pid > /dev/null; then
+    $KUBECTL port-forward "$K8S_RESOURCE" "$LOCAL_PORT:$PORT_NUMBER" >/dev/null 2>&1 &
+    kfctl_pid=$!
+    sleep 2
+    continue
+  fi
+
+  RESP=$(curl -w "\n%{http_code}" $CURL_ARGS "$K8S_ADDR/$CONTEXT_PATH")
+  HTTP_CODE=$(echo $RESP | tail -c -4)
+  # non http response
+  if test "$HTTP_CODE" != "000"; then
+    $SILENT || echo "Done"
+    echo "$RESP" | sed \$d
+    if test "$(echo $HTTP_CODE | head -c 1)" == "2"; then
+      exit 0
+    fi
+    exit "$HTTP_CODE"
+  fi
+
+  sleep 5
+done
+set -e
+
+$SILENT || echo " Error"
+$SILENT || echo "Timed out trying to establish port forwarding to vault"
+exit 1
