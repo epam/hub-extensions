@@ -84,9 +84,9 @@ stderr=$(kubectl cluster-info 2>&1 > /dev/null)
 rv=$?
 set -e
 if test "$rv" = "0"; then
-  echo "YES"
+  $SILENT || echo "YES"
 else
-  echo "NO ($stderr)"
+  $SILENT || echo "NO ($stderr)"
   SUCCESS=false
 fi
 
