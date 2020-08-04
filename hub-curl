@@ -39,7 +39,6 @@ EOF
 }
 
 context="_"
-NAMESPACE=$(kubectl config view --minify -o json | jq -r '.contexts[0].context.namespace')
 K8S_RESOURCE="svc/vault"
 SILENT=${SILENT:-false}
 
@@ -81,7 +80,6 @@ while [ "$1" != "" ]; do
       -V | --verbose )        set -x
                               ;;
       -- )                    HAS_SEPARATOR=true
-                              break
                               ;;
       * )                     
                               CONTEXT_PATH=$1
@@ -110,8 +108,16 @@ if test "$context" == "_"; then
   context="$(kubectl config current-context)"
 fi
 
+if test -z "$NAMESPACE"; then
+  NAMESPACE=$(kubectl config view --minify -o json \
+    | jq -r \
+    '.contexts[] | select(.name == "'$context'").namespace | select (.!=null)')
+fi
+if test -z "$NAMESPACE"; then
+  NAMESPACE="default"
+fi
+
 $SILENT || cat << EOF 
-Proceeding to initialize: $K8S_RESOURCE
 * Using context: $context
 * Using namespace: $NAMESPACE
 * Using resource: $K8S_RESOURCE
@@ -166,7 +172,8 @@ for _ in $(seq 30); do
   HTTP_CODE=$(echo $RESP | tail -c -4)
   # non http response
   if test "$HTTP_CODE" != "000"; then
-    $SILENT || echo "Done"
+    $SILENT || echo " Done"
+    $SILENT || echo "* HTTP result code: $HTTP_CODE"
     echo "$RESP" | sed \$d
     if test "$(echo $HTTP_CODE | head -c 1)" == "2"; then
       exit 0
