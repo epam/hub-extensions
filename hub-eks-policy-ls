@@ -55,7 +55,9 @@ export AWS_DEFAULT_OUTPUT=text
 
 ROLE_ARN=$(eksctl get iamidentitymapping --cluster "$CLUSTER_NAME" -o json | jq -r '.[0].rolearn')
 if test -n "$ROLE_ARN"; then
-  aws iam list-attached-role-policies \
-      --role-name "$(basename $ROLE_ARN)" \
-      --query 'AttachedPolicies[].PolicyName'
+  for NAME in $(aws iam list-attached-role-policies \
+                  --role-name "$(basename $ROLE_ARN)" \
+                  --query 'AttachedPolicies[].PolicyName'); do
+    echo "$NAME"
+  done
 fi
