@@ -6,9 +6,12 @@ usage() {
 
 Usage: $(basename "$0") <sub command>
 
+EKS cluster cluster specific extensions
+
 Sub commands:
-    policy attach   Attach IAM policy to eks cluster node group
-    policy detach   Remove IAM policy from eks cluster node group
+    policy attach   Attach IAM policy to node group
+    policy detach   Remove IAM policy from node group
+    policy ls       List IAM policies for node group
 
 EOF
 }

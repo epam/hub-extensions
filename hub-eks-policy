@@ -6,9 +6,12 @@ usage() {
 
 Usage: $(basename "$0") <sub command>
 
+EKS cluster node group IAM policies
+
 Sub commands:
-    attach   Attach IAM policy to eks cluster node group
-    detach   Remove IAM policy from eks cluster node group
+    attach   Attach IAM policy
+    detach   Remove IAM policy
+    ls       List IAM policies
 
 EOF
 }
@@ -23,6 +26,8 @@ while [ "$1" != "" ]; do
     attach )      hub-eks-policy-attach $@      
                   ;;                 
     detach )      hub-eks-policy-attach $@      
+                  ;;                 
+    ls     )      hub-eks-policy-ls $@      
                   ;;                 
     -h | --help ) usage
                   exit
