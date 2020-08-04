@@ -2,7 +2,7 @@
 
 usage() {
   cat << EOF
-Attaches custom user role policy for cluster node group
+Remove IAM policy from EKS cluster
 
 Usage: $(basename "$0") -c lorem-ipsum --all
 
@@ -11,6 +11,7 @@ Usage: $(basename "$0") -c lorem-ipsum -p AmazonS3FullAccess
 Parameters:
     -c --eks-cluster      Name of the eks cluster (required)
     -a --all              Detach all role policies
+    -f --file             Policy document
     --aws-region          AWS Region
     --aws-profile         AWS Profile
     -V  --verbose         Verbose outputs for debug purpose
@@ -27,6 +28,9 @@ while [ "$1" != "" ]; do
     -c | --eks-cluster ) shift
                          CLUSTER_NAME="$1"
                          ;;
+    -f | --file )       shift
+                        export POLICY_DOC="$1"
+                        ;;
     -a | --all )         ALL_POLICIES=true
                          ;;
     -p | --policy )      shift
@@ -49,12 +53,16 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test -z "$CLUSTER_NAME"; then
+if test -z "$CLUSTER_NAME" || test "$POLICY_NAME $POLICY_DOC" = " "; then
   usage
   exit 1
 fi
 
 export AWS_DEFAULT_OUTPUT=text
+
+if test -n "$POLICY_DOC"; then
+  POLICY_NAME="hub-$CLUSTER_NAME-$(basename "$POLICY_DOC" | cut -f 1 -d '.')"
+fi
 
 # POLICYDOC=$(mktemp)
 # trap "{ rm -f $POLICYDOC; }" EXIT

@@ -1,0 +1,33 @@
+#!/bin/bash -e
+# shellcheck disable=SC2068
+
+usage() {
+  cat << EOF
+
+Usage: $(basename "$0") <sub command>
+
+Sub commands:
+    policy attach   Attach IAM policy to eks cluster node group
+    policy detach   Remove IAM policy from eks cluster node group
+
+EOF
+}
+
+if test -z "$@"; then
+  usage
+  exit 1
+fi
+
+while [ "$1" != "" ]; do
+  case $1 in
+    policy )      hub-eks-policy $@      
+                  ;;                 
+    -h | --help ) usage
+                  exit
+                  ;;
+    * )           usage
+                  exit 1
+  esac
+  shift
+done
+

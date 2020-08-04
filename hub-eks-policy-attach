@@ -14,8 +14,8 @@ $(basename "$0") -c lorem-ipsum -p AmazonS3FullAccess
 
 Parameters:
     -c --eks-cluster      Name of the eks cluster
-    -f  --file            Policy document 
-    -p  --policy          Policy name
+    -f --file             Policy document 
+    -p --policy           Policy name
     --aws-region          AWS Region
     --aws-profile         AWS Profile
     -V  --verbose         Verbose outputs for debug purpose
@@ -24,8 +24,6 @@ EOF
 
 test -f ".env" && source .env
 export AWS_DEFAULT_OUTPUT=text
-
-# POLICY_DOC="$(dirname "$0")/iam-role-policy.json"
 
 while [ "$1" != "" ]; do
   case $1 in
@@ -81,9 +79,10 @@ EOF
     exit 2
   fi
 
-  test -n "$POLICY_NAME" || \
+  if test -n "$POLICY_NAME"; then
     POLICY_NAME="hub-$CLUSTER_NAME-$(basename "$POLICY_DOC" | cut -f 1 -d '.')"
-    
+  fi
+  
   echo -n "* Creating role policy: ... "
   aws iam get-policy \
     --policy-arn "$POLICY_ARN" \
