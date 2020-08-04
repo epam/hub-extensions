@@ -34,7 +34,7 @@ while [ "$1" != "" ]; do
                         POLICY_NAME="$1"
                         ;;
     -f | --file )       shift
-                        export POLICY_DOC="$1"
+                        export POLICY_FILE="$1"
                         ;;
     --aws-region )      shift
                         export AWS_REGION="$1"
@@ -53,7 +53,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test -z "$CLUSTER_NAME" || test "$POLICY_NAME $POLICY_DOC" = " "; then
+if test -z "$CLUSTER_NAME" || test "$POLICY_NAME $POLICY_FILE" = " "; then
   usage
   exit 1
 fi
@@ -66,11 +66,9 @@ ROLE_ARN=$(eksctl get iamidentitymapping --cluster "$CLUSTER_NAME" -o json | jq 
 ROLE_NAME=$(basename $ROLE_ARN)
 echo "$ROLE_NAME"
 
-if test -n "$POLICY_DOC"; then
-  ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account')
-  POLICY_ARN="arn:aws:iam::$ACCOUNT_ID:policy/$POLICY_NAME"
-  echo "* Using policy file: $POLICY_DOC"
-  if test ! -f "$POLICY_DOC"; then
+if test -n "$POLICY_FILE"; then
+  echo "* Using policy file: $POLICY_FILE"
+  if test ! -f "$POLICY_FILE"; then
     cat << EOF 
 
   Error: file $POLIICY_DOC not found!
@@ -79,17 +77,20 @@ EOF
     exit 2
   fi
 
-  if test -n "$POLICY_NAME"; then
-    POLICY_NAME="hub-$CLUSTER_NAME-$(basename "$POLICY_DOC" | cut -f 1 -d '.')"
+  if test -z "$POLICY_NAME"; then
+    POLICY_NAME="hub-$CLUSTER_NAME-$(basename "$POLICY_FILE" | cut -f 1 -d '.')"
+    echo "* Using policy name: $POLICY_NAME"
   fi
-  
+
+  ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account')
+  POLICY_ARN="arn:aws:iam::$ACCOUNT_ID:policy/$POLICY_NAME"
   echo -n "* Creating role policy: ... "
   aws iam get-policy \
     --policy-arn "$POLICY_ARN" \
     --query 'Policy.Arn' 2>/dev/null \
     || aws iam create-policy \
         --policy-name "$POLICY_NAME" \
-        --policy-document "file://$POLICY_DOC" \
+        --policy-document "file://$POLICY_FILE" \
         --query 'Policy.Arn'
 fi
 
@@ -101,7 +102,7 @@ if test -n "$POLICY_NAME"; then
   if test "$?" != "0" || test -z "$POLICY_ARN"; then
     cat << EOF Error
 
-Cannot find existing AIM policy with name $POLICY_NAME
+Cannot find existing IAM policy with name $POLICY_NAME
 
 EOF
     exit 2
