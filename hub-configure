@@ -2,9 +2,16 @@
 # shellcheck disable=SC2046,SC2068
 
 HUB=${HUB:-hub}
+platform=''
+case "$1" in
+  -p | --platform ) platform="$2"
+                    ;;
+esac
 
 if test -n "$HUB_TOKEN"; then
   $HUB configure api $@
+elif test -n "$platform"; then
+  $HUB configure platform $@
 else
   # TODO: we need properly detect eks cluster
   $HUB configure eks $@

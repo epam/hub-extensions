@@ -1,0 +1,162 @@
+#!/bin/bash -e
+# shellcheck disable=SC2006,SC2016,SC2086
+
+usage() {
+cat << EOF
+Prints environment configuration for the stack
+
+Usage: $(basename $0) -p PLATFORM_STACK_KUBECONTEXT -s PLATFORM_STACK_DOMAIN [-f] [-i] [-S] [-v]
+
+Parameters:
+    -p --platform   platform stack kubecontext
+    -s --stack      domain name of the platform stack
+    -f --force      overwrite dotenv and kubeconfig files
+    -i --ignore     do not switch configuration
+    -S --silent     suppress outputs
+    -V --verbose    verbose output for debugging purpose (set -x)
+    -h --help       print current message
+EOF
+}
+
+hub_dotenv='.env'
+export HUB_DOTENV="$(pwd)/$hub_dotenv"
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -p | --platform )   shift
+                            kubecontext=$1
+                            ;;
+        -s | --stack )      shift
+                            STACK=$1
+                            ;;
+        -f | --force )      FORCE=1
+                            ;;
+        -i | --ignore )     IGNORE=1
+                            ;;
+        -S | --silent )     SILENT=1
+                            ;;
+        -e | --envfile )    shift
+                            hub_context=$1
+                            ;;
+        -t | --template )   shift
+                            TEMPLATE=$1
+                            ;;
+        -v | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        - )                 STACK=$(cat /dev/stdin | xargs | cut -d " " -f1)
+                            ;;
+        * )                 usage
+                            exit 1
+    esac
+    shift
+done
+
+if test -z "$STACK" -o -z "$kubecontext"; then
+    echo "Please specify platform stack kubecontext with -p / --platform and stack domain with -s / --stack"
+    exit 1
+fi
+
+envfile=".hub/env/$STACK.env"
+ENVFILE="$(pwd)/$envfile"
+ENVDIR="$(dirname $ENVFILE)"
+BACKUPFILE=$ENVDIR/$STACK.bak
+
+kubeconfig=".hub/env/kubeconfig.$STACK"
+KUBECONFIG="$(pwd)/$kubeconfig"
+# shellcheck disable=SC2034
+JQ_ARGS="-rMc"
+
+if test ! -f "$kubeconfig" || test -n "$FORCE"; then
+  clustername="$(kubectl config view --raw -o json \
+  | jq -r '.contexts[] | select(.name == "'$kubecontext'").context.cluster')"
+  username="$(kubectl config view --raw -o json \
+  | jq -r '.contexts[] | select(.name == "'$kubecontext'").context.user')"
+  cluster="$(kubectl config view --raw -o json \
+  | jq -cM '.clusters[] | select(.name == "'$clustername'") + {"name": "'$domain_name'"}')"
+  user="$(kubectl config view --raw -o json \
+  | jq -cM '.users[] | select(.name == "'$username'")')"
+  # shellcheck disable=SC2006
+  tmpfile2=`mktemp /tmp/superhub.XXXXXX` || exit 1
+  trap "rm -f $tmpfile2" EXIT
+
+  # TODO: move this to the hub-kubeconfig?
+  cat <<EOF > $tmpfile2
+{
+  "kind": "Config",
+  "apiVersion": "v1",
+  "preferences": {},
+  "clusters": [
+    $cluster
+  ],
+  "users": [
+    $user
+  ],
+  "contexts": [
+    {
+      "name": "$domain_name",
+      "context": {
+        "cluster": "$domain_name",
+        "user": "$username"
+      }
+    }
+  ],
+  "current-context": "$domain_name"
+}
+EOF
+
+  if ! test -f "$kubeconfig"; then
+    cat "$tmpfile2" > "$kubeconfig"
+  elif ! cmp -s "$tmpfile2" "$kubeconfig"; then
+    mv -f  "$kubeconfig" "$kubeconfig.bak"
+    $SILENT || echo "* Saving current kubecconfig to $kubeconfig.bak"
+    cat "$tmpfile2" > "$kubeconfig"
+  fi
+  $SILENT || echo "* Created kubeconfig $kubeconfig "
+fi
+
+export STACK ENVFILE HUB_CONTEXT KUBECONFIG
+
+TMPFILE=`mktemp /tmp/superhub.XXXXXX` || exit 1
+trap "rm -f $TMPFILE" EXIT
+
+if test ! -f "$ENVFILE" || test ! -z "$FORCE"; then
+    mkdir -p "$ENVDIR"
+    .hub/env/configure | awk 'NF' > $TMPFILE
+    EXITCODE=$?
+
+    if test $EXITCODE -ne 0; then
+        test -z "$SILENT" && \
+            echo "Error writing configuration! Troubleshoot: $(basename $0) --verbose"
+        exit $EXITCODE
+    fi
+
+    if ! test -f $ENVFILE; then
+        cat "$TMPFILE" > "$ENVFILE"
+    elif ! cmp --silent $TMPFILE $ENVFILE; then
+        mv -f  "$ENVFILE" "$BACKUPFILE"
+        cat "$TMPFILE" > "$ENVFILE"
+        EXITCODE=$?
+        test -z "$SILENT" && \
+            echo "Configuration has been saved to $envfile"
+    fi
+else
+    test -z "$SILENT" && \
+        echo "$envfile' exists. To override file: $(basename $0) -f"
+    EXITCODE=1
+fi
+
+set -x
+
+if test -f "$ENVFILE" && test ! -z "$IGNORE"; then
+    test -z "$SILENT" && { \
+        echo "To change environment please run: ln -sf $ENVFILE $HUB_DOTENV"
+    }
+    EXITCODE=2
+else
+    ln -sf "$ENVFILE" "$HUB_DOTENV"
+fi
+
+exit $EXITCODE
