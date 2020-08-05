@@ -146,3 +146,15 @@ if test -n "$HUB_TOOLBOX"; then
 else
   hub deploy "$HUB_ELABORATE_FILE" -s "$HUB_STATE_FILE" $HUB_DEPLOY_OPTS
 fi
+
+ns=kube-system
+cm=superhub
+explained=$($HUB explain --json -g $HUB_STATE_FILE | base64)
+
+if kubectl -n $ns get configmap $cm; then
+  kubectl -n $ns get configmap $cm -o json |
+    jq ".data += {\"${HUB_DOMAIN_NAME}\": \"${explained}\"}" |
+    kubectl -n $ns replace -f -
+else
+  kubectl -n $ns create configmap $cm --from-literal=${HUB_DOMAIN_NAME}=${explained}
+fi
