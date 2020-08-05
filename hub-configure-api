@@ -34,7 +34,7 @@ while [ "$1" != "" ]; do
         -e | --envfile )    shift
                             hub_context=$1
                             ;;
-        -t | --template )   shift 
+        -t | --template )   shift
                             TEMPLATE=$1
                             ;;
         -v | --verbose )    set -x
