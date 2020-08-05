@@ -91,6 +91,8 @@ Starting deployment:
 
 EOF
 
+HUB=${HUB:-hub}
+
 if $CLOUD_CHECK; then
   if ! $WITH_PREREQS; then
     AWS_STATUS_ARGS="${AWS_STATUS_ARGS} --skip-guide"
@@ -106,7 +108,7 @@ if test "$hub_aws_rv" = "2"; then
   cat << EOF
 Error: Cannot find .env configuration. Please run:
 
-$ hub ext configure --current-kubeconfig
+$ hub configure --current-kubeconfig
 
 EOF
   exit "$hub_aws_rv"
@@ -115,7 +117,7 @@ elif test "$hub_aws_rv" = "3"; then
   if ! $WITH_PREREQS; then
     exit $hub_aws_rv
   fi
-  hub ext aws init --skip-guide
+  $HUB aws init --skip-guide
 fi
 
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
@@ -131,12 +133,12 @@ fi
 
 # shellcheck disable=SC2086
 if $FULL_STACK || test ! -f "$HUB_ELABORATE_FILE"; then
-  hub ext stack elaborate --skip-guide
+  $HUB stack elaborate --skip-guide
 fi
 
 # shellcheck disable=SC2086
 if test -n "$HUB_TOOLBOX"; then
-  hub ext toolbox \
+  $HUB toolbox \
     /bin/bash -c "
     . .env; \
     hub deploy $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS;
