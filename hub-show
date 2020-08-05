@@ -74,15 +74,13 @@ done
 if test -z "$HUB_TOKEN"; then
   HUBDIR="$(pwd)/.hub";
   STATEFILE="$HUBDIR/$STACK.yaml.state";
-
-  if test ! -f "$STATEFILE"; then
-    echo
-    echo "State file of the stack $STACK has not been found in $HUBDIR";
-    echo "Have you ran hub ext deploy?";
-    echo
-    exit 2;
+  if test -f "$STATEFILE"; then
+    RESP=$(hub explain "$STATEFILE" --json)
+  else
+    ns=kube-system
+    cm=superhub
+    RESP=$(kubectl -n $ns get configmap $cm -o json | jq -r ".data[\"${STACK}\"]" | base64 -d)
   fi
-  RESP="$(hub explain "$STATEFILE" --json)";
 
 else
   RESP=$(hub api instance get -j \
@@ -155,8 +153,8 @@ fi
 
 if test -z "$HUB_TOKEN"; then
   DOCBASE=$(echo "$RESP" | jq -crM '{
-      "components" : [.components|to_entries[]|.key],
-      "provides" : [.provides|to_entries[]|.key]
+      "components" : [select(.components != null).components|to_entries[]|.key],
+      "provides" : [select(.provides != null).provides|to_entries[]|.key]
   }')
 else
   DOCBASE=$(echo "$RESP" | jq -crM '{
