@@ -1,0 +1,32 @@
+#!/bin/bash -e
+
+HUB=${HUB:-hub}
+
+HUB_STACK_NAME="${NAME}"
+HUB_DOMAIN_NAME="${DOMAIN_NAME}"
+HUB_STATE_BUCKET="${STATE_BUCKET}"
+HUB_STATE_REGION="${STATE_REGION}"
+
+TEMPLATE_PARAMS="params/template.yaml"
+STACK_PARAMS="${STACK_PARAMS:-"params/${DOMAIN_NAME}.yaml"}"
+
+STORAGE_KIND="${STORAGE_KIND:-"s3"}"
+STATE_CONTAINER="agilestacks"
+STATE_PATH="${DOMAIN_NAME}/hub/${STACK_NAME}-${NAME}/hub"
+
+FILE_FS="hub.yaml"
+FILE_CLOUD="${STORAGE_KIND}://${STATE_BUCKET}/${STATE_PATH}"
+if test "${STORAGE_KIND}" = "az"; then
+  FILE_CLOUD="${STORAGE_KIND}://${STATE_BUCKET}/${STATE_CONTAINER}/${STATE_PATH}"
+fi
+ELABORATE_FILES="${FILE_FS}.elaborate,${FILE_CLOUD}.elaborate"
+
+${HUB} elaborate \
+  hub.yaml \
+  params.yaml \
+  ${TEMPLATE_PARAMS} \
+  ${STACK_PARAMS} \
+  ${RESTORE_PARAMS_FILE} \
+  -p ${PLATFORM_PROVIDES} \
+  -s ${PLATFORM_STATE_FILES} \
+  -o ${ELABORATE_FILES}

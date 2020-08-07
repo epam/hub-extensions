@@ -1,0 +1,40 @@
+#!/bin/bash -e
+
+HUB=${HUB:-hub}
+
+HUB_STACK_NAME="${NAME}"
+HUB_DOMAIN_NAME="${DOMAIN_NAME}"
+HUB_STATE_BUCKET="${STATE_BUCKET}"
+HUB_STATE_REGION="${STATE_REGION}"
+
+TEMPLATE_PARAMS="params/template.yaml"
+STACK_PARAMS="${STACK_PARAMS:-"params/${DOMAIN_NAME}.yaml"}"
+
+STORAGE_KIND="${STORAGE_KIND:-"s3"}"
+STATE_CONTAINER="agilestacks"
+STATE_PATH="${DOMAIN_NAME}/hub/${STACK_NAME}-${NAME}/hub"
+
+FILE_FS="hub.yaml"
+FILE_CLOUD="${STORAGE_KIND}://${STATE_BUCKET}/${STATE_PATH}"
+if test "${STORAGE_KIND}" = "az"; then
+  FILE_CLOUD="${STORAGE_KIND}://${STATE_BUCKET}/${STATE_CONTAINER}/${STATE_PATH}"
+fi
+ELABORATE_FILES="${FILE_FS}.elaborate,${FILE_CLOUD}.elaborate"
+STATE_FILES="${FILE_FS}.state,${FILE_CLOUD}.state"
+
+if test ! -z ${HUB_TOKEN} && test ! -z ${HUB_ENVIRONMENT} && test ! -z ${HUB_STACK_INSTANCE}; then
+  HUB_LIFECYCLE_OPTS="--hub-environment \"${HUB_ENVIRONMENT}\" \
+  --hub-stack-instance \"${HUB_STACK_INSTANCE}\" \
+	--hub-sync --hub-sync-skip-parameters-and-oplog"
+fi
+
+COMPONENTS_LIST=""
+if test ! -z ${COMPONENTS}; then
+  COMPONENTS_LIST="-c ${COMPONENTS}"
+fi
+
+${HUB} deploy \
+  ${ELABORATE_FILES} \
+  -s ${STATE_FILES} \
+  ${HUB_LIFECYCLE_OPTS} \
+  ${COMPONENTS_LIST}
