@@ -151,7 +151,7 @@ ns=kube-system
 cm=superhub
 explained=$($HUB explain --json -g $HUB_STATE_FILE | base64)
 
-if kubectl -n $ns get configmap $cm; then
+if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
   kubectl -n $ns get configmap $cm -o json |
     jq ".data += {\"${HUB_DOMAIN_NAME}\": \"${explained}\"}" |
     kubectl -n $ns replace -f -
