@@ -1,6 +1,15 @@
 #!/bin/bash -e
 # shellcheck disable=SC2086
 
+pwd=$(dirname "$0")
+
+if $HUB_IN_AUTOMATION; then
+  echo "* Run stack $HUB_OPERATION in automation *"
+  $pwd/in-automation/stack-undeploy
+  set +e
+  exit $?
+fi
+
 usage() {
 cat << EOF
 
