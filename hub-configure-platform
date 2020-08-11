@@ -148,8 +148,6 @@ else
     EXITCODE=1
 fi
 
-set -x
-
 if test -f "$ENVFILE" && test ! -z "$IGNORE"; then
     test -z "$SILENT" && { \
         echo "To change environment please run: ln -sf $ENVFILE $HUB_DOTENV"
