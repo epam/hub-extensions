@@ -70,6 +70,7 @@ KUBECONFIG="$(pwd)/$kubeconfig"
 JQ_ARGS="-rMc"
 
 if test ! -f "$kubeconfig" || test -n "$FORCE"; then
+  domain_name=$STACK
   clustername="$(kubectl config view --raw -o json \
   | jq -r '.contexts[] | select(.name == "'$kubecontext'").context.cluster')"
   username="$(kubectl config view --raw -o json \
