@@ -10,9 +10,17 @@ There are some extensions well-known to Hub CLI:
 - ls
 - show
 - configure
+- stack
 - toolbox
+- aws
 
 Well-known extensions can be called directly via `hub <extension name>`. Extensions whose names are not compiled into Hub CLI binary can be called via `hub ext <extension-name>`.
+
+Extensions search algorithm is greedy. When `hub <extension name> <probably sub-command> <arg1> <-flag> <arg2>` is called, then Hub CLI searches for, in order:
+
+- `hub-<extension name>-<probably sub-command>-<arg1>` `[-flag <arg2>]`
+- `hub-<extension name>-<probably sub-command>` `[<arg1> <-flag> <arg2>]`
+- `hub-<extension name>` `[<probably sub-command> <arg1> <-flag> <arg2>]`
 
 CLI flags and arguments are not parsed by Hub CLI - they are passed as is to the extension. To set Hub CLI logging level to _debug_ use
 
