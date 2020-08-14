@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 pipe_to=bash
 
@@ -17,7 +17,13 @@ case $arg in
         fi
         shift
         ;;
+
+    --debug|-d|--trace|-t) # compat
+        shift
+        ;;
 esac
 done
+
+set -o pipefail
 
 exec node $(dirname $0)/hub-pull.js "$@" | $pipe_to
