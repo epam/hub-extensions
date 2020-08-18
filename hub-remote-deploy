@@ -13,7 +13,7 @@ Parameters:
     -c --components       List of components to deploy
     -o --offset           Deploy starting with the given component
     -s  --silent          Suppress console outputs in favor of result codes
-    -p --no-precheck      Skip `hub ext aws status` command execution
+    -p --no-precheck      Skip `hub aws status` command execution
     -d --delete-toolbox   Deletes deployed toolbox 
     -k --keep-toolbox     Keeps toolbox deployed on kubernetes cluster
     --skip-guide          Suppress "What's next messages"
@@ -133,8 +133,8 @@ deploy_stack() {
         rm -f .env &&\
         ln -s .hub/env/$HUB_DOMAIN_NAME.env .env &&\
         source .env &&\
-        hub ext stack elaborate &&\
-        hub ext stack deploy $@
+        hub stack elaborate &&\
+        hub stack deploy $@
         "
 }
 
