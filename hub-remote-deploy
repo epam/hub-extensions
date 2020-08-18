@@ -82,7 +82,7 @@ spec:
   containers:
   - name: toolbox
     image: $IMAGE:$IMAGE_VERSION
-    command: ["bash", "-c", "hub extensions install && sleep 10000"]    
+    command: ["bash", "-c", "hub extensions install && sleep infinity"]    
     envFrom:
         - configMapRef:
             name: toolbox-env
@@ -92,19 +92,26 @@ EOF
 }
 
 deploy_toolbox() {
-    $SILENT || printf '\033[1mDeploying toolbox container\n\033[0m'
+    $SILENT || echo 'Deploying toolbox container'
 
     kubectl kustomize ${KUSTOMIZE_DIR} > "${KUSTOMIZE_DIR}/toolbox.yaml"    
     kubectl apply -f ${KUSTOMIZE_DIR}/toolbox.yaml
-    $SILENT || printf '\033[1mWaiting for toolbox to be deployed\033[0m'
-    while [[ $(kubectl -n $K8S_NAMESPACE get pods -l app=toolbox -l provider=agilestacks.com -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do 
-        $SILENT || printf '\033[1m.\033[0m' && sleep 1; 
+    $SILENT || printf 'Waiting for toolbox to be deployed: '
+    
+    local ELAPSED=0
+    while [[ $(kubectl -n $K8S_NAMESPACE get pods -l app=toolbox -l provider=agilestacks.com -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"  ]]; do 
+        $SILENT || printf '.' && sleep 1;
+        (( ELAPSED++ ))
+        if [[ $ELAPSED -eq $TOOLBOX_TIMEOUT ]]; then
+            $SILENT || echo 'Timed-out toolbox deployment, please check deployment logs'
+            exit 1
+        fi 
     done
-    $SILENT || printf '\033[1m\n\033[0m'
+    $SILENT || printf '\n'
 }
 
 delete_toolbox() {
-    $SILENT || printf '\033[1mDeleting toolbox container\n\033[0m'
+    $SILENT || echo 'Deleting toolbox container'
     kubectl -n "$K8S_NAMESPACE" delete pod -l app=toolbox -l provider=agilestacks.com; 
     kubectl -n "$K8S_NAMESPACE"  delete cm -l app=toolbox -l provider=agilestacks.com; 
     kubectl -n "$K8S_NAMESPACE" delete clusterrolebindings.rbac.authorization.k8s.io -l app=toolbox -l provider=agilestacks.com; 
@@ -114,14 +121,14 @@ delete_toolbox() {
 
 
 upload_data() {
-    $SILENT || printf '\033[1mCopying Certified Stack data to toolbox\n\033[0m'
+    $SILENT || echo 'Copying data to toolbox'
     kubectl -n "$K8S_NAMESPACE" cp . toolbox:./
     kubectl -n "$K8S_NAMESPACE" cp ~/.aws toolbox:/root/
 }
 
 
 deploy_stack() {
-    $SILENT || printf '\033[1mDeploying Certified Stack from toolbox\033[0m'
+    $SILENT || echo 'Deploying stack from toolbox'
     kubectl -n "$K8S_NAMESPACE" exec -it toolbox -- bash -c "\
         rm -f .env &&\
         ln -s .hub/env/$HUB_DOMAIN_NAME.env .env &&\
@@ -139,6 +146,7 @@ IMAGE_VERSION=${IMAGE_VERSION:-latest}
 K8S_NAMESPACE=${K8S_NAMESPACE:-kube-system}
 DELETE_TOOLBOX=${K8S_NAMESPACE:-true}
 KUSTOMIZE_DIR=$(mktemp -d)
+TOOLBOX_TIMEOUT=${TOOLBOX_TIMEOUT:-600}
 
 while [ "$1" != "" ]; do
     case $1 in
