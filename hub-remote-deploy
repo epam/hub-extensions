@@ -1,0 +1,204 @@
+#!/bin/bash -e
+
+usage() {
+    cat << EOF
+
+Executes deployment of Certified Stack from kuberentes cluster
+
+Usage: 
+$ $(basename "$0") -c component1,component2
+Deploys deploys two components 
+
+Parameters:
+    -c --components       List of components to deploy
+    -o --offset           Deploy starting with the given component
+    -s  --silent          Suppress console outputs in favor of result codes
+    -p --no-precheck      Skip `hub aws status` command execution
+    -d --delete-toolbox   Deletes deployed toolbox 
+    -k --keep-toolbox     Keeps toolbox deployed on kubernetes cluster
+    --skip-guide          Suppress "What's next messages"
+    -V  --verbose         Verbose outputs for debug purpose
+    -h  --help            Print this message
+
+EOF
+}
+
+generate_manifests() {
+    trap "rm -rf $KUSTOMIZE_DIR" EXIT
+
+    envfile="$KUSTOMIZE_DIR/envfile"
+    env | grep -E '^(AWS_|GOOGLE_|AZURE_|TF_|TERM=|LANG=|LC_)' >"$envfile"
+    kustomize_manifest="$KUSTOMIZE_DIR/kustomization.yaml"
+
+    cat <<EOF > $kustomize_manifest
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app: toolbox
+  provider: agilestacks.com
+configMapGenerator:
+- name: toolbox-env
+  namespace: $K8S_NAMESPACE
+  env: envfile
+- name: user-group
+  namespace: $K8S_NAMESPACE
+  literals:    
+  - USER=$USER
+  - UID=$(id -u)
+  - GID=$(id -g)
+resources:
+- deployment.yaml
+EOF
+
+pod_manifest="$KUSTOMIZE_DIR/deployment.yaml"
+cat <<EOF > $pod_manifest
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: toolbox
+  namespace: $K8S_NAMESPACE
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: toolbox-sa
+subjects:
+- kind: ServiceAccount
+  name: toolbox
+  namespace: $K8S_NAMESPACE
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toolbox
+  namespace: $K8S_NAMESPACE
+spec:
+  serviceAccountName: toolbox
+  containers:
+  - name: toolbox
+    image: $IMAGE:$IMAGE_VERSION
+    command: ["bash", "-c", "hub extensions install && sleep infinity"]    
+    envFrom:
+        - configMapRef:
+            name: toolbox-env
+        - configMapRef:
+            name: user-group
+EOF
+}
+
+deploy_toolbox() {
+    $SILENT || echo 'Deploying toolbox container'
+
+    kubectl kustomize ${KUSTOMIZE_DIR} > "${KUSTOMIZE_DIR}/toolbox.yaml"    
+    kubectl apply -f ${KUSTOMIZE_DIR}/toolbox.yaml
+    $SILENT || printf 'Waiting for toolbox to be deployed: '
+    
+    local ELAPSED=0
+    while [[ $(kubectl -n $K8S_NAMESPACE get pods -l app=toolbox -l provider=agilestacks.com -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"  ]]; do 
+        $SILENT || printf '.' && sleep 1;
+        (( ELAPSED++ ))
+        if [[ $ELAPSED -eq $TOOLBOX_TIMEOUT ]]; then
+            $SILENT || echo 'Timed-out toolbox deployment, please check deployment logs'
+            exit 1
+        fi 
+    done
+    $SILENT || printf '\n'
+}
+
+delete_toolbox() {
+    $SILENT || echo 'Deleting toolbox container'
+    kubectl -n "$K8S_NAMESPACE" delete pod -l app=toolbox -l provider=agilestacks.com; 
+    kubectl -n "$K8S_NAMESPACE"  delete cm -l app=toolbox -l provider=agilestacks.com; 
+    kubectl -n "$K8S_NAMESPACE" delete clusterrolebindings.rbac.authorization.k8s.io -l app=toolbox -l provider=agilestacks.com; 
+    kubectl -n "$K8S_NAMESPACE" delete sa -l app=toolbox -l provider=agilestacks.com
+}
+
+
+
+upload_data() {
+    $SILENT || echo 'Copying data to toolbox'
+    kubectl -n "$K8S_NAMESPACE" cp . toolbox:./
+    kubectl -n "$K8S_NAMESPACE" cp ~/.aws toolbox:/root/
+}
+
+
+deploy_stack() {
+    $SILENT || echo 'Deploying stack from toolbox'
+    kubectl -n "$K8S_NAMESPACE" exec -it toolbox -- bash -c "\
+        rm -f .env &&\
+        ln -s .hub/env/$HUB_DOMAIN_NAME.env .env &&\
+        source .env &&\
+        hub stack elaborate &&\
+        hub stack deploy $@
+        "
+}
+
+
+GUIDE=${GUIDE:-true}
+SILENT=${SILENT:-false}
+IMAGE=${IMAGE:-agilestacks/toolbox}
+IMAGE_VERSION=${IMAGE_VERSION:-latest}
+K8S_NAMESPACE=${K8S_NAMESPACE:-kube-system}
+DELETE_TOOLBOX=${K8S_NAMESPACE:-true}
+KUSTOMIZE_DIR=$(mktemp -d)
+TOOLBOX_TIMEOUT=${TOOLBOX_TIMEOUT:-600}
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -p | --no-precheck ) 
+                            CLOUD_CHECK=false
+                            ;;
+        -c | --component )  shift
+                            HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -c $1"
+                            FULL_STACK=false
+                            CLOUD_CHECK=false
+                            ;;
+        -o | --offset )     shift
+                            HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -o $1"
+                            FULL_STACK=false
+                            CLOUD_CHECK=false
+                            ;;
+        -k | --keep-toolbox ) 
+                            DELETE_TOOLBOX=false
+                            ;;
+        -d | --delete-toolbox )       
+                            delete_toolbox
+                            exit
+                            ;;
+        -S | --silent )     SILENT=true
+                            exit
+                            ;;
+        -V | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        * )                 usage
+                            exit 1
+    esac
+    shift
+done
+
+export NOGUIDE SILENT
+
+# shellcheck disable=SC1091
+source .env
+
+
+if  test -z "${AWS_PROFILE}" && \
+    test -x "$(which aws)" && \
+    aws sts get-caller-identity > /dev/null 2>&1; then
+    AWS_PROFILE=$(aws configure list | awk  '$1 ~ /^profile$/ {print $2}')
+    export AWS_PROFILE
+fi
+
+generate_manifests
+deploy_toolbox
+upload_data
+deploy_stack
+$DELETE_TOOLBOX || delete_toolbox

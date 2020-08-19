@@ -97,7 +97,7 @@ echo "* Using AWS region: $AWS_REGION"
 AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
 STATE_BUCKET="$AWS_ACCOUNT.$domain_zone"
 
-if aws $AWS_OPTS s3api head-bucket --bucket="$STATE_BUCKET" 2>/dev/null; then
+if test -z $(aws $AWS_OPTS s3api head-bucket --bucket=$STATE_BUCKET 2>&1); then
   STATE_REGION="$(aws $AWS_OPTS s3api get-bucket-location \
     --bucket="$STATE_BUCKET" --query 'LocationConstraint' \
     | sed -e 's/null/us-east-1/g')"
@@ -130,12 +130,13 @@ if test -z "$domain_name" || test -n "$FORCE"; then
   # TODO: move this to the template (.hub/env/configure)
   cat <<EOF > "$envdir/$domain_name.env"
 # Name of stack with associated domoain name (provided by Agile Stacks)
+export STACK_PATH="\$(pwd)/.hub"
 export HUB_STACK_NAME="$(echo "$domain_name" | cut -d. -f1)"
 export HUB_DOMAIN_NAME="$domain_name"
 export HUB_DOMAIN_KEY="$(jq -r '.key' < "$tmpfile1")"
 # Deployment state and deployment plan
-export HUB_STATE_FILE="$hubdir/$domain_name.state"
-export HUB_ELABORATE_FILE="$hubdir/$domain_name.elaborate"
+export HUB_STATE_FILE="\$STACK_PATH/$domain_name.state"
+export HUB_ELABORATE_FILE="\$STACK_PATH/$domain_name.elaborate"
 # Name and region of S3 bucket to store deployment state
 export HUB_STATE_BUCKET="$STATE_BUCKET"
 export HUB_STATE_REGION=$STATE_REGION
@@ -145,7 +146,7 @@ export K8S_PROVIDER="eks"
 export CLOUD_PROVIDER="aws"
 export AWS_PROFILE="$AWS_PROFILE"
 export AWS_REGION="$AWS_REGION"
-export KUBECONFIG="$kubeconfig"
+export KUBECONFIG="\$STACK_PATH/env/$domain_name.kubeconfig"
 EOF
 
   $SILENT || cat << EOF
