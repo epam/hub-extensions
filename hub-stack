@@ -8,6 +8,7 @@ Usage: $(basename "$0") <sub command>
 
 Parameters:
     deploy          Deploy current stack
+    remotedeploy    Running deployment process using remote kubernetes cluster
     undeploy        Undeploy current stack
     ls              Show list components of this stack
     show            Show parameters of this stack
