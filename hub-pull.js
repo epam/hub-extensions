@@ -31,7 +31,7 @@ let cmds = ['set -xe'];
 
 cmds.push('\n# add upstream remotes');
 cmds = cmds.concat(remotes.map((remote) =>
-    `if ! git remote | grep -E '^${remoteName(remote)}$$'; then\n\tgit remote add ${remoteName(remote)} ${remote}; fi`));
+    `if ! git remote | grep -E '^${remoteName(remote)}$'; then\n\tgit remote add ${remoteName(remote)} ${remote}; fi`));
 
 cmds.push('\n# fetch upstream branches with updates');
 cmds = cmds.concat(remoteBranches.map(({remote, ref}) =>
