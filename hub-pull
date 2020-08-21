@@ -5,7 +5,12 @@ pipe_to=bash
 for arg in "$@"; do
 case $arg in
     --help|-h)
-        cat $(dirname $0)/hub-pull.md
+        if which pygmentize >/dev/null; then
+            cat='pygmentize -l md'
+        else
+            cat=cat
+        fi
+        $cat $(dirname $0)/hub-pull.md
         exit 0
         ;;
 

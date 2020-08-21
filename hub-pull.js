@@ -1,11 +1,14 @@
 const fs = require('fs');
 const url = require('url');
 const yaml = require('js-yaml');
-const {get, isEmpty, kebabCase, partition, uniq, uniqBy} = require('lodash');
-
+const {get, isEmpty, kebabCase, partition, trimEnd, uniq, uniqBy} = require('lodash');
 
 const manifestFilename = process.argv[2] || 'hub.yaml';
-const worktree = process.argv[3] || '/tmp/w1';
+const worktree = process.argv[3];
+const tmpDir = process.env.TMPDIR;
+const worktreePrefix = 'hub-pull';
+const worktreeDirPrefix = `${trimEnd(tmpDir, '/') || '/var/tmp'}/${worktreePrefix}`;
+const worktreeTemplate = `${worktreeDirPrefix}.XXXX`;
 
 const manifest = yaml.safeLoad(fs.readFileSync(manifestFilename));
 
@@ -39,8 +42,18 @@ cmds = cmds.concat(remoteBranches.map(({remote, ref}) =>
 
 if (!isEmpty(splits)) {
     cmds.push('\n# need a worktree for subtree split');
-    cmds.push(`if ! git worktree list | grep -E '${worktree} '; then\n\tgit worktree add ${worktree} --detach; fi`);
-    cmds.push(`pushd ${worktree}`);
+    if (worktree) {
+        cmds.push(`if ! git worktree list | grep -E '^${worktree} '; then`);
+        cmds.push(`\tgit worktree add ${worktree} --detach; fi`);
+        cmds.push(`pushd ${worktree}`);
+    } else {
+        cmds.push(`if ! git worktree list | grep -F '/${worktreePrefix}'; then`);
+        cmds.push(`\tworktree=$(mktemp -d ${worktreeTemplate})`);
+        cmds.push('\tgit worktree add $worktree --detach');
+        cmds.push('else');
+        cmds.push(`\tworktree=$(git worktree list | grep -F '/${worktreePrefix}' | head -1 | cut -d' ' -f1); fi`);
+        cmds.push('pushd $worktree');
+    }
     cmds.push('\n# extract components sources from subdirectories into `split` branches');
     // TODO optimize for a single `git checkout` per remote+ref combination
     cmds = cmds.concat(splits.map(({name, git: {remote, ref, subDir}}) =>
