@@ -23,7 +23,7 @@ case $arg in
         shift
         ;;
 
-    --debug|-d|--trace|-t) # compat
+    --debug|-d|--trace|-t|--force|-f) # compat
         shift
         ;;
 esac

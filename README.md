@@ -22,9 +22,11 @@ Extensions search algorithm is greedy. When `hub <extension name> <probably sub-
 - `hub-<extension name>-<probably sub-command>` `[<arg1> <-flag> <arg2>]`
 - `hub-<extension name>` `[<probably sub-command> <arg1> <-flag> <arg2>]`
 
-CLI flags and arguments are not parsed by Hub CLI - they are passed as is to the extension. To set Hub CLI logging level to _debug_ use
+CLI flags and arguments are not parsed by Hub CLI - they are passed as is to the extension. To set Hub CLI logging level to _debug_ use:
 
     HUB_DEBUG=1 hub ext ...
+
+Not all extensions supports all Hub CLI global flags, like `--debug`, `trace`, or `--force`. It's recommended to still parse those flags and ignore if not implemented.
 
 ### hub pull
 
