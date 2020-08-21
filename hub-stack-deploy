@@ -149,7 +149,7 @@ fi
 
 ns=kube-system
 cm=superhub
-explained=$($HUB explain --json -g $HUB_STATE_FILE | base64)
+explained=$($HUB explain --json -g $HUB_STATE_FILE | base64 | tr -d \\n)
 
 if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
   kubectl -n $ns get configmap $cm -o json |
