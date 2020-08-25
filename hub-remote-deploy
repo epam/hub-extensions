@@ -99,7 +99,8 @@ deploy_toolbox() {
     $SILENT || printf 'Waiting for toolbox to be deployed: '
     
     local ELAPSED=0
-    while [[ $(kubectl -n $K8S_NAMESPACE get pods -l app=toolbox -l provider=agilestacks.com -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"  ]]; do 
+    until [[ $(kubectl -n $K8S_NAMESPACE get pods -l app=toolbox,provider=agilestacks.com -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') =~ "True"  ]]; do 
+      
         $SILENT || printf '.' && sleep 1;
         (( ELAPSED++ ))
         if [[ $ELAPSED -eq $TOOLBOX_TIMEOUT ]]; then
@@ -112,10 +113,10 @@ deploy_toolbox() {
 
 delete_toolbox() {
     $SILENT || echo 'Deleting toolbox container'
-    kubectl -n "$K8S_NAMESPACE" delete pod -l app=toolbox -l provider=agilestacks.com; 
-    kubectl -n "$K8S_NAMESPACE"  delete cm -l app=toolbox -l provider=agilestacks.com; 
-    kubectl -n "$K8S_NAMESPACE" delete clusterrolebindings.rbac.authorization.k8s.io -l app=toolbox -l provider=agilestacks.com; 
-    kubectl -n "$K8S_NAMESPACE" delete sa -l app=toolbox -l provider=agilestacks.com
+    kubectl -n "$K8S_NAMESPACE" delete pod -l app=toolbox,provider=agilestacks.com; 
+    kubectl -n "$K8S_NAMESPACE"  delete cm -l app=toolbox,provider=agilestacks.com; 
+    kubectl -n "$K8S_NAMESPACE" delete clusterrolebindings.rbac.authorization.k8s.io -l app=toolbox,provider=agilestacks.com; 
+    kubectl -n "$K8S_NAMESPACE" delete sa -l app=toolbox,provider=agilestacks.com
 }
 
 

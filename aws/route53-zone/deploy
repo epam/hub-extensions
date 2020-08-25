@@ -84,5 +84,16 @@ if test -z "$ZONE_ID"; then
   exit 2
 fi
 
+for record_type in "NS" "SOA"
+do
+  RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id $ZONE_ID  \
+    --output json \
+    --query "ResourceRecordSets[?Type == '$record_type' ]" | jq -Mc ". |  .[].TTL = 60 | .[] | {\"Changes\":[{\"Action\": \"UPSERT\",\"ResourceRecordSet\": .} ]}")
+    
+  CHANGE=$(aws route53 change-resource-record-sets --output json --hosted-zone-id $ZONE_ID --change-batch "${RECORD}" \
+    | jq  -Mr '.ChangeInfo.Id')
+  aws route53 wait resource-record-sets-changed --id "$CHANGE"
+done
+
 tag_hosted_zone "$ZONE_ID"
 hosted_zone_ns "$ZONE_ID"
