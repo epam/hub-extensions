@@ -66,12 +66,13 @@ RESULT=$(aws s3api create-bucket \
         --region="$AWS_REGION" $LOCATION 2>&1 >/dev/null)
 if test "$?" != "0"; then 
   if echo "$RESULT" | grep "BucketAlreadyOwnedByYou" >/dev/null; then
-    echo "Bucket already exists"
-    exit
+    RESULT="Bucket already exists"
   fi
-else
-  echo "$RESULT"
-  exit 255
+
+  if -n "$RESULT"; then
+    echo "$RESULT"
+  fi
+  exit
 fi
 set -e
 
