@@ -8,7 +8,7 @@ const worktree = process.argv[3];
 const tmpDir = process.env.TMPDIR;
 const worktreePrefix = 'hub-pull';
 const worktreeDirPrefix = `${trimEnd(tmpDir, '/') || '/var/tmp'}/${worktreePrefix}`;
-const worktreeTemplate = `${worktreeDirPrefix}.XXXX`;
+const worktreeTemplate = `${worktreeDirPrefix}.XXXXXX`;
 
 const manifest = yaml.safeLoad(fs.readFileSync(manifestFilename));
 
