@@ -33,7 +33,7 @@ while [ "$1" != "" ]; do
     --skip-guide )      NOGUIDE=true
                         ;;
     -P | --platform-provides ) shift
-                          PLATFORM_PROVIDES="$PLATFORM_PROVIDES"
+                          PLATFORM_PROVIDES="$PLATFORM_PROVIDES $1"
                           ;;
     -h | --help )       usage
                         exit
@@ -75,13 +75,13 @@ if test -f "$HUB_STATE_FILE"; then
 fi
 
 if test -n "$PLATFORM_PROVIDES"; then
-  HUB_DEPLOY_OPTS="--platform-provides $PLATFORM_PROVIDES"
+  HUB_ELABORATE_OPTS="--platform-provides $PLATFORM_PROVIDES $HUB_ELABORATE_OPTS"
 fi
 
 HUB_DEPLOY_OPTS="--clouds=aws $HUB_DEPLOY_OPTS"
 
 # shellcheck disable=SC2086
-hub elaborate hub.yaml params.yaml -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS
+hub elaborate hub.yaml params.yaml -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS 
 
 $SILENT || echo "* Result saved to to: $HUB_ELABORATE_FILE"
 
