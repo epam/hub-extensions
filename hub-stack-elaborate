@@ -14,7 +14,6 @@ Parameters:
     --skip-guide           Supperess "What's next" messages
     -V  --verbose          Verbose outputs for debug purpose
     -h --help              Show this message
-    -P --platform-provides Set Platform stack provides: -p tiller,etcd,...
 
 EOF
 }
@@ -32,9 +31,6 @@ while [ "$1" != "" ]; do
                         ;;
     --skip-guide )      NOGUIDE=true
                         ;;
-    -P | --platform-provides ) shift
-                          PLATFORM_PROVIDES="$PLATFORM_PROVIDES $1"
-                          ;;
     -h | --help )       usage
                         exit
                         ;;
@@ -74,9 +70,10 @@ if test -f "$HUB_STATE_FILE"; then
   HUB_ELABORATE_OPTS="$HUB_ELABORATE_OPTS -s $HUB_STATE_FILE"
 fi
 
-if test -n "$PLATFORM_PROVIDES"; then
-  HUB_ELABORATE_OPTS="--platform-provides $PLATFORM_PROVIDES $HUB_ELABORATE_OPTS"
+if $( grep -q -- "- aws-marketplace" hub.yaml ); then
+  HUB_ELABORATE_OPTS="--platform-provides aws-marketplace $HUB_ELABORATE_OPTS"
 fi
+
 
 HUB_DEPLOY_OPTS="--clouds=aws $HUB_DEPLOY_OPTS"
 

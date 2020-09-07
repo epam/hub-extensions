@@ -134,7 +134,7 @@ deploy_stack() {
         rm -f .env &&\
         ln -s .hub/env/$HUB_DOMAIN_NAME.env .env &&\
         source .env &&\
-        hub stack elaborate --platform-provides aws-marketplace &&\
+        hub stack elaborate &&\
         hub aws register || true
         hub stack deploy $@
         "
