@@ -10,10 +10,11 @@ Usage:
 $ $(basename "$0")
 
 Parameters:
-    -s  --silent          Suppress console outputs in favor of result codes
-    --skip-guide          Supperess "What's next" messages
-    -V  --verbose         Verbose outputs for debug purpose
-    -h --help             Show this message
+    -s  --silent           Suppress console outputs in favor of result codes
+    --skip-guide           Supperess "What's next" messages
+    -V  --verbose          Verbose outputs for debug purpose
+    -h --help              Show this message
+    -P --platform-provides Set Platform stack provides: -p tiller,etcd,...
 
 EOF
 }
@@ -31,6 +32,9 @@ while [ "$1" != "" ]; do
                         ;;
     --skip-guide )      NOGUIDE=true
                         ;;
+    -P | --platform-provides ) shift
+                          PLATFORM_PROVIDES="$PLATFORM_PROVIDES"
+                          ;;
     -h | --help )       usage
                         exit
                         ;;
@@ -62,13 +66,16 @@ fi
 source .env
 $SILENT || echo "* Using domain name: $HUB_DOMAIN_NAME"
 
-
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
 HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
 
 if test -f "$HUB_STATE_FILE"; then
   $SILENT || echo "* Using hub state file: $HUB_STATE_FILE"
   HUB_ELABORATE_OPTS="$HUB_ELABORATE_OPTS -s $HUB_STATE_FILE"
+fi
+
+if test -n "$PLATFORM_PROVIDES"; then
+  HUB_DEPLOY_OPTS="--platform-provides $PLATFORM_PROVIDES"
 fi
 
 HUB_DEPLOY_OPTS="--clouds=aws $HUB_DEPLOY_OPTS"

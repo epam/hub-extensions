@@ -10,6 +10,7 @@ Parameters:
     init          Apply hub prerequisite resources to your AWS account
     undeploy      Remove hub prerequisite resources from your AWS account
     status        Check the state of AWS account if it is ready to work with hub CLI
+    register      Register Product in AWS marketplace
 EOF
 }
 
@@ -27,6 +28,8 @@ while [ "$1" != "" ]; do
     undeploy )    $HUB aws undeploy $@
                   ;;
     status )      $HUB aws status $@
+                  ;;
+    register )    $HUB aws register $@
                   ;;
     -h | --help ) usage
                   exit

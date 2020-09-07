@@ -1,0 +1,58 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086,SC1118
+
+usage() {
+  cat << EOF
+Register product in AWS marketplace
+
+Usage: $(basename "$0")
+
+Parameters:
+    --aws-region          AWS Region
+    --aws-profile         AWS Profile
+    -s  --silent          Suppress console outputs in favor of result codes
+    --skip-guide          Suppress "What's next messages"
+    -V  --verbose         Verbose outputs for debug purpose
+EOF
+}
+
+register_product() {
+    $SILENT || echo "Registering product in AWS marketplace"
+    if test -f ".aws-marketplace"; then
+        aws meteringmarketplace  register-usage --cli-input-json file://.aws-marketplace
+    else
+        echo "Error: cannot find .aws-marketplace file" 
+    fi
+}
+
+while [ "$1" != "" ]; do
+  case $1 in
+    --aws-region )      shift
+                        export AWS_REGION="$1"
+                        ;;
+    --aws-profile )     shift
+                        export AWS_PROFILE="$1"
+                        ;;
+    -S | --silent )     SILENT=true
+                        NOGUIDE=true
+                        ;;
+    --skip-guide )      NOGUIDE=true
+                        ;;
+    -V | --verbose )    set -x
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 usage
+                        exit 1
+  esac
+  shift
+done
+
+
+SILENT=${SILENT:-false}
+NOGUIDE=${NOGUIDE:-false}
+
+test -f ".env" && source .env
+
+register_product
