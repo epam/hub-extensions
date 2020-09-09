@@ -3,11 +3,11 @@
 usage() {
     cat << EOF
 
-Executes deployment of Certified Stack from kuberentes cluster
+Undeploys Certified Stack from kuberentes cluster
 
 Usage: 
 $ $(basename "$0") -c component1,component2
-Deploys deploys two components 
+Undeploys two components 
 
 Parameters:
     -c --components       List of components to deploy
@@ -23,13 +23,12 @@ Parameters:
 EOF
 }
 
-deploy_stack() {
-    $SILENT || echo "Running stack deployment from pod: ${K8S_PODNAME}"
+undeploy_stack() {
+    $SILENT || echo "Running undeploy stack from pod: ${K8S_PODNAME}"
     kubectl -n "$K8S_NAMESPACE" exec -it "${K8S_PODNAME}" -- bash -c "\
         source .env &&\
         hub stack elaborate &&\
-        hub aws register || true
-        hub stack deploy $@
+        hub stack undeploy $@
         "
 }
 
@@ -88,10 +87,9 @@ if  test -z "${AWS_PROFILE}" && \
 fi
 
 
-
 hub ext remote --create-toolbox
 export K8S_NAMESPACE=$(hub ext remote --get-namespace)
 export K8S_PODNAME=$(hub ext remote --get-podname)
-deploy_stack
-hub ext remote --get-stack-state
+undeploy_stack
+hub ext remote  --get-stack-state
 $DELETE_TOOLBOX || hub ext remote --delete-toolbox
