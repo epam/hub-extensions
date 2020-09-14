@@ -32,6 +32,8 @@ const [splits, singles] = partition(sources, ({git: {subDir}}) => subDir);
 
 let cmds = ['set -xe'];
 
+cmds.push('\nif ! test -t 1; then subtree_flags=-q; fi')
+
 cmds.push('\n# add upstream remotes');
 cmds = cmds.concat(remotes.map((remote) =>
     `if ! git remote | grep -E '^${remoteName(remote)}$'; then\n\tgit remote add ${remoteName(remote)} ${remote}; fi`));
@@ -58,7 +60,7 @@ if (!isEmpty(splits)) {
     // TODO optimize for a single `git checkout` per remote+ref combination
     cmds = cmds.concat(splits.map(({name, git: {remote, ref, subDir}}) =>
         `git checkout -B ${localBranchName(remote, ref)} ${remoteBranchName(remote, ref)}\n`
-        + `git subtree split --prefix=${subDir} -b ${splitBranchName(name)}`));
+        + `git subtree $subtree_flags split --prefix=${subDir} -b ${splitBranchName(name)}`));
     cmds.push('popd');
 }
 
@@ -69,14 +71,14 @@ if (!isEmpty(splits)) {
     cmds.push('\n# merge `split` branches');
     cmds = cmds.concat(splits.map(({name, dir}) =>
         `if test -d ${dir}; then verb=merge; else verb=add; fi\n`
-        + `git subtree $verb --squash -m "${name} $verb" --prefix=${dir} ${splitBranchName(name)}`));
+        + `git subtree $subtree_flags $verb --squash -m "${name} $verb" --prefix=${dir} ${splitBranchName(name)}`));
 }
 
 if (!isEmpty(singles)) {
     cmds.push('\n# merge changes from repositiories with component source on top level');
     cmds = cmds.concat(singles.map(({dir, git: {remote, ref}}) =>
         `if test -d ${dir}; then verb=merge; else verb=add; fi\n`
-        + `git subtree $verb --squash -m "${dir} $verb" --prefix=${dir} ${remoteBranchName(remote, ref)}`));
+        + `git subtree $subtree_flags $verb --squash -m "${dir} $verb" --prefix=${dir} ${remoteBranchName(remote, ref)}`));
 }
 
 cmds.push('git stash pop');
