@@ -12,6 +12,7 @@ Common parameters:
   -r  --requirement       Configure one requirement (can be repeated multiple times)
   -e  --exclude           Exclude (ignore) requirement (can be repeated multiple times)
   -s  --silent            Suppress console outputs in favor of result codes
+  --non-interactive       Run this command in non-interactive mode
   -V  --verbose           Verbose outputs for debug purposeEOF
   -h  --help              Print this message
 
@@ -56,6 +57,9 @@ fi
 
 while [ "$1" != "" ]; do
   case $1 in
+    --non-interactive ) 
+      INTERACTIVE=false
+      ;;  
     -r | --requirement ) 
       shift 
       REQS="$REQS $1" 
@@ -64,7 +68,7 @@ while [ "$1" != "" ]; do
       shift 
       IGNORE="$IGNORE $1" 
       ;;
-    -n | --non-interactive ) 
+    --non-interactive ) 
       INTERACTIVE=false
       ;;
     -S | --silent )
@@ -164,10 +168,16 @@ for ENV in $FROM_ENVS; do
     if $SHOW_MAN; then
       SHOW_MAN=false
       cat << EOF
-You have been asked to enter a custom value for stack variable. 
-The value will be stored in .env and can be modified in the future
 
-Leave the value empty if you wish to assign a random generated!
+###
+#
+# You have been asked to enter a custom value for stack variable. 
+# The value will be stored in .env and can be modified in the future
+#
+# Leave the value empty if you wish to assign a random generated!
+#
+###
+
 EOF
     fi
     read -p "* Enter value for $ENV: " VALUE

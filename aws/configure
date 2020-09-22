@@ -104,7 +104,7 @@ fi
 echo -n "* Checking presence of Route 53 hosted zone $HUB_DOMAIN_NAME: "
 if test -z "$($(dirname $0)/route53/nameservers --domain-name $HUB_DOMAIN_NAME)"; then
   echo "not found"
-  echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes few minutes)... "
+  echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes some minutes)... "
   $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
 else
   echo "exist"
