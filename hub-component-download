@@ -1,0 +1,257 @@
+#!/bin/bash -e
+
+usage() {
+    cat << EOF
+
+Helper tool that dowloads components specified in hub.yaml
+Use flags "-A" or "-C" to download all components or subset of them
+
+Usage: 
+$ $(basename "$0") -A -F 
+To download all components and overwrite if they already exist
+
+$ $(basename "$0") -F -C minio,tiller 
+To download specified componenets and overwrite if they already exist
+
+
+Parameters:
+    -A  --all             Downloads latest version of components even they exist
+    -C  --components      Downloads latest version of components even they exist
+    -F  --force           Downloads latest version of components even they exist
+    --skip-guide          Suppress "What's next messages"
+    -V  --verbose         Verbose outputs for debug purpose
+    -h  --help            Print this message
+
+EOF
+}
+
+stack_dir() {
+    local name=$1
+    echo $(yq r hub.yaml -j | jq -r '.components[]  | select(.name=="'${name}'") | .source.dir ')
+}
+
+git_sub_dir() {
+    local name=$1
+    local results=$(echo $(yq r hub.yaml -j | jq -r '.components[]  | select(.name=="'${name}'") | .source.git.subDir '))
+    if [ "${results}" = "null" ]; then
+        echo ""
+    else
+        echo "${results}"
+    fi
+}
+
+git_cloned_dir() {
+    local name=$1
+    echo $(yq r hub.yaml -j | jq -r '.components[]  | select(.name=="'${name}'") | .source.git.remote | split("/")[-1] | split(".")[0]')
+}
+
+git_ref() {
+    local name=$1
+    echo $(yq r hub.yaml -j | jq -r '.components[]  | select(.name=="'${name}'") | .source.git.ref ')
+}
+
+get_git_rev() {
+    local git_dir=$1
+    local rev=$(git rev-parse --short HEAD)
+    cd $CURRENT_DIR
+    echo ${rev}
+}
+
+get_component_rev() {
+    local name=$1
+    echo $(cat ${COMPONENT_JSON_PATH} | jq -r '.[] | select(.name=="'${name}'").rev')
+}
+
+get_componenets_rev() {
+    local comps=${1}
+    local comp_revs=""
+
+    for comp in ${comps}
+    do
+        git_dir=$(echo "${GIT_DIR}/$(git_cloned_dir ${comp})/$(git_sub_dir ${comp})")
+        comp_revs+=$(get_git_rev "${git_dir}")
+        comp_revs+="|"
+    done
+    echo "${comp_revs}"
+}
+
+componenets_list_to_copy() {
+    local comps=$1
+    local comps_overide=$2
+    if [[  -z "${comps_overide}" ]]; then
+        echo "${comps}"
+    else
+        echo "$(echo ${comps_overide} | tr ', ' ' ')"
+    fi
+}
+
+clone_repos() { 
+    $SILENT || echo "Cloning components repositories"
+    local git_dir=$1
+    local git_urls=$2
+    cd $git_dir
+    echo "${git_urls}"  | xargs -I{} -n 1 -P 5 git clone {} > /dev/null 2>&1
+
+    cd $CURRENT_DIR
+}
+
+
+
+generate_comp_json() {
+    rm -rf ${COMPONENT_JSON_PATH}
+    mkdir -p ".hub"
+    touch ${COMPONENT_JSON_PATH}
+    $SILENT || echo "Generating components json manifest"
+    local comps="$1"
+    local comps_rev="$2"
+    local comp_json=$(cat <<EOF
+$( echo ${comps} | tr ' ' '|' )
+$(echo ${comps_rev} | rev | cut -c2- | rev)
+EOF
+)
+    jq -Rn '
+( input  | split("|") ) as $keys |
+( inputs | split("|") ) as $vals |
+[[$keys, $vals] | transpose[] | {name:.[0],rev:.[1]}]
+' <<<"$comp_json" > ${COMPONENT_JSON_PATH}
+}
+
+diff_component() {
+    local local_comp_name=$1
+    local remote_comp_path=$2
+     
+    local_comp_rev=$(get_component_rev ${local_comp_name})
+    remote_comp_rev=$(get_git_rev ${remote_comp_path})
+    if [[ ${local_comp_rev} == ${remote_comp_rev} ]]; then
+        echo "0"
+    else
+        echo "1"
+    fi 
+}
+
+stack_has_rev_json() {
+    if test -f  ${COMPONENT_JSON_PATH}; then
+        echo "Components already downloaded in stack, if you would like to overwrite them please run with arg '-F'"
+        exit 1
+    fi
+}
+
+stack_components_revs_match() {
+    local comps=$1
+    local results=""
+
+    for comp in ${comps}
+    do
+        git_dir=$(echo "${GIT_DIR}/$(git_cloned_dir ${comp})/$(git_sub_dir ${comp})")
+        results+=$(diff_component ${comp} "${git_dir}")
+    done
+    if [[ " ${results[@]} " =~ "1" ]]; then
+        echo "There is newer version of components, if you would like to update them please run with arg '-F'"
+        echo "${results}"
+        exit 1
+    fi
+}
+
+copy_component() {
+    local ref=$1
+    local git_dir=$2
+    local stack_dir=$3
+
+    cd "${git_dir}"
+    git checkout "${ref}" > /dev/null 2>&1
+    rm -rf "${stack_dir}" > /dev/null 2>&1
+    mkdir -p "${stack_dir}" > /dev/null 2>&1
+    cp -rf "${git_dir}/" "${stack_dir}"
+
+    git checkout master > /dev/null 2>&1
+    cd ${CURRENT_DIR}
+}
+
+copy_components() {
+    $SILENT || printf "Copying components to local stack: "
+    local comps=$1
+    for comp in ${comps}
+    do  
+        $SILENT || printf "."
+        local git_dir=$(echo "${GIT_DIR}/$(git_cloned_dir ${comp})/$(git_sub_dir ${comp})")
+        local stack_dir=$(echo "${CURRENT_DIR}/$(stack_dir ${comp})")
+        local ref=$(echo "$(git_ref ${comp})")
+        copy_component "${ref}" "${git_dir}" "${stack_dir}"
+    done
+    $SILENT || printf "\n"
+    $SILENT || echo "Components have sucesfully downloaded and added to stack!"
+}
+
+
+NOGUIDE=${NOGUIDE:-false}
+SILENT=${SILENT:-false}
+CHECK=${CHECK:-true}
+COMPONENT_JSON_PATH=${COMPONENT_JSON_PATH:-.hub/component_rev.json}
+CURRENT_DIR=${CURRENT_DIR:-$(pwd)}
+ALL_COMPS=${ALL_COMPS:-false}
+
+if [[ -z ${@} ]]; then
+  usage
+  exit 1
+fi
+
+while [ "$1" != "" ]; do
+    case $1 in
+    -A | --all)         ALL_COMPS=true
+                        ;; 
+    -F | --force)       CHECK=false
+                        ;;
+    -C | --component )  shift
+                        COMPS_LIST="$1"
+                        ;;
+    -V | --verbose )    set -x
+                        ;;
+    -S | --silent )     SILENT=true
+                        NOGUIDE=false
+                        ;;
+    --skip-guide )      NOGUIDE=true
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 usage
+                        exit 1
+    esac
+    shift
+done
+
+
+
+
+if test ! -f hub.yaml; then
+cat << EOF
+Hub.yaml has not been found. Make sure you are in stack folder
+EOF
+  exit 1
+fi
+
+
+COMPONENTS=$(yq r hub.yaml -j | jq -r '.components[]  |  select(.source.git != null ) | .name ')
+GIT_URLS=$(yq r hub.yaml -j | jq -r '.components[].source.git.remote | select(length > 0)'  | sort | uniq)
+
+
+${CHECK} && stack_has_rev_json
+
+if test -f  ${COMPONENT_JSON_PATH}; then
+    ${CHECK} && stack_components_revs_match "${COMPONENTS}"
+fi
+
+
+GIT_DIR=$(mktemp -d)
+trap "rm -rf $GIT_DIR" EXIT
+
+clone_repos "${GIT_DIR}" "${GIT_URLS}"
+
+$SILENT || echo "Getting components revisions"
+COMPONENT_REVS=$(get_componenets_rev "${COMPONENTS}")
+
+generate_comp_json "${COMPONENTS}" "${COMPONENT_REVS}"
+
+COMPONENTS=$(componenets_list_to_copy "${COMPONENTS}" "${COMPS_LIST}")
+
+copy_components "${COMPONENTS}"

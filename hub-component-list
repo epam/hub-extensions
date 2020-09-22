@@ -1,0 +1,73 @@
+#!/bin/bash -e
+
+usage() {
+    cat << EOF
+
+Show status of components in stack
+
+Usage: 
+$ $(basename "$0")
+Display list of components
+
+
+Parameters:
+    --skip-guide          Suppress "What's next messages"
+    -V  --verbose         Verbose outputs for debug purpose
+    -h  --help            Print this message
+
+EOF
+}
+
+stack_dir() {
+    local name=$1
+    echo $(yq r hub.yaml -j | jq -r '.components[]  | select(.name=="'${name}'") | .source.dir ')
+}
+
+while [ "$1" != "" ]; do
+    case $1 in
+    -V | --verbose )    set -x
+                        ;;
+    -S | --silent )     SILENT=true
+                        NOGUIDE=false
+                        ;;
+    --skip-guide )      NOGUIDE=true
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 usage
+                        exit 1
+    esac
+    shift
+done
+
+COMPONENT_JSON_PATH=${COMPONENT_JSON_PATH:-.hub/component_rev.json}
+
+if ! test -f  ${COMPONENT_JSON_PATH}; then
+    echo "No componenets have been downloaded in stack"
+    exit 1
+fi
+
+get_component_rev() {
+    local name=$1
+    echo $(cat ${COMPONENT_JSON_PATH} | jq -r '.[].name')
+}
+
+is_installed() {
+    local path=$(stack_dir $1)
+    test -d "${path}"
+    if [[ ${?} == "0" ]]; then 
+        echo "true"
+    else 
+        echo "false"
+    fi
+}
+
+
+results+="NAME INSTALLED|"
+for comp in $(get_component_rev)
+do 
+    results+="${comp} $(is_installed ${comp})|"
+done
+
+echo "${results}" | tr '|' '\n' | column -t

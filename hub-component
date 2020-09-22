@@ -1,0 +1,39 @@
+#!/bin/bash -e
+
+usage() {
+    cat << EOF
+Usage: $(basename "$0") <sub command>
+
+Parameters:
+    download          Downloads stack componenets
+    list              List downloaded stack componenets
+
+EOF
+}
+
+if test -z "$*"; then
+  usage
+  exit 1
+fi
+
+HUB=${HUB:-hub}
+
+while [ "$1" != "" ]; do
+  cmd=$1
+  shift
+  case $cmd in
+    download )          $HUB ext component download $@
+                        ;;
+    list )              $HUB ext component list $@
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 usage
+                        exit 1
+  esac
+done
+
+
+
+
