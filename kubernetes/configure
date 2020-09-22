@@ -1,0 +1,111 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+usage() {
+cat << EOF
+Kubernetes parameters:
+  -k  --kubeconfig        Path to the kubeconfig. If not specified then use default to kubectl
+  -c  --kubecontext       Name of Kubernetes context in Kubeconfig file
+                          "_" reserved for "current context"
+  --current-kubecontext   Use current kubecontext existing
+                          configuration (mandatory)
+
+Use: hub configure [-c _] or [--current-kubecontext] for current kubecontext
+
+EOF
+}
+
+while [ "$1" != "" ]; do
+  case "$1" in
+    -k | --kubeconfig )      shift
+                             export KUBECONFIG="$1"
+                             ;;
+    -c | --kubecontext )     shift
+                             KUBECONTEXT="$1"
+                             ;;
+    --current-kubecontext )  KUBECONTEXT="_"
+                             ;;
+  esac
+  shift
+done
+
+VERBOSE=${VERBOSE:-false}
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
+DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
+dotenv_var() {
+  grep "$1" "$DOT_ENV" \
+  | cut -d '=' -f 2- \
+  | sed -e "s/^\"//" -e "s/\"$//"
+}
+
+DOMAIN=${HUB_DOMAIN_NAME:-$(dotenv_var "HUB_DOMAIN_NAME")}
+
+if test -z "$KUBECONTEXT" || \
+   test -z "$DOMAIN"; then
+  usage
+  exit 1
+fi
+
+echo "Configuring Kubernetes"
+echo -n "* Using context: "
+if test "$KUBECONTEXT" == "_"; then
+  KUBECONTEXT="$(kubectl config current-context)"
+fi
+echo "$KUBECONTEXT"
+
+CLUSTER_NAME="$(kubectl config view --raw -o json \
+| jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.cluster')"
+USERNAME="$(kubectl config view --raw -o json \
+| jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.user')"
+CLUSTER="$(kubectl config view --raw -o json \
+| jq -cM '.clusters[] | select(.name == "'$CLUSTER_NAME'") + {"name": "'$DOMAIN'"}')"
+USER="$(kubectl config view --raw -o json \
+| jq -cM '.users[] | select(.name == "'$USERNAME'")')"
+# shellcheck disable=SC2006
+TEMP=`mktemp /tmp/superhub.XXXXXX` || exit 1
+trap "rm -f $TEMP" EXIT
+
+  cat <<EOF > $TEMP
+{
+  "kind": "Config",
+  "apiVersion": "v1",
+  "preferences": {},
+  "clusters": [
+    $CLUSTER
+  ],
+  "users": [
+    $USER
+  ],
+  "contexts": [
+    {
+      "name": "$DOMAIN",
+      "context": {
+        "cluster": "$DOMAIN",
+        "user": "$USERNAME"
+      }
+    }
+  ],
+  "current-context": "$DOMAIN"
+}
+EOF
+
+WORKDIR=${WORKDIR:-$(pwd)}
+mkdir -p "$WORKDIR/.hub/env/"
+if ! test -f "$WORKDIR/.hub/env/$DOMAIN.kubeconfig"; then
+  cat "$TEMP" > "$WORKDIR/.hub/env/$DOMAIN.kubeconfig"
+  echo "* Sandboxing config to: $DOMAIN.kubeconfig"
+elif ! cmp -s "$TEMP" "$WORKDIR/.hub/env/$DOMAIN.kubeconfig"; then
+  mv -f  "$WORKDIR/.hub/env/$DOMAIN.kubeconfig" "$WORKDIR/.hub/env/$DOMAIN.kubeconfig.bak"
+  echo "* Backing up config: $DOMAIN.kubeconfig.bak"
+  cat "$TEMP" > "$WORKDIR/.hub/env/$DOMAIN.kubeconfig"
+  echo "* Sandboxing config to: $DOMAIN.kubeconfig"
+fi
+
+DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
+cat << EOF >> $DOT_ENV
+# Location of sandboxed kubeconfig
+export KUBECONFIG="$WORKDIR/.hub/env/$DOMAIN.kubeconfig"
+EOF

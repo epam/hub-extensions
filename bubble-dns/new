@@ -1,0 +1,63 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+HUB_PARENT_DOMAIN="bubble.superhub.io"
+while [ "$1" != "" ]; do
+  case $1 in
+    --parent-domain )   shift
+                        HUB_PARENT_DOMAIN="$1"
+                        ;;
+  esac
+  shift
+done
+
+if test $VERBOSE = "true"; then 
+  set -x
+fi
+
+echo "* Using parent domain: $HUB_PARENT_DOMAIN"
+TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
+# shellcheck disable=SC2064
+trap "rm -f $TEMP" EXIT
+
+echo -n "* Resolving new domain name: "
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://api.agilestacks.io/dns/"}
+HTTP_CODE=$( \
+  curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
+      -w "%{http_code}" \
+      -o "$TEMP" \
+      -H 'Content-Type: application/json;charset=UTF-8' \
+      -d "{\"baseDomain\": \"$HUB_PARENT_DOMAIN\"}" \
+)
+
+# checking if http code is 2** 
+if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
+  cat << EOF
+Error
+
+Please try again later!
+
+Troubleshooting info:
+* Web services returned error code: $HTTP_CODE
+EOF
+  echo -n "* Payload: "
+  cat $TEMP
+  exit 1
+fi
+
+HUB_DOMAIN_NAME="$(jq -r '.domain' < "$TEMP")"
+HUB_DOMAIN_SECRET="$(jq -r '.key' < "$TEMP")"
+echo "$HUB_DOMAIN_NAME"
+
+WORKDIR=${WORKDIR:-$(pwd)}
+DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
+cat $TEMP > $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble
+
+cat << EOF >> $DOT_ENV
+# Bubble DNS record TTL 72 hours. To renew run:
+# $ hub configure -r dns --dns-update
+export HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
+export HUB_DOMAIN_NAME="$HUB_DOMAIN_NAME"
+export HUB_DOMAIN_SECRET="$HUB_DOMAIN_SECRET"
+export HUB_BUBBLE_DNS="$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble"
+EOF

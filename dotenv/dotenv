@@ -1,0 +1,148 @@
+#!/bin/bash -e
+usage() {
+  cat << EOF
+.env file parser written in bash
+
+Parameters:
+  -f  --file              Path to .env file (can repeat multiple times)
+  --verbose               Verbose output for debugging
+
+Subcommands:
+  $(basename "$0") get KEY               returns value associated with KEY or empty string
+  $(basename "$0") merge (-f FILE1)...   merges two or .env files
+  $(basename "$0") export                exports dotenv file for bash
+EOF
+}
+
+FILES=
+ACTION=
+VERBOSE=${VERBOSE:-false}
+while [ "$1" != "" ]; do
+  case "$1" in
+    get )
+      shift
+      ACTION="get"
+      KEY="$1"
+    ;;
+    merge | export )
+      ACTION="$1"
+      ;;
+    -f | --file ) 
+      shift
+      if test ! -f "$1"; then
+        echo "Error: cannot find file $1"
+        exit 1
+      fi 
+      FILES=$(echo "$FILES" "$1" | xargs)
+      ;;
+    -h | --help )
+      usage
+      exit
+      ;;
+    --verbose )
+      VERBOSE="true"
+      ;;      
+    * )
+      usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
+if test -z "$FILES"; then
+  if test -f ".env"; then
+    FILES=".env"
+  else
+    cat <<EOF
+
+Error: cannot find .env file
+
+EOF
+    usage
+    exit 1
+  fi 
+fi
+
+dotenv::merge() {
+  local temp=$(mktemp /tmp/suprehub.XXXXXX) || exit 1
+  trap "rm -f $temp" EXIT
+  for f in "$@"; do
+    __merge "$temp" "$f"
+  done
+  cat $temp
+}
+
+__merge() {
+  local key value
+  # set -x
+  while read -r line; do
+    # TODO: eliminate bashism
+    line=${line#"${line%%[![:space:]]*}"}  # trim leading whitespace
+		line=${line%"${line##*[![:space:]]}"}  # trim trailing whitespace
+    # special case for comments
+		if [[ ! "$line" || "$line" == '#'* ]]; then
+      if test -z "$(grep "$line" "$1")"; then 
+        echo $line >> $1
+      fi
+      continue
+    fi
+    if [[ "$line" =~ ^(export[ ]+)?(.*)=(.*)$ ]]; then
+      key="${BASH_REMATCH[2]}"
+      curr_line=$(cat $1 | grep --color=never -e "$key=" || echo "")
+      if test -z "$curr_line"; then
+        echo $line >> $1
+      elif test "$curr_line" != "$line"; then
+        local delim=$'\001'
+        sed -i -e "s${delim}${curr_line}${delim}${line}${delim}" "$1"
+      fi
+    fi
+  done < $2
+}
+
+dotenv::get() {
+  local reply
+  local payload=$(cat $2)
+  [[ "$payload" =~ ^(.*(^|$'\n'))((export)?[ ]*)"$1="(.*)\"*$ ]] && \
+  result=${BASH_REMATCH[5]%%$'\n'*} && result=${result%"${result##*[![:space:]]}"}
+  if test "$result" = "null"; then
+    result=""
+  fi
+  echo "$result" | sed -e "s/^\"//" -e "s/\"$//"
+}
+
+dotenv::export() {
+  local key value
+  # set -x
+  while read -r line; do
+    # TODO: eliminate bashism
+    line=${line#"${line%%[![:space:]]*}"}  # trim leading whitespace
+		line=${line%"${line##*[![:space:]]}"}  # trim trailing whitespace
+    # special case for comments
+		if [[ ! "$line" || "$line" == '#'* ]]; then
+      continue
+    fi
+    if [[ "$line" =~ ^(export[ ]+)?(.*)=(.*)$ ]]; then
+      key="${BASH_REMATCH[2]}"
+      value="${BASH_REMATCH[3]}"
+      echo "export $key=$value"
+    fi
+  done < $1
+}
+
+FIRST_FILE=$(echo "$FILES" | awk '{print $1;}')
+case $ACTION  in
+  "merge"  )  
+    dotenv::$ACTION $FILES ;;
+  "get"    )  
+    dotenv::$ACTION $KEY $FIRST_FILE ;;
+  "export" )  
+    dotenv::$ACTION $FIRST_FILE ;;
+  * )
+    usage
+    exit 1
+esac

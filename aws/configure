@@ -1,0 +1,134 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+usage() {
+  cat << EOF
+AWS parameters:
+  --aws-region            AWS Region (defaults to value from: AWS_REGION)
+  --aws-profile           AWS Profile (defaults to value from: AWS_PROFILE)
+
+Bubble DNS parameters:
+  --dns-new     Request new DNS domain
+  --dns-update  Request to update DNS registration 
+
+  New DNS record request:
+    --parent-domain         Parent domain for stack (defaults to: bubble.superhub.io)
+
+  Request to update DNS record:
+    -n  --domain-name       Previously issued DNS name
+    -k  --secret-key        Secret key passed during domain name creation
+
+  Use: hub configure -r dns --dns-update
+
+EOF
+}
+
+HUB_PARENT_DOMAIN=${HUB_PARENT_DOMAIN:-"bubble.superhub.io"}
+FLAGS=$*
+while [ "$1" != "" ]; do
+  case $1 in
+    --aws-region )      shift
+                        AWS_REGION="$1"
+                        ;;
+    --aws-profile )     shift
+                        AWS_PROFILE="$1"
+                        ;;
+    --dns-new )         ACTION="new"
+                        ;;
+    --dns-update )      ACTION="update"
+                        ;;                 
+    -h | --help )       usage
+                        exit
+                        ;;
+  esac
+  shift
+done
+
+if test $VERBOSE = "true"; then 
+  set -x
+fi
+
+DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
+dotenv="$(dirname $(dirname "$0"))/dotenv/dotenv -f "$DOT_ENV""
+
+HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Configuring Bubble DNS"
+  $(dirname $(dirname "$0"))/bubble-dns/new $FLAGS
+  # Reading newly generated domain name by script above
+  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
+  if test -z "$HUB_DOMAIN_NAME"; then
+    echo "Error: cannot find domain name: [$HUB_DOMAIN_NAME]"
+    exit 1
+  fi
+fi
+
+echo "Configuring AWS"
+AWS_PROFILE=${AWS_PROFILE:-$(echo "$AWS_DEFAULT_PROFILE default" | awk '{print $1;}')}
+if aws --profile $AWS_PROFILE configure list > /dev/null 2>&1; then
+  AWS_OPTS="$AWS_OPTS --profile $AWS_PROFILE"
+  echo "* Using AWS profile: $AWS_PROFILE"
+fi
+
+if test -z "$AWS_REGION"; then
+  AWS_REGION=$(aws $AWS_OPTS configure get region)
+  if test -z "$AWS_REGION"; then
+    AWS_REGION="us-east-1"
+  fi
+fi
+
+echo "* Using AWS region: $AWS_REGION"
+
+export AWS_PROFILE AWS_REGION
+
+AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
+STATE_BUCKET="$AWS_ACCOUNT.$HUB_PARENT_DOMAIN"
+
+echo -n "* Checking presence of S3 bucket $STATE_BUCKET: "
+if test -z $(aws $AWS_OPTS s3api head-bucket --bucket=$STATE_BUCKET 2>&1); then
+  STATE_REGION="$(aws $AWS_OPTS s3api get-bucket-location \
+    --bucket="$STATE_BUCKET" --query 'LocationConstraint' \
+    --output text \
+    | sed -e 's/null/us-east-1/g')"
+  echo "exist"
+else
+  STATE_REGION="$AWS_REGION"
+  echo "not found"
+  echo -n "* Deployng S3 bucket $STATE_BUCKET: "
+  $(dirname "$0")/s3-bucket/deploy \
+    --bucket-name "$STATE_BUCKET" \
+    --aws-region "$AWS_REGION" \
+    --acl "private" || exit 1
+fi
+
+echo -n "* Checking presence of Route 53 hosted zone $HUB_DOMAIN_NAME: "
+if test -z "$($(dirname $0)/route53/nameservers --domain-name $HUB_DOMAIN_NAME)"; then
+  echo "not found"
+  echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes few minutes)... "
+  $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
+else
+  echo "exist"
+fi
+
+cat << EOF >> "$DOT_ENV"
+# Cloud provider AWS configuration
+export AWS_PROFILE="$AWS_PROFILE"
+export AWS_REGION="$AWS_REGION"
+export HUB_CLOUD_PROVIDER="aws"
+# S3 bucket to store hub and terraform state
+export HUB_STATE_BUCKET="$STATE_BUCKET"
+export HUB_STATE_REGION="$STATE_REGION"
+EOF
+
+echo -n "* Sending request to update $HUB_DOMAIN_NAME record: "
+HUB_DOMAIN_SECRET=$($dotenv get "HUB_DOMAIN_SECRET")
+$(dirname $(dirname "$0"))/bubble-dns/update \
+  --domain-name "$HUB_DOMAIN_NAME" \
+  --secret-key "$HUB_DOMAIN_SECRET"
+
+cat << EOF
+* DNS record has time to live: 72 hours (refresh before expires)
+
+# Hint! To refresh DNS: hub configure -r dns --dns-update
+
+EOF

@@ -1,0 +1,63 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+while [ "$1" != "" ]; do
+  case $1 in
+    --domain-name )       shift
+                          HUB_DOMAIN_NAME="$1"
+                          ;;
+    --secret-key )        shift
+                          HUB_DOMAIN_SECRET="$1"
+                          ;;
+    -ns | --nameserver )  shift
+                          NAMESERVERS="$NAMESERVERS $1"
+                          ;;
+  esac
+  shift
+done
+
+VERBOSE=${VERBOSE:-"false"}
+if test $VERBOSE = "true"; then 
+  set -x
+fi
+
+if test -n "$(echo $REQS | xargs)"; then
+  NAMESERVERS=$(echo "\"$NAMESERVERS\"" | jq -cM '[split(" ") []| select(length > 0)]')
+else 
+  NAMESERVERS=$($(dirname $(dirname "$0"))/route53/nameservers --domain-name "$HUB_DOMAIN_NAME" --json)
+fi
+
+if test "$NAMESERVERS" = "[]"; then
+  echo "Error: cannot find nameservers for $HUB_DOMAIN_NAME"
+  exit 1
+fi
+
+if test "$HUB_DOMAIN_SECRET" = "[]"; then
+  echo "Error: HUB_DOMAIN_SECRET cannot be empty"
+  exit 1
+fi
+
+TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
+# shellcheck disable=SC2064
+trap "rm -f $TEMP" EXIT
+
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://api.agilestacks.io/dns"}
+HTTP_CODE=$(curl -sLo $TEMP -w "%{http_code}" -X PUT \
+      "$HUB_BUBBLE_DNS_URL/$HUB_DOMAIN_NAME" \
+      -H 'Content-Type: application/json;charset=UTF-8' \
+      -d "{\"key\": \"$HUB_DOMAIN_SECRET\",\"nameservers\": $NAMESERVERS}")
+# Checking for return code 200 or similar. 
+if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
+  cat << EOF
+Error
+
+Please try again later!
+
+Troubleshooting info:
+* Web services returned error code: $HTTP_CODE
+EOF
+  echo -n "* Payload: "
+  cat $TEMP
+  exit 1
+fi
+echo "Done"

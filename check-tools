@@ -9,11 +9,13 @@ which aws >/dev/null 2>&1 || echo ${color_start}'Please install AWS CLI - https:
 which kubectl >/dev/null 2>&1 || echo ${color_start}'Please install KUBECTL - https://kubernetes.io/docs/reference/kubectl/overview/'${color_end}
 which eksctl >/dev/null 2>&1 || echo ${color_start}'Please install EKSCTL - https://eksctl.io'${color_end}
 which jq >/dev/null 2>&1 || echo ${color_start}'Please install JQ - https://stedolan.github.io/jq/'${color_end}
+which yq >/dev/null 2>&1 || echo ${color_start}'Please install YQ - https://kislyuk.github.io/yq/'${color_end}
 which npm >/dev/null 2>&1 || echo ${color_start}'Please optionally install Node.js and NPM for `hub pull` extension - https://nodejs.org'${color_end}
 
-if ! which aws >/dev/null 2>&1 ||
+if ! which aws >/dev/null 2>&s1 ||
         ! which kubectl >/dev/null 2>&1 ||
         ! which eksctl >/dev/null 2>&1 ||
+        ! which yq >/dev/null 2>&1 ||
         ! which jq >/dev/null 2>&1; then
     echo '... then run `hub extensions update` again'
     exit 1
