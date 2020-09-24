@@ -12,7 +12,7 @@ which jq >/dev/null 2>&1 || echo ${color_start}'Please install JQ - https://sted
 which yq >/dev/null 2>&1 || echo ${color_start}'Please install YQ - https://kislyuk.github.io/yq/'${color_end}
 which npm >/dev/null 2>&1 || echo ${color_start}'Please optionally install Node.js and NPM for `hub pull` extension - https://nodejs.org'${color_end}
 
-if ! which aws >/dev/null 2>&s1 ||
+if ! which aws >/dev/null 2>&1 ||
         ! which kubectl >/dev/null 2>&1 ||
         ! which eksctl >/dev/null 2>&1 ||
         ! which yq >/dev/null 2>&1 ||
