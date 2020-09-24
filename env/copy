@@ -1,0 +1,57 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+usage() {
+  cat << EOF
+Copy with backup: $(basename $0) FROM TO
+
+Parameters:
+  -V --verbose            For debug purpose
+  -h --help               Show this message
+
+EOF
+}
+
+
+while test -n "$1"; do
+  case $FROM in               
+    -h | --help )
+      usage
+      exit ;;
+    -V | --verbose )
+      VERBOSE="true" ;;
+    * )
+      FROM="$1"
+      DEST="$2" 
+      shift
+      ;;
+  esac
+  shift
+done
+
+if test "$VERBOSE" = "true"; then 
+  set -x
+fi
+
+if test -z "$FROM" || test -z "$DEST"; then
+  usage
+  exit 1
+fi
+
+if test ! -f "$FROM"; then
+  echo "Error: $FROM not found"
+  exit 2
+fi
+
+mkdir -p "$(dirname $DEST)"
+
+if test -f "$DEST"; then
+  if cmp -s "$FROM" "$DEST"; then
+    echo "Already up to date"
+    exit
+  fi
+
+  cat "$DEST" > "$DEST.bak"
+fi
+cat "$FROM" > "$DEST"
+echo "Done"

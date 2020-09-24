@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# shellcheck disable=SC2046,SC2068
+# shellcheck disable=SC2046,SC2068,SC2064
 
 usage() {
   cat << EOF
@@ -9,6 +9,7 @@ Use:
   hub configure <parameters>
 
 Common parameters:
+  -f  --file              Hub parameter file (defauts to ./params.yaml)
   -r  --requirement       Configure one requirement (can be repeated multiple times)
   -e  --exclude           Exclude (ignore) requirement (can be repeated multiple times)
   -s  --silent            Suppress console outputs in favor of result codes
@@ -68,9 +69,6 @@ while [ "$1" != "" ]; do
       shift 
       IGNORE="$IGNORE $1" 
       ;;
-    --non-interactive ) 
-      INTERACTIVE=false
-      ;;
     -S | --silent )
       SILENT=true
       ;;
@@ -87,28 +85,22 @@ done
 
 # too much output with this utility file
 # source "$(dirname $0)/dotenv/dotenv"
-# HACK: untill "source dotenv" will be fiexed
-dotenv=$(dirname "$0")/dotenv/dotenv
-
+# HACK: untill "source dotenv" will be fixed
+dotenv=$(dirname "$0")/env/dotenv
 if $VERBOSE; then
   set -x
 fi
 
 WORKDIR="$(dirname "$HUB_YAML")"
-DOT_ENV=$(mktemp /tmp/suprehub.XXXXXX) || exit 1
-
-# shellcheck disable=SC2064
-trap "rm -f $DOT_ENV" EXIT
-
 mkdir -p "$WORKDIR/.hub/env"
 # common environment variables that 
 # will be used by exact extensions
-export DOT_ENV HUB_YAML WORKDIR SILENT VERBOSE
+export WORKDIR SILENT VERBOSE INTERACTIVE
 
 REQS=$(echo -e "$REQS" | xargs)
 IGNORE=$(echo -e "$IGNORE" | xargs)
 if test -z "$REQS"; then
-  REQS=$(yq r $WORKDIR/hub.yaml -j | jq -r '.requires | .[]')
+  REQS=$(yq r "$HUB_YAML" -j | jq -r '.meta.configure?.requires? | .[]')
 fi
 
 if test -z "$ARGS" || $HELP; then
@@ -120,18 +112,27 @@ echo "Configuring current stack for: $(echo "$REQS" | xargs)"
 
 echo -n "Reading .env file: "
 if test -f "$WORKDIR/.env"; then
-  $dotenv merge -f "$WORKDIR/.env" -f "$DOT_ENV" > "$DOT_ENV" 
   set +a
-  eval $($dotenv export -f "$DOT_ENV" )
+  eval $($dotenv export -f "$WORKDIR/.env" )
   set -a
   cat << EOF
 
 * Cloud provider: $HUB_CLOUD_PROVIDER
 * Stack domain name: $HUB_DOMAIN_NAME
 EOF
+
+  if test -L "$WORKDIR/.env"; then
+    DOT_FILES=$(readlink -n "$WORKDIR/.env")
+  else 
+    DOT_FILES="$WORKDIR/.env"
+  fi
 else
   echo "not found"
+  DOT_FILES=""
 fi
+
+# mkdir -p "$WORKDIR/.hub/configure"
+# trap "rm -rf $WORKDIR/.hub/configure" EXIT
 
 for req in $REQS; do
   if echo "$IGNORE" | grep -oh "\w*$req\w*"; then
@@ -139,76 +140,35 @@ for req in $REQS; do
   fi
 
   if test -f "$(dirname "$0")/$req/configure"; then
-    # shellcheck disable=SC1090
-    set +a
-    eval $($dotenv export -f "$DOT_ENV")
-    set -a
-    # shellcheck disable=SC2086
-    if $SILENT; then
-      $(dirname "$0")/$req/configure $ARGS > /dev/null
-    else
-      $(dirname "$0")/$req/configure $ARGS
+    # TEMP="$WORKDIR/.hub/configure/$req.env"
+    TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
+    trap "rm -f $TEMP" EXIT
+    
+    $(dirname "$0")/"$req"/configure --output "$TEMP" $ARGS
+    if test -s "$TEMP"; then
+      set +a
+      eval $($dotenv export -f "$TEMP")
+      set -a
+      DOT_FILES="$DOT_FILES $TEMP"
     fi
   fi
 done
 
-echo "Configuring environment variables"
-FROM_ENVS=$(
-  yq r params.yaml -j | jq -cr \
-    '.parameters[] | select(.parameters).parameters[] | select(.fromEnv).fromEnv'
-)
-SHOW_MAN=true
-for ENV in $FROM_ENVS; do
-  VALUE=$($dotenv -f "$DOT_ENV" get "$ENV")
-  if test -n "$VALUE"; then
-    echo "* Environment variable $ENV: already configured"
-    continue
-  fi
-  if $INTERACTIVE; then
-    if $SHOW_MAN; then
-      SHOW_MAN=false
-      cat << EOF
-
-###
-#
-# You have been asked to enter a custom value for stack variable. 
-# The value will be stored in .env and can be modified in the future
-#
-# Leave the value empty if you wish to assign a random generated!
-#
-###
-
-EOF
-    fi
-    read -p "* Enter value for $ENV: " VALUE
-  fi
-  if test -z "$VALUE"; then
-    VALUE=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
-  fi
-  echo "export $ENV=\"$VALUE\"" >> $DOT_ENV
-  echo "* Value for $ENV stored in .env"
-done
-
-HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME" -f "$DOT_ENV")}
 echo "Finalizing env files..."
-if ! test -f "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"; then
-  cat "$DOT_ENV" > "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
-  echo "* Saving stack configuration to: $HUB_DOMAIN_NAME.env"
-elif ! cmp -s "$DOT_ENV" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"; then
-  mv -f  "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env.bak"
-  echo "* Backing up config: $HUB_DOMAIN_NAME.env.bak"
-  cat "$DOT_ENV" > "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
-  echo "* Saving stack configuration to: $HUB_DOMAIN_NAME.env"
-else
-  echo "* .env file already exists and up to date"
-fi
+# TEMP="$WORKDIR/.hub/configure/.env"
+TEMP=`mktemp /tmp/superhub.XXXXXX` || exit 1
+trap "rm -f $TEMP" EXIT
+$dotenv merge $(echo $DOT_FILES | sed 's/[^ ]* */-f &/g') > $TEMP
+HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME" -f "$TEMP")}
+echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
+$(dirname "$0")/env/copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
 
-if test -L "$WORKDIR/.env" && test "$(readlink -n $WORKDIR/.env)" != "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"; then
+if test -L "$WORKDIR/.env" && test $(readlink -n "$WORKDIR/.env") != "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"; then
   unlink "$WORKDIR/.env"
 fi
 if test ! -f ".env"; then
   ln -sf "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
-  $SILENT || echo "* Updated .env link to $HUB_DOMAIN_NAME.env"
+  echo "* Updated .env link to $HUB_DOMAIN_NAME.env"
 fi
 
 echo "Done!"

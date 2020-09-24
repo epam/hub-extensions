@@ -32,7 +32,7 @@ if test "$NAMESERVERS" = "[]"; then
   exit 1
 fi
 
-if test "$HUB_DOMAIN_SECRET" = "[]"; then
+if test -z "$HUB_DOMAIN_SECRET"; then
   echo "Error: HUB_DOMAIN_SECRET cannot be empty"
   exit 1
 fi
@@ -42,11 +42,14 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 trap "rm -f $TEMP" EXIT
 
 HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://api.agilestacks.io/dns"}
+
+set +e
 HTTP_CODE=$(curl -sLo $TEMP -w "%{http_code}" -X PUT \
       "$HUB_BUBBLE_DNS_URL/$HUB_DOMAIN_NAME" \
       -H 'Content-Type: application/json;charset=UTF-8' \
-      -d "{\"key\": \"$HUB_DOMAIN_SECRET\",\"nameservers\": $NAMESERVERS}")
-# Checking for return code 200 or similar. 
+      -d "{\"key\": \"$HUB_DOMAIN_SECRET\",\"nameservers\": $(echo $NAMESERVERS | jq -cM)}")
+set -e
+# Checking for return code 2??
 if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
   cat << EOF
 Error
@@ -56,8 +59,12 @@ Please try again later!
 Troubleshooting info:
 * Web services returned error code: $HTTP_CODE
 EOF
-  echo -n "* Payload: "
-  cat $TEMP
+  echo -n "* Server response: "
+  if test -s "$TEMP"; then
+    cat $TEMP
+  else
+    echo "not available"
+  fi
   exit 1
 fi
 echo "Done"

@@ -1,0 +1,87 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+usage() {
+  cat << EOF
+Environment variables parameters:
+  -f --file               Path to hub.yaml or parameter files (can repeat multiple times; default: hub.yaml params.yaml)
+
+EOF
+}
+
+while [ "$1" != "" ]; do
+  case $1 in
+    --output ) 
+      shift         
+      DOT_ENV="$1"
+      ;;   
+    -f | --file ) 
+      shift
+      FILES="$(echo "$FILES $1" | xargs)"
+      ;;                
+    -h | --help )
+      usage
+      exit
+      ;;
+  esac
+  shift
+done
+
+if test $VERBOSE = "true"; then 
+  set -x
+fi
+
+if test -z $FILES; then
+  FILES="hub.yaml params.yaml"
+fi
+
+echo "Configuring environment variables"
+ALL_ENVS=
+for f in $FILES; do
+  test -f $f || continue;
+  envs=$(
+    yq r $f -j | jq -cr \
+      '.. | objects | with_entries(select(.key=="fromEnv")).fromEnv? | select(.!=null)'
+  )
+  ALL_ENVS="$ALL_ENVS $envs"
+done
+
+if test -z "$DOT_ENV"; then
+  echo "Error: please run with option: $(dirname "0")/$(basename "0") --output FILE "
+  exit 2
+fi
+
+SHOW_MAN=true
+for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
+  VALUE=$(printenv "$ENV" || echo "")
+  if test -n "$VALUE"; then
+    echo "* Environment variable $ENV: discovered"
+  elif $INTERACTIVE; then
+    if $SHOW_MAN; then
+      SHOW_MAN=false
+      cat << EOF
+
+###
+#
+# You have been asked to enter a custom value for stack variable. 
+# The value will be stored in .env and can be modified in the future
+#
+# Leave the value empty if you wish to assign a random generated!
+#
+###
+EOF
+    fi
+    echo
+    read -p "* Enter value for $ENV: " VALUE
+  fi
+
+  if test -z "$VALUE"; then
+    echo -n "  Setting random value for $ENV: "
+    VALUE=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
+    echo "$(echo $VALUE| cut -c1-8)... (random)"
+  fi
+
+  touch $DOT_ENV
+  echo "export $ENV=\"$VALUE\"" >> $DOT_ENV
+  echo "  $ENV saved in .env"
+done

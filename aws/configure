@@ -6,6 +6,7 @@ usage() {
 AWS parameters:
   --aws-region            AWS Region (defaults to value from: AWS_REGION)
   --aws-profile           AWS Profile (defaults to value from: AWS_PROFILE)
+  --dry-run               Do not deploy cloud resources
 
 Bubble DNS parameters:
   --dns-new     Request new DNS domain
@@ -25,6 +26,7 @@ EOF
 
 HUB_PARENT_DOMAIN=${HUB_PARENT_DOMAIN:-"bubble.superhub.io"}
 FLAGS=$*
+DRY_RUN=false
 while [ "$1" != "" ]; do
   case $1 in
     --aws-region )      shift
@@ -36,6 +38,11 @@ while [ "$1" != "" ]; do
     --dns-new )         ACTION="new"
                         ;;
     --dns-update )      ACTION="update"
+                        ;;
+    --dry-run )         DRY_RUN=true
+                        ;;                 
+    --output )          shift
+                        DOT_ENV="$1"
                         ;;                 
     -h | --help )       usage
                         exit
@@ -48,13 +55,16 @@ if test $VERBOSE = "true"; then
   set -x
 fi
 
-DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
-dotenv="$(dirname $(dirname "$0"))/dotenv/dotenv -f "$DOT_ENV""
+if test -z "$DOT_ENV"; then
+  echo "Error: please run with option: $(dirname "0")/$(basename "0") --output FILE "
+  exit 2
+fi
 
-HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
+dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV"
+# HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
 if test -z "$HUB_DOMAIN_NAME"; then
   echo "Configuring Bubble DNS"
-  $(dirname $(dirname "$0"))/bubble-dns/new $FLAGS
+  $(dirname $(dirname "$0"))/bubble-dns/new --output "$DOT_ENV" $FLAGS
   # Reading newly generated domain name by script above
   HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
   if test -z "$HUB_DOMAIN_NAME"; then
@@ -93,19 +103,27 @@ if test -z $(aws $AWS_OPTS s3api head-bucket --bucket=$STATE_BUCKET 2>&1); then
   echo "exist"
 else
   STATE_REGION="$AWS_REGION"
-  echo "not found"
-  echo -n "* Deployng S3 bucket $STATE_BUCKET: "
-  $(dirname "$0")/s3-bucket/deploy \
-    --bucket-name "$STATE_BUCKET" \
-    --aws-region "$AWS_REGION" \
-    --acl "private" || exit 1
+  if $DRY_RUN; then
+    echo "will be deployed"
+  else
+    echo "not found"
+    echo -n "* Deployng S3 bucket $STATE_BUCKET: "
+    $(dirname "$0")/s3-bucket/deploy \
+      --bucket-name "$STATE_BUCKET" \
+      --aws-region "$AWS_REGION" \
+      --acl "private" || exit 1
+  fi
 fi
 
 echo -n "* Checking presence of Route 53 hosted zone $HUB_DOMAIN_NAME: "
 if test -z "$($(dirname $0)/route53/nameservers --domain-name $HUB_DOMAIN_NAME)"; then
-  echo "not found"
-  echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes some minutes)... "
-  $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
+  if $DRY_RUN; then
+    echo "will be deployed"
+  else
+    echo "not found"
+    echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes some minutes)... "
+    $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
+  fi
 else
   echo "exist"
 fi
@@ -120,15 +138,19 @@ export HUB_STATE_BUCKET="$STATE_BUCKET"
 export HUB_STATE_REGION="$STATE_REGION"
 EOF
 
-echo -n "* Sending request to update $HUB_DOMAIN_NAME record: "
-HUB_DOMAIN_SECRET=$($dotenv get "HUB_DOMAIN_SECRET")
-$(dirname $(dirname "$0"))/bubble-dns/update \
-  --domain-name "$HUB_DOMAIN_NAME" \
-  --secret-key "$HUB_DOMAIN_SECRET"
-
-cat << EOF
+if ! $DRY_RUN; then
+  echo -n "* Sending request to update $HUB_DOMAIN_NAME record: "
+  if test -z "$HUB_DOMAIN_SECRET"; then
+    HUB_DOMAIN_SECRET=$($dotenv get "HUB_DOMAIN_SECRET")
+  fi
+  $(dirname $(dirname "$0"))/bubble-dns/update \
+    --domain-name "$HUB_DOMAIN_NAME" \
+    --secret-key "$HUB_DOMAIN_SECRET"
+  cat << EOF
 * DNS record has time to live: 72 hours (refresh before expires)
 
-# Hint! To refresh DNS: hub configure -r dns --dns-update
+# Hint! To refresh DNS: hub configure -r aws --dns-update
 
 EOF
+fi
+

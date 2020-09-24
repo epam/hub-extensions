@@ -7,6 +7,9 @@ while [ "$1" != "" ]; do
     --parent-domain )   shift
                         HUB_PARENT_DOMAIN="$1"
                         ;;
+    --output )          shift
+                        DOT_ENV="$1"
+                        ;;  
   esac
   shift
 done
@@ -50,7 +53,6 @@ HUB_DOMAIN_SECRET="$(jq -r '.key' < "$TEMP")"
 echo "$HUB_DOMAIN_NAME"
 
 WORKDIR=${WORKDIR:-$(pwd)}
-DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
 cat $TEMP > $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble
 
 cat << EOF >> $DOT_ENV
