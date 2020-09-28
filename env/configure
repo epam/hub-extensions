@@ -51,9 +51,25 @@ if test -z "$DOT_ENV"; then
   exit 2
 fi
 
+getBriefByEnvVar() {
+  local f brief
+  for f in $FILES; do
+    test -f $f || continue;
+    brief=$(
+      yq r $f -j | jq -cr \
+        '.. | objects | select(.fromEnv == "'$1'" ).brief | select(.)'
+    )
+    if test -n "$brief"; then
+      echo "$brief"
+      break
+    fi
+  done
+}
+
 SHOW_MAN=true
 for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   VALUE=$(printenv "$ENV" || echo "")
+  BRIEF=''
   if test -n "$VALUE"; then
     echo "* Environment variable $ENV: discovered"
   elif $INTERACTIVE; then
@@ -72,16 +88,25 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
 EOF
     fi
     echo
-    read -p "* Enter value for $ENV: " VALUE
+    BRIEF=$(getBriefByEnvVar $ENV)
+    if test -n "$BRIEF"; then
+      echo "* $BRIEF"
+    else 
+      echo "* $ENV"
+    fi
+    read -rp "  Enter value: " VALUE
   fi
 
   if test -z "$VALUE"; then
-    echo -n "  Setting random value for $ENV: "
+    echo -n "  Setting random value: "
     VALUE=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
     echo "$(echo $VALUE| cut -c1-8)... (random)"
   fi
 
   touch $DOT_ENV
+  if test -n "$BRIEF"; then
+    echo "# $BRIEF" >> $DOT_ENV
+  fi
   echo "export $ENV=\"$VALUE\"" >> $DOT_ENV
-  echo "  $ENV saved in .env"
+  echo "  $ENV saved to .env"
 done
