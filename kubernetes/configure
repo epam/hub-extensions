@@ -54,6 +54,13 @@ if test "$KUBECONTEXT" == "_"; then
 fi
 echo "$KUBECONTEXT"
 
+echo -n "* Checking connectivity to cluster: "
+if kubectl cluster-info > /dev/null; then
+  echo "Connected"
+else
+  echo exit 2
+fi
+
 CLUSTER_NAME="$(kubectl config view --raw -o json \
 | jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.cluster')"
 USERNAME="$(kubectl config view --raw -o json \

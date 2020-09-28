@@ -95,7 +95,7 @@ AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output 
 STATE_BUCKET="$AWS_ACCOUNT.$HUB_PARENT_DOMAIN"
 
 echo -n "* Checking presence of S3 bucket $STATE_BUCKET: "
-if test -z $(aws $AWS_OPTS s3api head-bucket --bucket=$STATE_BUCKET 2>&1); then
+if aws $AWS_OPTS s3api head-bucket --bucket=$STATE_BUCKET > /dev/null 2>&1; then
   STATE_REGION="$(aws $AWS_OPTS s3api get-bucket-location \
     --bucket="$STATE_BUCKET" --query 'LocationConstraint' \
     --output text \
