@@ -40,12 +40,6 @@ find_up () {
   echo "$path/$1"
 }
 
-HUB_YAML="$(find_up "hub.yaml")"
-if ! test -f "$HUB_YAML"; then
-  echo "Cannot find $HUB_YAML file"
-  exit 1
-fi
-
 VERBOSE=false
 SILENT=false
 HELP=false
@@ -56,11 +50,20 @@ else
   INTERACTIVE=false
 fi
 
+FILES=""
 while [ "$1" != "" ]; do
   case $1 in
     --non-interactive ) 
       INTERACTIVE=false
-      ;;  
+      ;;
+    -f | --file ) 
+      shift
+      if test ! -f "$1"; then
+        echo "Error: cannot find file $1"
+        exit 1
+      fi
+      FILES="$(echo "$FILES $1" | xargs)"
+      ;;           
     -r | --requirement ) 
       shift 
       REQS="$REQS $1" 
@@ -91,7 +94,19 @@ if $VERBOSE; then
   set -x
 fi
 
-WORKDIR="$(dirname "$HUB_YAML")"
+if test -z "$FILES"; then
+  FIRST_FILE="$(find_up "hub.yaml")"
+  if ! test -f "$FIRST_FILE"; then
+    echo "Cannot find hub.yaml file"
+    exit 1
+  fi
+  WORKDIR=$(dirname "$FIRST_FILE")
+  FILES="$FIRST_FILE $WORKDIR/params.yaml"
+else
+  FIRST_FILE=$(echo "$FILES" | awk '{print $1;}')
+  WORKDIR=$(dirname "$FIRST_FILE")
+fi
+
 mkdir -p "$WORKDIR/.hub/env"
 # common environment variables that 
 # will be used by exact extensions
@@ -100,7 +115,12 @@ export WORKDIR SILENT VERBOSE INTERACTIVE
 REQS=$(echo -e "$REQS" | xargs)
 IGNORE=$(echo -e "$IGNORE" | xargs)
 if test -z "$REQS"; then
-  REQS=$(yq r "$HUB_YAML" -j | jq -r '.meta.configure?.requires? | .[]')
+  REQS=""
+  for f in $FILES; do
+    test -f $f || continue;
+    REQS="$REQS $(yq r "$f" -j | jq -r '.meta?.configure?.requires? | select(.)[]')"
+  done
+  REQS=$(echo "$REQS" | xargs -n1)
 fi
 
 if test -z "$ARGS" || $HELP; then
@@ -127,14 +147,14 @@ EOF
     DOT_FILES="$WORKDIR/.env"
   fi
 else
-  echo "not found"
+  echo "to be created"
   DOT_FILES=""
 fi
 
 # mkdir -p "$WORKDIR/.hub/configure"
 # trap "rm -rf $WORKDIR/.hub/configure" EXIT
 
-for req in $REQS; do
+for req in $(echo "$REQS" | xargs -n1); do
   if echo "$IGNORE" | grep -oh "\w*$req\w*"; then
     continue
   fi
