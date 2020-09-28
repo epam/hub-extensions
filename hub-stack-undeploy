@@ -17,16 +17,12 @@ Deploys deploys two components
 Parameters:
     -c --component     List of components to deploy
     -o --offset        Deploy starting with the given component
-    -s  --silent          Suppress console outputs in favor of result codes
-    --skip-guide          Suppress "What's next messages"
     -V  --verbose         Verbose outputs for debug purpose
     -h  --help            Print this message
 
 EOF
 }
 
-SILENT=${SILENT:-false}
-NOGUIDE=${NOGUIDE:-false}
 while [ "$1" != "" ]; do
     case $1 in
         -c | --component )  shift
@@ -35,13 +31,9 @@ while [ "$1" != "" ]; do
         -o | --offset )     shift
                             HUB_UNDEPLOY_OPTS="$HUB_UNDEPLOY_OPTS -o $1"
                             ;;
-        -S | --silent )     SILENT=true
-                            ;;
         -V | --verbose )    set -x
                             export HUB_TRACE=1
                             export HUB_DEBUG=1
-                            ;;
-        --skip-guide )      NOGUIDE=true
                             ;;
         -h | --help )       usage
                             exit
@@ -53,16 +45,19 @@ while [ "$1" != "" ]; do
 done
 
 if ! test -f .env; then
-  $SILENT || cat << EOF
-Configuration has not been found. Run 
+  cat << EOF
+Error: .env file has not been found 
+Please run:
 
-$ hub configure --kubecontext <kubecontext>
+  $ hub configure
 
 EOF
   exit 1
 fi
-# shellcheck disable=SC1091
-source .env
+dotenv=$(dirname "$0")/env/dotenv
+set +a
+eval "$($dotenv export -f ".env" )"
+set -a
 
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
 HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
@@ -75,22 +70,22 @@ Warning: this operation cannot be reverted! It may lead to data loss!
 
 EOF
 
-$SILENT || echo "* Using cluster: $HUB_DOMAIN_NAME"
+echo "* Using cluster: $HUB_DOMAIN_NAME"
 if ! test -f "$HUB_ELABORATE_FILE"; then
-  $SILENT || echo "Error: cannot find hub elaborate file: $HUB_ELABORATE_FILE"
+  echo "Error: cannot find hub elaborate file: $HUB_ELABORATE_FILE"
   exit 2
 fi
 
-$SILENT || echo "* Using hub elaborate file: $HUB_ELABORATE_FILE"
+echo "* Using hub elaborate file: $HUB_ELABORATE_FILE"
 
 if test -f "$HUB_STATE_FILE"; then
   HUB_UNDEPLOY_OPTS="$HUB_UNDEPLOY_OPTS -s $HUB_STATE_FILE"
-  $SILENT || echo "* Using hub state file: $HUB_STATE_FILE"  
+  echo "* Using hub state file: $HUB_STATE_FILE"  
 fi
 
 cat <<EOF
 
-### Proceed with undeploy operation
+### Proceeding with undeploy "$HUB_DOMAIN_NAME"
 
 EOF
 
