@@ -19,7 +19,7 @@ Bubble DNS parameters:
     -n  --domain-name       Previously issued DNS name
     -k  --secret-key        Secret key passed during domain name creation
 
-  Use: hub configure -r dns --dns-update
+  Use: hub configure -f hub.yaml -f params.yaml -r dns --dns-update
 
 EOF
 }

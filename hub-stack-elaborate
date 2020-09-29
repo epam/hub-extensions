@@ -41,6 +41,20 @@ eval "$($dotenv export -f ".env" )"
 set -a
 echo "* Using domain name: $HUB_DOMAIN_NAME"
 
+if test -z "$HUB_FILES"; then
+  cat << EOF 
+Error: cannot find hub definition files (HUB_FILES)"
+
+Probably because stack has not been configured for deployment yet!
+
+Example:
+  $ hub configure -f hub.yaml -f params.yaml
+
+EOF
+
+  exit 2
+fi
+
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
 HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
 
@@ -54,5 +68,5 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
 fi
 
 # shellcheck disable=SC2086
-hub elaborate hub.yaml params.yaml -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS 
+hub elaborate $HUB_FILES -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS 
 echo "* Result saved to to: $HUB_ELABORATE_FILE"

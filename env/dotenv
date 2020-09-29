@@ -1,4 +1,5 @@
 #!/bin/bash -e
+# shellcheck disable=SC2086
 usage() {
   cat << EOF
 .env file parser written in bash
@@ -21,15 +22,20 @@ VERBOSE=${VERBOSE:-false}
 while [ "$1" != "" ]; do
   case "$1" in
     get )
+      ACTION="$1"
       shift
-      ACTION="get"
       KEY="$1"
     ;;
     merge | export )
+      ACTION="$1" ;;
+    set )
       ACTION="$1"
-      ;;
-    get )
-      ACTION="copy"
+      shift
+      ARG="$1"
+      shift
+    ;;  
+    copy )
+      ACTION="$1"
       shift
       FROM="$1"
       DEST="$2"
@@ -115,9 +121,18 @@ dotenv::get() {
   echo "$result" | sed -e "s/^\"//" -e "s/\"$//"
 }
 
+dotenv::set() {
+  local temp
+  temp=$(mktemp "/tmp/$(basename "$0").XXXXXX") || exit 1
+  # shellcheck disable=SC2064
+  trap "rm -f $temp" EXIT
+  echo "$@" > "$temp"
+  dotenv::merge "$FIRST_FILE" "$temp"
+}
+
 dotenv::export() {
   test -f "$1" || return
-  local key value
+  local key value line
   while read -r line; do
     # TODO: eliminate bashism
     line=${line#"${line%%[![:space:]]*}"}  # trim leading whitespace
@@ -156,6 +171,8 @@ case $ACTION  in
     dotenv::$ACTION $FIRST_FILE ;;
   "copy" )  
     dotenv::$ACTION $FROM $DEST;;
+  "set" )  
+    dotenv::$ACTION $ARG;;
   * )
     usage
     exit 1

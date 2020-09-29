@@ -1,0 +1,89 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+usage() {
+  cat << EOF
+AWS marketplace metering usage:
+
+  --aws-region            AWS Region (defaults to value from: AWS_REGION)
+  --aws-profile           AWS Profile (defaults to value from: AWS_PROFILE)
+
+EOF
+}
+
+HUB_YAML=${HUB_YAML:-"hub.yaml"}
+while [ "$1" != "" ]; do
+  case $1 in
+    --aws-region )      shift
+                        AWS_REGION="$1"
+                        ;;
+    --aws-profile )     shift
+                        AWS_PROFILE="$1"
+                        ;;              
+    -h | --help )       usage
+                        exit
+                        ;;
+  esac
+  shift
+done
+
+if test "$VERBOSE" = "true"; then 
+  set -x
+fi
+
+dotenv=$(dirname $(dirname "$0"))/env/dotenv
+if test ! -f ".env"; then
+  echo "Error: cannot find .env file. Please run 'hub configure'"
+  exit 1
+fi
+set +a
+eval "$($dotenv export -f ".env" )"
+set -a
+
+if test -z "$AWS_PROFILE"; then
+  export AWS_PROFILE
+fi
+
+if test -z "$AWS_REGION"; then
+  export AWS_REGION
+fi
+
+if test ! -f "$HUB_YAML"; then
+  echo "Error: cannot find $HUB_YAML"
+  exit 1
+fi
+
+param() {
+  local rv
+  rv=$(
+      yq r $HUB_YAML -j | jq -r \
+      '.extensions.parameters? | select(.)[] | select(.name=="'$1'").value'
+    )
+  if test -n "$rv"; then
+    echo "$rv"
+  else
+    echo "$2"
+  fi
+}
+
+if test -z "$AWS_METERING_PRODUCT_CODE"; then
+  AWS_METERING_PRODUCT_CODE=$(param "aws-metering.productCode")
+  if test -z "$AWS_METERING_PRODUCT_CODE"; then
+    echo "Error: cannot find extensions parameter 'aws-metering.productCode'"
+    exit 2
+  fi
+fi
+
+if test -z "$AWS_METERING_KEY_VERSION"; then
+  AWS_METERING_KEY_VERSION=$(param "aws-metering.keyVersion" "1")
+fi
+if test -z "$AWS_METERING_NONCE"; then
+  AWS_METERING_NONCE=$(param "aws-metering.nonce" "")
+fi
+
+set +e
+aws meteringmarketplace register-usage \
+   --product-code "$AWS_METERING_PRODUCT_CODE" \
+   --public-key-version "$AWS_METERING_KEY_VERSION" \
+   --nonce "$AWS_METERING_NONCE" 2>/dev/null
+set -e

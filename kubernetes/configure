@@ -15,6 +15,7 @@ Use: hub configure [-c _] or [--current-kubecontext] for current kubecontext
 EOF
 }
 
+KUBECONTEXT="_"
 DOT_ENV=${DOT_ENV:-".env"}
 while [ "$1" != "" ]; do
   case "$1" in
@@ -39,10 +40,10 @@ if test "$VERBOSE" = "true"; then
 fi
 
 dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"
-DOMAIN=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
+HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
 
 if test -z "$KUBECONTEXT" || \
-   test -z "$DOMAIN"; then
+   test -z "$HUB_DOMAIN_NAME"; then
   usage
   exit 1
 fi
@@ -66,7 +67,7 @@ CLUSTER_NAME="$(kubectl config view --raw -o json \
 USERNAME="$(kubectl config view --raw -o json \
 | jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.user')"
 CLUSTER="$(kubectl config view --raw -o json \
-| jq -cM '.clusters[] | select(.name == "'$CLUSTER_NAME'") + {"name": "'$DOMAIN'"}')"
+| jq -cM '.clusters[] | select(.name == "'$CLUSTER_NAME'") + {"name": "'$HUB_DOMAIN_NAME'"}')"
 USER="$(kubectl config view --raw -o json \
 | jq -cM '.users[] | select(.name == "'$USERNAME'")')"
 # shellcheck disable=SC2006
@@ -86,23 +87,23 @@ trap "rm -f $TEMP" EXIT
   ],
   "contexts": [
     {
-      "name": "$DOMAIN",
+      "name": "$HUB_DOMAIN_NAME",
       "context": {
-        "cluster": "$DOMAIN",
+        "cluster": "$HUB_DOMAIN_NAME",
         "user": "$USERNAME"
       }
     }
   ],
-  "current-context": "$DOMAIN"
+  "current-context": "$HUB_DOMAIN_NAME"
 }
 EOF
 
 WORKDIR=${WORKDIR:-$(pwd)}
-echo -n "* Saving kubeconfig to .hub/env/$DOMAIN.kubeconfig: "
-$(dirname $(dirname $0))/env/copy "$TEMP" "$WORKDIR/.hub/env/$DOMAIN.kubeconfig"
+echo -n "* Saving kubeconfig to .hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
+$(dirname $(dirname $0))/env/copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 
 DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
 cat << EOF >> $DOT_ENV
 # Location of sand boxed kubeconfig
-export KUBECONFIG="$WORKDIR/.hub/env/$DOMAIN.kubeconfig"
+export KUBECONFIG="$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 EOF

@@ -1,17 +1,16 @@
 #!/bin/bash -e
-# shellcheck disable=SC2046,SC2068,SC2064
+# shellcheck disable=SC2046,SC2068,SC2064,SC2086
 
 usage() {
   cat << EOF
 Reads configuration in hub.yaml and configures stack for deployment
 
 Use: 
-  hub configure <parameters>
+  hub configure -f hub.yaml -f params.yaml <parameters>
 
 Common parameters:
-  -f  --file              Hub parameter file (defauts to ./params.yaml)
+  -f  --file              Path to stack definition file (can be repeated multiple times)
   -r  --requirement       Configure one requirement (can be repeated multiple times)
-  -e  --exclude           Exclude (ignore) requirement (can be repeated multiple times)
   -s  --silent            Suppress console outputs in favor of result codes
   --non-interactive       Run this command in non-interactive mode
   -V  --verbose           Verbose outputs for debug purposeEOF
@@ -50,7 +49,7 @@ else
   INTERACTIVE=false
 fi
 
-FILES=""
+HUB_FILES=""
 while [ "$1" != "" ]; do
   case $1 in
     --non-interactive ) 
@@ -62,15 +61,11 @@ while [ "$1" != "" ]; do
         echo "Error: cannot find file $1"
         exit 1
       fi
-      FILES="$(echo "$FILES $1" | xargs)"
+      HUB_FILES="$(echo "$HUB_FILES $1" | xargs)"
       ;;           
     -r | --requirement ) 
       shift 
       REQS="$REQS $1" 
-      ;;
-    -e | --exclude )     
-      shift 
-      IGNORE="$IGNORE $1" 
       ;;
     -S | --silent )
       SILENT=true
@@ -94,37 +89,49 @@ if $VERBOSE; then
   set -x
 fi
 
-if test -z "$FILES"; then
-  FIRST_FILE="$(find_up "hub.yaml")"
-  if ! test -f "$FIRST_FILE"; then
-    echo "Cannot find hub.yaml file"
-    exit 1
-  fi
-  WORKDIR=$(dirname "$FIRST_FILE")
-  FILES="$FIRST_FILE $WORKDIR/params.yaml"
+if test -z "$HUB_FILES"; then
+  cat << EOF
+
+Error: cannot find hub definition files
+
+Full usage info:
+
+EOF
+  usage
+  exit 1
+
+  cat << EOF
+
+Full usage info:
+  hub configure -f hub.yaml --help
+
+Example:
+  hub configure -f hub.yaml -f params.yaml
+
+EOF
+
 else
-  FIRST_FILE=$(echo "$FILES" | awk '{print $1;}')
+  FIRST_FILE=$(echo "$HUB_FILES" | awk '{print $1;}')
   WORKDIR=$(dirname "$FIRST_FILE")
 fi
 
 mkdir -p "$WORKDIR/.hub/env"
 # common environment variables that 
 # will be used by exact extensions
-export WORKDIR SILENT VERBOSE INTERACTIVE
+export WORKDIR SILENT VERBOSE INTERACTIVE HUB_FILES
 
 REQS=$(echo -e "$REQS" | xargs)
-IGNORE=$(echo -e "$IGNORE" | xargs)
 if test -z "$REQS"; then
   REQS=""
-  for f in $FILES; do
+  for f in $HUB_FILES; do
     test -f $f || continue;
-    REQS="$REQS $(yq r "$f" -j | jq -r '.meta?.configure?.requires? | select(.)[]')"
+    REQS="$REQS $(yq r "$f" -j | jq -r '.extensions.configure? | select(.)[]')"
   done
   REQS=$(echo "$REQS" | xargs -n1)
 fi
 
 if test -z "$ARGS" || $HELP; then
-  usage "$REQS" "$IGNORE"
+  usage "$REQS"
   exit
 fi
 
@@ -155,12 +162,7 @@ fi
 # trap "rm -rf $WORKDIR/.hub/configure" EXIT
 
 for req in $(echo "$REQS" | xargs -n1); do
-  if echo "$IGNORE" | grep -oh "\w*$req\w*"; then
-    continue
-  fi
-
   if test -f "$(dirname "$0")/$req/configure"; then
-    # TEMP="$WORKDIR/.hub/configure/$req.env"
     TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
     trap "rm -f $TEMP" EXIT
     
@@ -175,10 +177,14 @@ for req in $(echo "$REQS" | xargs -n1); do
 done
 
 echo "Finalizing env files..."
-# TEMP="$WORKDIR/.hub/configure/.env"
-TEMP=`mktemp /tmp/superhub.XXXXXX` || exit 1
+TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 trap "rm -f $TEMP" EXIT
-$dotenv merge $(echo $DOT_FILES | sed 's/[^ ]* */-f &/g') > $TEMP
+TEMP2=$(mktemp /tmp/superhub.XXXXXX) || exit 1
+trap "rm -f $TEMP2" EXIT
+echo "# current stack definition" > $TEMP2
+echo "HUB_FILES=\"$HUB_FILES\"" >> $TEMP2
+# shellcheck disable=SC2001
+$dotenv merge $(echo $DOT_FILES | sed 's/[^ ]* */-f &/g') -f $TEMP2 > $TEMP
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME" -f "$TEMP")}
 echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
 $(dirname "$0")/env/copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"

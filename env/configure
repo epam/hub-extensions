@@ -17,7 +17,7 @@ while [ "$1" != "" ]; do
       ;;   
     -f | --file ) 
       shift
-      FILES="$(echo "$FILES $1" | xargs)"
+      HUB_FILES="$(echo "$HUB_FILES $1" | xargs)"
       ;;                
     -h | --help )
       usage
@@ -31,13 +31,14 @@ if test $VERBOSE = "true"; then
   set -x
 fi
 
-if test -z $FILES; then
-  FILES="hub.yaml params.yaml"
+if test -z "$HUB_FILES"; then
+  echo "Error: cannot find stack definition files"
+  exit 1
 fi
 
 echo "Configuring environment variables"
 ALL_ENVS=
-for f in $FILES; do
+for f in $HUB_FILES; do
   test -f $f || continue;
   envs=$(
     yq r $f -j | jq -cr \
@@ -53,7 +54,7 @@ fi
 
 getBriefByEnvVar() {
   local f brief
-  for f in $FILES; do
+  for f in $HUB_FILES; do
     test -f $f || continue;
     brief=$(
       yq r $f -j | jq -cr \

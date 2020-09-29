@@ -1,0 +1,66 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086,SC2064,SC2046
+
+usage() {
+cat << EOF
+Kubernetes parameters:
+  -k  --kubeconfig        Path to the kubeconfig. If not specified then use default to kubectl
+  -c  --kubecontext       Name of Kubernetes context in Kubeconfig file
+                          "_" reserved for "current context"
+  --current-kubecontext   Use current kubecontext existing
+                          configuration (mandatory)
+
+Use: hub configure [-c _] or [--current-kubecontext] for current kubecontext
+
+EOF
+}
+
+while [ "$1" != "" ]; do
+  case "$1" in
+    -h | --help )            usage
+                             exit 0
+                             ;;                      
+  esac
+  shift
+done
+
+VERBOSE=${VERBOSE:-false}
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
+echo "Finalizing stack deployment"
+
+dotenv=$(dirname $(dirname "$0"))/env/dotenv
+if test ! -f ".env"; then
+  echo "Error: cannot find .env file. Please run 'hub configure'"
+  exit 1
+fi
+set +a
+eval "$($dotenv export -f ".env" )"
+set -a
+
+if test -f "$HUB_DOMAIN_NAME"; then
+  echo "Error: cannot find HUB_DOMAIN_NAME"
+  exit 1
+fi
+
+if test ! -f "$HUB_STATE_FILE"; then
+  echo "Error: cannot find state file '$HUB_STATE_FILE'"
+  exit 2
+fi
+
+ns="kube-system"
+cm="superhub"
+explained=$($HUB explain --json -g $HUB_STATE_FILE | base64 | tr -d \\n)
+
+echo -n "* Saving state in configmap: "
+(
+  if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
+    kubectl -n $ns get configmap $cm -o json |
+      jq ".data += {\"${HUB_DOMAIN_NAME}\": \"${explained}\"}" |
+      kubectl -n $ns replace -f -
+  else
+    kubectl -n $ns create configmap $cm --from-literal=${HUB_DOMAIN_NAME}=${explained}
+  fi
+) 2>&1 | grep -v ' created'

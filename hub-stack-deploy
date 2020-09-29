@@ -59,10 +59,27 @@ $ hub configure --current-kubecontext
 EOF
   exit 1
 fi
+
+# TODO: should be taken from .env and set by "hub configure"
+HUB_YAML="hub.yaml"
 dotenv=$(dirname "$0")/env/dotenv
 set +a
 eval "$($dotenv export -f ".env" )"
 set -a
+
+if test -z "$HUB_FILES"; then
+  cat << EOF 
+Error: cannot find hub definition files (HUB_FILES)"
+
+Probably because stack has not been configured for deployment yet!
+
+Example:
+  $ hub configure -f hub.yaml -f params.yaml
+
+EOF
+
+  exit 2
+fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
   echo "Error: HUB_DOMAIN_NAME has not been defined"
@@ -93,7 +110,21 @@ if $FULL_STACK || test ! -f "$HUB_ELABORATE_FILE"; then
   $HUB stack elaborate
 fi
 
-# shellcheck disable=SC2086
+export HUB_YAML HUB_FILES HUB_STATE_FILE HUB_ELABORATE_FILE
+
+for f in $HUB_FILES; do
+  test -f $f || continue;
+  BEFORE="$BEFORE $(yq r "$f" -j | jq -r '.extensions.deploy.before? | select(.)[]')"
+done
+if test -n "$BEFORE"; then
+  echo "Running before deployment extensions: $BEFORE"
+  for i in $(echo "$BEFORE" | xargs -n1); do
+    if test -f "$(dirname "$0")/$i/before-deploy"; then
+      "$(dirname "$0")/$i/before-deploy"
+    fi
+  done
+fi
+
 if test -n "$HUB_TOOLBOX"; then
   $HUB toolbox \
     /bin/bash -c "
@@ -101,20 +132,19 @@ if test -n "$HUB_TOOLBOX"; then
     hub deploy $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS;
     "
 else
+  # shellcheck disable=SC2086
   hub deploy "$HUB_ELABORATE_FILE" -s "$HUB_STATE_FILE" $HUB_DEPLOY_OPTS
 fi
 
-ns=kube-system
-cm=superhub
-explained=$($HUB explain --json -g $HUB_STATE_FILE | base64 | tr -d \\n)
-
-#TODO: this should go to the hub extension
-(
-if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
-  kubectl -n $ns get configmap $cm -o json |
-    jq ".data += {\"${HUB_DOMAIN_NAME}\": \"${explained}\"}" |
-    kubectl -n $ns replace -f -
-else
-  kubectl -n $ns create configmap $cm --from-literal=${HUB_DOMAIN_NAME}=${explained}
+for f in $HUB_FILES; do
+  test -f $f || continue;
+  AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.deploy.after? | select(.)[]')"
+done
+if test -n "$AFTER"; then
+  echo "Running post deployment extensions: $AFTER"
+  for i in $(echo "$AFTER" | xargs -n1); do
+    if test -f "$(dirname "$0")/$i/after-deploy"; then
+      "$(dirname "$0")/$i/after-deploy"
+    fi
+  done
 fi
-) 2>&1 | grep -v 'configmap/superhub created'
