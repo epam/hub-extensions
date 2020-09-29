@@ -52,16 +52,18 @@ done
 
 if test ! -f .env; then
 cat << EOF
-Configuration has not been found. To resolve please run:
+Stack configuration (.env)
 
-$ hub configure --current-kubecontext
+To resolve please run:
+  $ hub configure -f hub.yaml -f params.yaml
+
+To explore more configuration options:
+  $ hub configure -f hub.yaml -f params.yaml --help
 
 EOF
   exit 1
 fi
 
-# TODO: should be taken from .env and set by "hub configure"
-HUB_YAML="hub.yaml"
 dotenv=$(dirname "$0")/env/dotenv
 set +a
 eval "$($dotenv export -f ".env" )"
@@ -69,12 +71,15 @@ set -a
 
 if test -z "$HUB_FILES"; then
   cat << EOF 
-Error: cannot find hub definition files (HUB_FILES)"
+Error: cannot find hub definition files (HUB_FILES) in .env"
 
 Probably because stack has not been configured for deployment yet!
 
 Example:
   $ hub configure -f hub.yaml -f params.yaml
+
+To explore more configuration options:
+  $ hub configure -f hub.yaml -f params.yaml --help
 
 EOF
 
