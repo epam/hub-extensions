@@ -62,6 +62,7 @@ else
   echo exit 2
 fi
 
+
 CLUSTER_NAME="$(kubectl config view --raw -o json \
 | jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.cluster')"
 USERNAME="$(kubectl config view --raw -o json \
@@ -98,12 +99,22 @@ trap "rm -f $TEMP" EXIT
 }
 EOF
 
+set -x
+
+abspath() {
+  if test -d "$1"; then
+    (cd "$1" && pwd)
+  elif test -f "$1"; then
+    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
+  fi
+}
+
 WORKDIR=${WORKDIR:-$(pwd)}
 echo -n "* Saving kubeconfig to .hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
 $(dirname $(dirname $0))/env/copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
-
+ABSPATH="$(abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"
 DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
 cat << EOF >> $DOT_ENV
 # Location of sand boxed kubeconfig
-export KUBECONFIG="$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
+export KUBECONFIG="$ABSPATH"
 EOF
