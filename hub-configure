@@ -181,8 +181,12 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 trap "rm -f $TEMP" EXIT
 TEMP2=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 trap "rm -f $TEMP2" EXIT
-echo "# current stack definition" > $TEMP2
-echo "HUB_FILES=\"$HUB_FILES\"" >> $TEMP2
+cat << EOF >> $TEMP2
+# stack definition files
+HUB_FILES="$HUB_FILES"
+# deploy options can have value: (deploy-pod | deploy-local | deploy-toolbox)
+HUB_DEPLOY_PROFILE="deploy-pod"
+EOF
 # shellcheck disable=SC2001
 $dotenv merge $(echo $DOT_FILES | sed 's/[^ ]* */-f &/g') -f $TEMP2 > $TEMP
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME" -f "$TEMP")}

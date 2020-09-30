@@ -1,0 +1,12 @@
+#!/bin/bash -e
+
+# Simple wrapper script around hub deploy
+
+HUB=$(which hub)
+if test -z "$HUB"; then
+  echo "Error: hub cli cannot be found"
+  exit 1
+fi
+
+# shellcheck disable=SC2068
+$HUB undeploy $@

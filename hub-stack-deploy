@@ -15,8 +15,7 @@ Deploys deploys two components
 
 Parameters:
     -c --components       List of components to deploy
-    -t --with-toollbox    Use toolbox image to run deployment
-                          also enabled by setting HUB_TOOLBOX to non empty
+    --profile             Can be: deploy-pod (default) | deploy-local | deploy-toolbox
     -o --offset           Deploy starting with the given component
     -s --silent           Suppress console outputs in favor of result codes
     -p --no-precheck      Skip `hub ext aws status` command execution
@@ -29,6 +28,12 @@ EOF
 }
 
 FULL_STACK=true
+
+dotenv="$(dirname "$0")/env/dotenv -f .env"
+set +a
+eval "$($dotenv "export")"
+set -a
+
 while test "$1" != ""; do
     case $1 in
         -c | --component )  shift
@@ -38,6 +43,9 @@ while test "$1" != ""; do
         -o | --offset )     shift
                             HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -o $1"
                             FULL_STACK=false
+                            ;;
+        --profile )         shift
+                            HUB_DEPLOY_PROFILE="$1"
                             ;;
         -V | --verbose )    set -x
                             ;;
@@ -64,10 +72,6 @@ EOF
   exit 1
 fi
 
-dotenv=$(dirname "$0")/env/dotenv
-set +a
-eval "$($dotenv export -f ".env" )"
-set -a
 
 if test -z "$HUB_FILES"; then
   cat << EOF 
@@ -130,16 +134,24 @@ if test -n "$BEFORE"; then
   done
 fi
 
-if test -n "$HUB_TOOLBOX"; then
-  $HUB toolbox \
-    /bin/bash -c "
-    . .env; \
-    hub deploy $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS;
-    "
-else
-  # shellcheck disable=SC2086
-  hub deploy "$HUB_ELABORATE_FILE" -s "$HUB_STATE_FILE" $HUB_DEPLOY_OPTS
+set -x
+if test -z "$HUB_DEPLOY_PROFILE"; then
+  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE")
+  if test -z "$HUB_DEPLOY_PROFILE"; then
+    HUB_DEPLOY_PROFILE="deploy-pod"
+  fi
 fi
+if test ! -f "$(dirname "$0")/$HUB_DEPLOY_PROFILE/deploy"; then
+  echo "Warning: $(dirname "$0")/$HUB_DEPLOY_PROFILE/deploy not found!"
+  echo "Falling back to $(dirname "$0")/deploy-local/deploy"
+  HUB_DEPLOY_PROFILE="deploy-local"
+fi
+
+# shellcheck disable=SC2086,SC2046
+$(dirname "$0")/$HUB_DEPLOY_PROFILE/deploy \
+  "$HUB_ELABORATE_FILE" \
+  -s "$HUB_STATE_FILE" \
+  $HUB_DEPLOY_OPTS
 
 for f in $HUB_FILES; do
   test -f $f || continue;

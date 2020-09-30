@@ -15,16 +15,25 @@ $ $(basename "$0") -c component1,component2
 Deploys deploys two components 
 
 Parameters:
-    -c --component     List of components to deploy
-    -o --offset        Deploy starting with the given component
+    -c --component        List of components to deploy
+    --profile             Can be: deploy-pod (default) | deploy-local | deploy-toolbox    
+    -o --offset           Deploy starting with the given component
     -V  --verbose         Verbose outputs for debug purpose
     -h  --help            Print this message
 
 EOF
 }
 
+dotenv=$(dirname "$0")/env/dotenv
+set +a
+eval "$($dotenv export -f ".env" )"
+set -a
+
 while [ "$1" != "" ]; do
     case $1 in
+        --profile )         shift
+                            HUB_DEPLOY_PROFILE="$1"
+                            ;;   
         -c | --component )  shift
                             HUB_UNDEPLOY_OPTS="$HUB_UNDEPLOY_OPTS -c $1"
                             ;;
@@ -54,10 +63,6 @@ Please run:
 EOF
   exit 1
 fi
-dotenv=$(dirname "$0")/env/dotenv
-set +a
-eval "$($dotenv export -f ".env" )"
-set -a
 
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
 HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
@@ -89,4 +94,20 @@ cat <<EOF
 
 EOF
 
-hub undeploy $HUB_UNDEPLOY_OPTS "$HUB_ELABORATE_FILE"
+if test -z "$HUB_DEPLOY_PROFILE"; then
+  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE")
+  if test -z "$HUB_DEPLOY_PROFILE"; then
+    HUB_DEPLOY_PROFILE="deploy-pod"
+  fi
+fi
+if test ! -f "$(dirname "$0")/$HUB_DEPLOY_PROFILE/undeploy"; then
+  echo "Warning: $(dirname "$0")/$HUB_DEPLOY_PROFILE/undeploy not found!"
+  echo "Falling back to $(dirname "$0")/deploy-local/undeploy"
+  HUB_DEPLOY_PROFILE="deploy-local"
+fi
+
+# shellcheck disable=SC2086,SC2046
+$(dirname "$0")/$HUB_DEPLOY_PROFILE/undeploy \
+  "$HUB_ELABORATE_FILE" \
+  -s "$HUB_STATE_FILE" \
+  $HUB_DEPLOY_OPTS
