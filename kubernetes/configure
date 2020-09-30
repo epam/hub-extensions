@@ -99,8 +99,6 @@ trap "rm -f $TEMP" EXIT
 }
 EOF
 
-set -x
-
 abspath() {
   if test -d "$1"; then
     (cd "$1" && pwd)

@@ -12,7 +12,6 @@ Subcommands:
   $(basename "$0") get KEY               returns value associated with KEY or empty string
   $(basename "$0") merge (-f FILE1)...   merges two or .env files
   $(basename "$0") export                exports dotenv file for bash
-  $(basename "$0") copy FROM DEST        copy with backup if dest content is different
 EOF
 }
 
@@ -32,13 +31,6 @@ while [ "$1" != "" ]; do
       ACTION="$1"
       shift
       ARG="$1"
-      shift
-    ;;  
-    copy )
-      ACTION="$1"
-      shift
-      FROM="$1"
-      DEST="$2"
       shift
     ;;  
     -f | --file ) 
@@ -79,7 +71,8 @@ EOF
 fi
 
 dotenv::merge() {
-  local temp=$(mktemp /tmp/suprehub.XXXXXX) || exit 1
+  local temp
+  temp=$(mktemp "/tmp/$(basename $0).XXXXXX") || exit 1
   trap "rm -f $temp" EXIT
   for f in "$@"; do
     __merge "$temp" "$f"
@@ -147,18 +140,6 @@ dotenv::export() {
       echo "export $key=$value"
     fi
   done < $1
-}
-
-dotenv::copy() {
-  if test -f "$2"; then
-    if cmp -s "$1" "$2"; then
-      echo "* $2 seems to be unchanged: skipping"
-      return 
-    fi
-    cat "$2" > "$2.bak"
-    echo "* Previous has been stored in: $2.bak"
-  fi
-  cat "$1" > "$2"
 }
 
 FIRST_FILE=$(echo "$FILES" | awk '{print $1;}')
