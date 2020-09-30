@@ -35,10 +35,10 @@ while [ "$1" != "" ]; do
                             HUB_DEPLOY_PROFILE="$1"
                             ;;   
         -c | --component )  shift
-                            HUB_UNDEPLOY_OPTS="$HUB_UNDEPLOY_OPTS -c $1"
+                            HUB_OPTS="$HUB_OPTS -c $1"
                             ;;
         -o | --offset )     shift
-                            HUB_UNDEPLOY_OPTS="$HUB_UNDEPLOY_OPTS -o $1"
+                            HUB_OPTS="$HUB_OPTS -o $1"
                             ;;
         -V | --verbose )    set -x
                             export HUB_TRACE=1
@@ -66,7 +66,7 @@ fi
 
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
 HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
-HUB_UNDEPLOY_OPTS="--force --clouds=aws $HUB_UNDEPLOY_OPTS"
+HUB_OPTS="--force --clouds=aws $HUB_OPTS"
 
 cat << EOF
 Undeploying: $HUB_DOMAIN_NAME"
@@ -84,7 +84,7 @@ fi
 echo "* Using hub elaborate file: $HUB_ELABORATE_FILE"
 
 if test -f "$HUB_STATE_FILE"; then
-  HUB_UNDEPLOY_OPTS="$HUB_UNDEPLOY_OPTS -s $HUB_STATE_FILE"
+  HUB_OPTS="$HUB_OPTS -s $HUB_STATE_FILE"
   echo "* Using hub state file: $HUB_STATE_FILE"  
 fi
 
@@ -110,4 +110,4 @@ fi
 $(dirname "$0")/$HUB_DEPLOY_PROFILE/undeploy \
   "$HUB_ELABORATE_FILE" \
   -s "$HUB_STATE_FILE" \
-  $HUB_DEPLOY_OPTS
+  $HUB_OPTS
