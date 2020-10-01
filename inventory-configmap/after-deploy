@@ -55,12 +55,10 @@ cm="superhub"
 explained=$($HUB explain --json -g $HUB_STATE_FILE | base64 | tr -d \\n)
 
 echo -n "* Saving state in configmap: "
-(
-  if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
-    kubectl -n $ns get configmap $cm -o json |
-      jq ".data += {\"${HUB_DOMAIN_NAME}\": \"${explained}\"}" |
-      kubectl -n $ns replace -f -
-  else
-    kubectl -n $ns create configmap $cm --from-literal=${HUB_DOMAIN_NAME}=${explained}
-  fi
-) 2>&1 | grep -v ' created'
+if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
+  kubectl -n $ns get configmap $cm -o json |
+    jq ".data += {\"${HUB_DOMAIN_NAME}\": \"${explained}\"}" |
+    kubectl -n $ns replace -f -
+else
+  kubectl -n $ns create configmap $cm --from-literal=${HUB_DOMAIN_NAME}=${explained}
+fi

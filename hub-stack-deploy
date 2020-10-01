@@ -134,7 +134,6 @@ if test -n "$BEFORE"; then
   done
 fi
 
-set -x
 if test -z "$HUB_DEPLOY_PROFILE"; then
   HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE")
   if test -z "$HUB_DEPLOY_PROFILE"; then
@@ -154,7 +153,7 @@ $(dirname "$0")/$HUB_DEPLOY_PROFILE/deploy \
   $HUB_DEPLOY_OPTS
 
 for f in $HUB_FILES; do
-  test -f $f || continue;
+  test -f "$f" || continue;
   AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.deploy.after? | select(.)[]')"
 done
 if test -n "$AFTER"; then
