@@ -10,6 +10,7 @@ Use:
 
 Common parameters:
   -f  --file              Path to stack definition file (can be repeated multiple times)
+  -C  --workdir           Working directory (defaults to the directory of the hub file)
   -r  --requirement       Configure one requirement (can be repeated multiple times)
   -s  --silent            Suppress console outputs in favor of result codes
   --non-interactive       Run this command in non-interactive mode
@@ -31,13 +32,13 @@ EOF
   done
 }
 
-find_up () {
-  path=$(pwd)
-  while [[ "$path" != "" && ! -e "$path/$1" ]]; do
-    path=${path%/*}
-  done
-  echo "$path/$1"
-}
+# find_up () {
+#   path=$(pwd)
+#   while [[ "$path" != "" && ! -e "$path/$1" ]]; do
+#     path=${path%/*}
+#   done
+#   echo "$path/$1"
+# }
 
 VERBOSE=false
 SILENT=false
@@ -57,12 +58,12 @@ while [ "$1" != "" ]; do
       ;;
     -f | --file ) 
       shift
-      if test ! -f "$1"; then
-        echo "Error: cannot find file $1"
-        exit 1
-      fi
-      HUB_FILES="$(echo "$HUB_FILES $1" | xargs)"
-      ;;           
+      HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
+      ;;
+    -C | --workdir ) 
+      shift
+      WORKDIR=$1
+      ;;             
     -r | --requirement ) 
       shift 
       REQS="$REQS $1" 
@@ -95,32 +96,96 @@ if test -z "$HUB_FILES"; then
 Error: cannot find hub definition files
 
 Full usage info:
-
-EOF
-  usage
-  exit 1
-
-  cat << EOF
-
-Full usage info:
   hub configure -f hub.yaml --help
 
 Example:
   hub configure -f hub.yaml -f params.yaml
 
 EOF
-
-else
-  FIRST_FILE=$(echo "$HUB_FILES" | awk '{print $1;}')
-  WORKDIR=$(dirname "$FIRST_FILE")
+  exit 1
 fi
 
+download_file() {
+  local temp http_code
+  temp=$(mktemp) || exit 1
+  trap "rm -f $temp" EXIT
+  echo "* Downloading $(basename $1) from: $1"
+  http_code=$(
+    curl -sLo "$temp" -w "%{http_code}" "$1"
+  )
+  if test "$(echo $http_code | cut -c1-1)" != "2"; then
+    echo "Error downloading url: $http_code"
+    cat $temp
+    exit 1
+  fi
+  if test ! -s "$temp"; then
+    echo "Error: have got empty file (url: $temp)"
+    exit 1
+  fi
+  echo -n "  Saving to $(pwd): "
+  $(dirname "$0")/env/copy "$temp" "$2"
+}
+
+KNOWN_URLS=""
+EXPANDED=""
+expand_hub_files() {
+  local f trimmed
+  for f in $@; do
+    if test -f "$f"; then
+      EXPANDED=$(echo "$EXPANDED $f" | xargs)
+      included=$(yq r "$f" -j | jq -r '.extensions.include|select(.)|map("out/"+.)[]')
+      if test -n "$included"; then
+        echo "  $f contains reference to: $included"
+        expand_hub_files $included
+      fi
+      continue
+    fi
+    # is url
+    if echo "$f" | grep -e '^https\?://' >/dev/null 2>&1; then
+      localfile="$WORKDIR/$(basename "$f")"
+      download_file "$f" "$localfile"
+      KNOWN_URLS=$(dirname $f | xargs)
+      expand_hub_files "$localfile"
+      continue
+    fi
+
+    for url in $KNOWN_URLS; do
+      # shellcheck disable=SC2001
+      trimmed=$(echo "$f" | sed -e "s/^$WORKDIR\///")
+      if download_file "$url/$trimmed" "$WORKDIR/$trimmed"; then
+        expand_hub_files $included
+        break
+      fi
+    done
+
+    if test ! -f "$f"; then
+      echo "Error: $f not found!"
+      exit 1
+    fi
+  done
+}
+
+if test -z "$WORKDIR"; then
+  first=$(echo "$HUB_FILES" | awk '{print $1;}')
+  if test -f $first; then
+    WORKDIR=$(dirname "$FIRST_FILE")
+  else
+    WORKDIR=$(pwd)
+  fi
+fi
+
+if test ! -d $WORKDIR; then
+  mkdir -p "$WORKDIR"
+fi
+
+echo "Configuring stack:"
+expand_hub_files $HUB_FILES
+HUB_FILES="$EXPANDED"
 mkdir -p "$WORKDIR/.hub/env"
 # common environment variables that 
 # will be used by exact extensions
 export WORKDIR SILENT VERBOSE INTERACTIVE HUB_FILES
-
-REQS=$(echo -e "$REQS" | xargs)
+REQS=$(echo "$REQS" | xargs)
 if test -z "$REQS"; then
   REQS=""
   for f in $HUB_FILES; do
@@ -134,8 +199,6 @@ if test -z "$ARGS" || $HELP; then
   usage "$REQS"
   exit
 fi
-
-echo "Configuring current stack for: $(echo "$REQS" | xargs)"
 
 echo -n "Reading .env file: "
 if test -f "$WORKDIR/.env"; then
@@ -160,12 +223,11 @@ fi
 
 # mkdir -p "$WORKDIR/.hub/configure"
 # trap "rm -rf $WORKDIR/.hub/configure" EXIT
-
+echo "Requirements: $(echo "$REQS" | xargs)"
 for req in $(echo "$REQS" | xargs -n1); do
   if test -f "$(dirname "$0")/$req/configure"; then
-    TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
+    TEMP=$(mktemp /tmp/$(basename "$0").XXXXXX) || exit 1
     trap "rm -f $TEMP" EXIT
-    
     $(dirname "$0")/"$req"/configure --output "$TEMP" $ARGS
     if test -s "$TEMP"; then
       set +a
@@ -200,5 +262,4 @@ if test ! -f ".env"; then
   ln -sf "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
   echo "* Updated .env link to $HUB_DOMAIN_NAME.env"
 fi
-
 echo "Done!"
