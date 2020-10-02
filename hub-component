@@ -16,8 +16,6 @@ if test -z "$*"; then
   exit 1
 fi
 
-HUB=${HUB:-hub}
-
 while [ "$1" != "" ]; do
   cmd=$1
   shift
