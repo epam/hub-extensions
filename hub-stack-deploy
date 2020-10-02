@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 usage() {
 cat << EOF
@@ -63,10 +63,10 @@ cat << EOF
 Stack configuration (.env)
 
 To resolve please run:
-  $ hub configure -f hub.yaml -f params.yaml
+  $ hub configure -f hub.yaml
 
 To explore more configuration options:
-  $ hub configure -f hub.yaml -f params.yaml --help
+  $ hub configure -f hub.yaml --help
 
 EOF
   exit 1
@@ -80,10 +80,10 @@ Error: cannot find hub definition files (HUB_FILES) in .env"
 Probably because stack has not been configured for deployment yet!
 
 Example:
-  $ hub configure -f hub.yaml -f params.yaml
+  $ hub configure -f hub.yaml
 
 To explore more configuration options:
-  $ hub configure -f hub.yaml -f params.yaml --help
+  $ hub configure -f hub.yaml --help
 
 EOF
 
