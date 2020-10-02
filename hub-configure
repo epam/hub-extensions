@@ -10,7 +10,6 @@ Use:
 
 Common parameters:
   -f  --file              Path to stack definition file (can be repeated multiple times)
-  -C  --workdir           Working directory (defaults to the directory of the hub file)
   -r  --requirement       Configure one requirement (can be repeated multiple times)
   -s  --silent            Suppress console outputs in favor of result codes
   --non-interactive       Run this command in non-interactive mode
@@ -60,10 +59,10 @@ while [ "$1" != "" ]; do
       shift
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
       ;;
-    -C | --workdir ) 
-      shift
-      WORKDIR=$1
-      ;;             
+    # -C | --workdir ) 
+    #   shift
+    #   WORKDIR=$1
+    #   ;;             
     -r | --requirement ) 
       shift 
       REQS="$REQS $1" 
@@ -133,7 +132,7 @@ expand_hub_files() {
   for f in $@; do
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
-      included=$(yq r "$f" -j | jq -r '.extensions.include|select(.)|map("out/"+.)[]')
+      included=$(yq r "$f" -j | jq -r '.extensions.include|select(.)[]')
       if test -n "$included"; then
         echo "  $f contains reference to: $included"
         expand_hub_files $included
@@ -151,7 +150,8 @@ expand_hub_files() {
 
     for url in $KNOWN_URLS; do
       # shellcheck disable=SC2001
-      trimmed=$(echo "$f" | sed -e "s/^$WORKDIR\///")
+      trimmed="$1"
+      # trimmed=$(echo "$f" | sed -e "s/^$WORKDIR\///")
       if download_file "$url/$trimmed" "$WORKDIR/$trimmed"; then
         expand_hub_files $included
         break
