@@ -105,21 +105,25 @@ EOF
 fi
 
 download_file() {
+  if test -f "$2"; then
+    return
+  fi
+
   local temp http_code
   temp=$(mktemp) || exit 1
   trap "rm -f $temp" EXIT
-  echo "* Downloading $(basename $1) from: $1"
+  echo "  Downloading $(basename $2) from: $1"
   http_code=$(
     curl -sLo "$temp" -w "%{http_code}" "$1"
   )
   if test "$(echo $http_code | cut -c1-1)" != "2"; then
     echo "Error downloading url: $http_code"
     cat $temp
-    exit 1
+    return $http_code
   fi
   if test ! -s "$temp"; then
     echo "Error: have got empty file (url: $temp)"
-    exit 1
+    return 1
   fi
   echo -n "  Saving to $(pwd): "
   $(dirname "$0")/env/copy "$temp" "$2"
@@ -128,32 +132,32 @@ download_file() {
 KNOWN_URLS=""
 EXPANDED=""
 expand_hub_files() {
-  local f trimmed
+  local f included local_file
   for f in $@; do
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
+      echo "  File $(basename $f): exist"
       included=$(yq r "$f" -j | jq -r '.extensions.include|select(.)[]')
       if test -n "$included"; then
-        echo "  $f contains reference to: $included"
         expand_hub_files $included
       fi
       continue
     fi
     # is url
     if echo "$f" | grep -e '^https\?://' >/dev/null 2>&1; then
-      localfile="$WORKDIR/$(basename "$f")"
-      download_file "$f" "$localfile"
-      KNOWN_URLS=$(dirname $f | xargs)
-      expand_hub_files "$localfile"
+      local_file="$WORKDIR/$(basename "$f")"
+      if test ! -f "$local_file"; then
+        download_file "$f" "$local_file"
+        KNOWN_URLS=$(dirname $f | xargs)
+      fi
+      expand_hub_files "$local_file"
       continue
     fi
 
     for url in $KNOWN_URLS; do
       # shellcheck disable=SC2001
-      trimmed="$1"
-      # trimmed=$(echo "$f" | sed -e "s/^$WORKDIR\///")
-      if download_file "$url/$trimmed" "$WORKDIR/$trimmed"; then
-        expand_hub_files $included
+      if download_file "$url/$1" "$WORKDIR/$1"; then
+        expand_hub_files "$WORKDIR/$1"
         break
       fi
     done
@@ -178,7 +182,7 @@ if test ! -d $WORKDIR; then
   mkdir -p "$WORKDIR"
 fi
 
-echo "Configuring stack:"
+echo "Checking hub files:"
 expand_hub_files $HUB_FILES
 HUB_FILES="$EXPANDED"
 mkdir -p "$WORKDIR/.hub/env"
@@ -223,7 +227,7 @@ fi
 
 # mkdir -p "$WORKDIR/.hub/configure"
 # trap "rm -rf $WORKDIR/.hub/configure" EXIT
-echo "Requirements: $(echo "$REQS" | xargs)"
+echo "Apply configuration for: $(echo "$REQS" | xargs)"
 for req in $(echo "$REQS" | xargs -n1); do
   if test -f "$(dirname "$0")/$req/configure"; then
     TEMP=$(mktemp /tmp/$(basename "$0").XXXXXX) || exit 1
