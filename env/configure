@@ -9,6 +9,8 @@ Environment variables parameters:
 EOF
 }
 
+CACHE_FILE=${CACHE_FILE:-$(dirname "$0")/.cache.env}
+dotenv="$(dirname "$0")/dotenv -f $CACHE_FILE"
 while [ "$1" != "" ]; do
   case $1 in
     --output ) 
@@ -65,49 +67,41 @@ getBriefByEnvVar() {
       break
     fi
   done
+  if test -z "$brief"; then
+    echo "$1"
+  fi 
 }
 
-SHOW_MAN=true
 for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   VALUE=$(printenv "$ENV" || echo "")
-  BRIEF=''
+  BRIEF=$(getBriefByEnvVar $ENV)
   if test -n "$VALUE"; then
-    echo "* Environment variable $ENV: discovered"
+    echo "* $BRIEF: discovered"
   elif $INTERACTIVE; then
-    if $SHOW_MAN; then
-      SHOW_MAN=false
-      cat << EOF
-
-###
-#
-# You have been asked to enter a custom value for stack variable. 
-# The value will be stored in .env and can be modified in the future
-#
-# Leave the value empty if you wish to assign a random generated!
-#
-###
-EOF
-    fi
     echo
-    BRIEF=$(getBriefByEnvVar $ENV)
-    if test -n "$BRIEF"; then
-      echo "* $BRIEF"
-    else 
-      echo "* $ENV"
+    echo "* $BRIEF"
+    DEFAULT="$($dotenv get $ENV)"
+    if test -z "$DEFAULT"; then
+      DEFAULT="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)"
+      read -rp "  Enter value ($(echo $DEFAULT| cut -c1-15)... #random): " VALUE
+    else
+      if test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-15)"; then
+        read -rp "  Enter value ($DEFAULT #default): " VALUE
+      else 
+        read -rp "  Enter value ($(echo $DEFAULT | cut -c1-15)... #default): " VALUE
+      fi
     fi
-    read -rp "  Enter value: " VALUE
-  fi
 
-  if test -z "$VALUE"; then
-    echo -n "  Setting random value: "
-    VALUE=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
-    echo "$(echo $VALUE| cut -c1-8)... (random)"
+    if test -n "$VALUE"; then
+      $dotenv set "$ENV=\"$VALUE\""
+    else
+      VALUE="$DEFAULT"
+    fi
   fi
-
   touch $DOT_ENV
   if test -n "$BRIEF"; then
     echo "# $BRIEF" >> $DOT_ENV
   fi
-  echo "export $ENV=\"$VALUE\"" >> $DOT_ENV
-  echo "  $ENV saved to .env"
+  echo "$ENV=\"$VALUE\"" >> $DOT_ENV
+  echo "  saved as $ENV to .env file"
 done

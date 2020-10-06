@@ -31,7 +31,6 @@ while [ "$1" != "" ]; do
       ACTION="$1"
       shift
       ARG="$1"
-      shift
     ;;  
     -f | --file ) 
       shift
@@ -72,7 +71,7 @@ fi
 
 dotenv::merge() {
   local temp
-  temp=$(mktemp "/tmp/$(basename $0).XXXXXX") || exit 1
+  temp=$(mktemp) || exit 1
   trap "rm -f $temp" EXIT
   for f in "$@"; do
     __merge "$temp" "$f"
@@ -82,7 +81,6 @@ dotenv::merge() {
 
 __merge() {
   local key value
-  # set -x
   while read -r line; do
     # TODO: eliminate bashism
     line=${line#"${line%%[![:space:]]*}"}  # trim leading whitespace
@@ -115,12 +113,14 @@ dotenv::get() {
 }
 
 dotenv::set() {
-  local temp
-  temp=$(mktemp "/tmp/$(basename "$0").XXXXXX") || exit 1
+  local temp temp2
+  temp=$(mktemp) || exit 1
+  temp2=$(mktemp) || exit 1
   # shellcheck disable=SC2064
-  trap "rm -f $temp" EXIT
+  trap "rm -f $temp $temp2" EXIT
   echo "$@" > "$temp"
-  dotenv::merge "$FIRST_FILE" "$temp"
+  dotenv::merge "$FIRST_FILE" "$temp" > $temp2
+  cat $temp2 > $FIRST_FILE
 }
 
 dotenv::export() {
