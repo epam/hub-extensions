@@ -113,7 +113,7 @@ fi
 echo "Starting deployment"
 set +e
 # shellcheck disable=SC2086
-$kubectl exec -i "toolbox-$ID" -- hub deploy $HUB_ARGS
+$kubectl exec -i "toolbox-$ID" -- hub $HUB_ARGS
 set -e
 RET_VAL=$?
 echo  "Done"
