@@ -1,0 +1,212 @@
+#!/bin/bash -e
+
+usage() {
+    cat << EOF
+
+Helper tool that create remote toolbox enviroment
+
+Usage: 
+$ $(basename "$0") --create-toolbox
+Create remote toolbox on kuberentes cluster
+
+Parameters:
+    --label               Use these labels for toolbox pod (can repeat multiple)
+    --image               Image of toolbox (default: agilestacks/toolbox:latest)
+    -V  --verbose         Verbose outputs for debug purpose
+    -h  --help            Print this message
+EOF
+}
+
+# toolbox::render_k8s() {
+    # env | grep -E '^(AWS_|GOOGLE_|AZURE_|TF_|TERM=|LANG=|LC_)' > "$1/environment"
+    # echo "USER=$USER" >> "$1/environment"
+    # echo "UID=$(id -u)" >> "$1/environment"
+    # echo "GID=$(id -g)" >> "$1/environment"
+#     cat <<EOF > "$1/kustomization.yaml"
+# apiVersion: kustomize.config.k8s.io/v1beta1
+# kind: Kustomization
+# commonLabels:
+#   app: toolbox
+#   provider: agilestacks.com
+# configMapGenerator:
+# - name: toolbox-env
+#   env: $1/environment
+# resources:
+# - deployment.yaml
+# EOF
+# pod_manifest="$KUSTOMIZE_DIR/deployment.yaml"
+# }
+
+deploy_toolbox() {
+    echo 'Deploying toolbox container'
+
+    kubectl kustomize ${KUSTOMIZE_DIR} > "${KUSTOMIZE_DIR}/toolbox.yaml"    
+    kubectl apply -f ${KUSTOMIZE_DIR}/toolbox.yaml
+    echo 'Waiting for toolbox to be deployed: '
+    
+    local ELAPSED=0
+    until [[ $(kubectl -n $K8S_NAMESPACE get pods -l $LABELS -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') =~ "True"  ]]; do 
+        printf '.' && sleep 1;
+        (( ELAPSED++ ))
+        if [[ $ELAPSED -eq $TOOLBOX_TIMEOUT ]]; then
+            echo 'Timed-out toolbox deployment, please check deployment logs'
+            exit 1
+        fi 
+    done
+    printf '\n'
+}
+
+
+upload_data() {
+    local podname=$(get_podname)
+    echo "Copying data to: ${podname}"
+    kubectl -n "$K8S_NAMESPACE" cp . "${podname}":./
+    kubectl -n "$K8S_NAMESPACE" cp ~/.aws "${podname}":/root/
+    kubectl -n "$K8S_NAMESPACE" exec -it "${podname}" -- bash -c "\
+    rm -f .env &&\
+    ln -s .hub/env/$HUB_DOMAIN_NAME.env .env
+    "
+}
+
+download_stack_state() {
+    echo 'Downloading deployment state data'
+    kubectl -n "$K8S_NAMESPACE" cp --no-preserve=false toolbox:.hub .hub/
+}
+
+do_deploy() {
+    generate_manifests
+    deploy_toolbox
+    upload_data
+}
+
+get_namespace() {
+    echo "$K8S_NAMESPACE"
+}
+
+get_podname() {
+  echo "$(kubectl get pod -l $K8S_LABELS -n $K8S_NAMESPACE -o=jsonpath='{.items[0].metadata.name}')"
+}
+
+ID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d - | cut -c-8)
+IMAGE=${IMAGE:-agilestacks/toolbox}
+
+if  test -z "${AWS_PROFILE}" && \
+    test -x "$(which aws)" && \
+    aws sts get-caller-identity > /dev/null 2>&1; then
+    AWS_PROFILE=$(aws configure list | awk  '$1 ~ /^profile$/ {print $2}')
+    export AWS_PROFILE
+fi
+
+K8S_LABELS=""
+NAMESPACE="automation-tasks"
+# ${K8S_LABELS:-app=toolbox,provider=agilestacks.com}
+while [ "$1" != "" ]; do
+    case $1 in
+        --namespace )
+          shift 
+          NAMESPACE=$1
+        ;;    
+        --image )
+          shift 
+          IMAGE=$1
+        ;;
+        -l | --label )
+          shift
+          LABELS=$(test -z "$LABELS" echo "$LABELS,$1" && echo "$1")
+        ;;
+        --exec-id )
+          shift
+          ID="$1"
+        ;;
+        -V | --verbose )
+          set -x
+        ;;
+        -h | --help )
+          usage
+          exit
+        ;;
+    esac
+    shift
+done
+
+# shellcheck disable=SC2046
+dotenv="$(dirname $(dirname $(dirname $0)))/env/dotenv -f .env"
+# shellcheck disable=SC2086,SC2046
+cat <<EOF
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: toolbox-$ID
+  namespace: $NAMESPACE
+  labels:
+    exec-id: $ID
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: toolbox-$ID
+  labels:
+    exec-id: $ID
+subjects:
+- kind: ServiceAccount
+  name: toolbox-$ID
+  namespace: $NAMESPACE
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toolbox-$ID
+  namespace: $NAMESPACE
+  labels:
+    exec-id: $ID
+spec:
+  serviceAccountName: toolbox-$ID
+  initContainers:
+  - name: init-workdir
+    image: $IMAGE
+    command: ["chown", "-R", "$(id -u):$(id -g)", $(pwd)]    
+    securityContext:
+      runAsUser: 0
+    volumeMounts:
+    - name: work-dir
+      mountPath: $(pwd)     
+  - name: init-home
+    image: $IMAGE
+    command: ["chown", "-R", "$(id -u):$(id -g)", $HOME]    
+    securityContext:
+      runAsUser: 0
+    volumeMounts:
+    - name: home-dir
+      mountPath: $HOME
+  containers:
+  - name: toolbox
+    image: $IMAGE
+    workingDir: "$(pwd)" 
+    command: ["sleep", "infinity"]    
+    env:
+    - {name: "USER", value: "$USER"}
+    - {name: "UID", value: "$(id -u)"}
+    - {name: "GID", value: "$(id -g)"}
+    - {name: "HOME", value: "$HOME"}
+$(env | grep -E '^(GOOGLE_|AZURE_|TF_|TERM=|LANG=|LC_)' | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')  
+$($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
+    volumeMounts:
+    - name: work-dir
+      mountPath: $(pwd)
+    - name: home-dir
+      mountPath: $HOME   
+  securityContext:
+    runAsUser: $(id -u)
+    runAsGroup: $(id -g)
+    fsGroup: $(id -g)
+  volumes:
+  - name: work-dir
+    emptyDir: {}
+  - name: home-dir
+    emptyDir: {}   
+EOF

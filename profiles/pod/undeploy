@@ -1,0 +1,4 @@
+#!/bin/bash -e
+# Simple wrapper script around hub undeploy
+
+$(dirname "$0")/hubw undeploy $@

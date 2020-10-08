@@ -250,8 +250,8 @@ trap "rm -f $TEMP2" EXIT
 cat << EOF >> $TEMP2
 # stack definition files
 HUB_FILES="$HUB_FILES"
-# deploy options can have value: (deploy-pod | deploy-local | deploy-toolbox)
-HUB_DEPLOY_PROFILE="deploy-pod"
+# deploy options can have value: (pod | toolbox | local)
+HUB_DEPLOY_PROFILE="pod"
 EOF
 # shellcheck disable=SC2001
 $dotenv merge $(echo $DOT_FILES | sed 's/[^ ]* */-f &/g') -f $TEMP2 > $TEMP

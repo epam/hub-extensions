@@ -25,7 +25,7 @@ while [ "$1" != "" ]; do
       shift
       KEY="$1"
     ;;
-    merge | export )
+    merge | export | keys )
       ACTION="$1" ;;
     set )
       ACTION="$1"
@@ -142,16 +142,31 @@ dotenv::export() {
   done < $1
 }
 
+dotenv::keys() {
+  test -f "$1" || return
+  local key first
+  first=true
+  while read -r line; do
+    # TODO: eliminate bashism
+    line=${line#"${line%%[![:space:]]*}"}  # trim leading whitespace
+    line=${line%"${line##*[![:space:]]}"}  # trim trailing whitespace
+    # special case for comments
+    if [[ ! "$line" || "$line" == '#'* ]]; then
+      continue
+    fi
+    if [[ "$line" =~ ^(export[ ]+)?(.*)=(.*)$ ]]; then
+      key="${BASH_REMATCH[2]}"
+        echo "$key"
+    fi
+  done < $1
+}
+
 FIRST_FILE=$(echo "$FILES" | awk '{print $1;}')
 case $ACTION  in
-  "merge"  )  
-    dotenv::$ACTION $FILES ;;
+  "export" | "keys" | "merge" )  
+    dotenv::$ACTION $FIRST_FILE ;;
   "get"    )  
     dotenv::$ACTION $KEY $FIRST_FILE ;;
-  "export" )  
-    dotenv::$ACTION $FIRST_FILE ;;
-  "copy" )  
-    dotenv::$ACTION $FROM $DEST;;
   "set" )  
     dotenv::$ACTION $ARG;;
   * )
