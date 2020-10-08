@@ -97,17 +97,17 @@ EOF
 if test -z "$HUB_DEPLOY_PROFILE"; then
   HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE")
   if test -z "$HUB_DEPLOY_PROFILE"; then
-    HUB_DEPLOY_PROFILE="deploy-pod"
+    HUB_DEPLOY_PROFILE="pod"
   fi
 fi
-if test ! -f "$(dirname "$0")/$HUB_DEPLOY_PROFILE/undeploy"; then
-  echo "Warning: $(dirname "$0")/$HUB_DEPLOY_PROFILE/undeploy not found!"
-  echo "Falling back to $(dirname "$0")/deploy-local/undeploy"
-  HUB_DEPLOY_PROFILE="deploy-local"
+if test ! -f "$(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/undeploy"; then
+  echo "Warning: $(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/undeploy not found!"
+  echo "Falling back to $(dirname "$0")/profiles/local/undeploy"
+  HUB_DEPLOY_PROFILE="local"
 fi
 
 # shellcheck disable=SC2086,SC2046
-$(dirname "$0")/$HUB_DEPLOY_PROFILE/undeploy \
+$(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/undeploy \
   "$HUB_ELABORATE_FILE" \
   -s "$HUB_STATE_FILE" \
   $HUB_OPTS
