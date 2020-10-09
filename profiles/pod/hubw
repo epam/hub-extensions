@@ -37,12 +37,12 @@ fi
 
 finalize() {
   echo
-  echo  -n "* Saving hub state $STATE_FILE"
+  echo  -n "* Downloading hub state to $STATE_FILE: "
+  set +e
   $kubectl cp --no-preserve=false "toolbox-$ID:$STATE_FILE" "$STATE_FILE" >/dev/null 2>&1; 
   echo "Done"
   echo -n "* Finalizing toolbox-$ID: "
-  set +e
-  out=$($kubectl delete -f "$1" --force)
+  out=$(kubectl delete -f "$1" --wait --timeout=300s)
   rv=$?
   rm -rf "$1"
   set -e
@@ -58,8 +58,7 @@ EOF
 
 echo "Starting toolbox pod: toolbox-$ID"
 temp=$(mktemp) || exit 1
-# shellcheck disable=SC2064
-trap "finalize $temp" EXIT
+trap 'finalize $temp' EXIT
 "$(dirname "$0")/template" --exec-id "$ID" --namespace="$TOOLBOX_NAMESPACE" > "$temp"
 
 kubectl="kubectl -n $TOOLBOX_NAMESPACE" 
@@ -70,7 +69,7 @@ if ! kubectl get namespace "$TOOLBOX_NAMESPACE" -o "name" 2>/dev/null; then
   kubectl create namespace "$TOOLBOX_NAMESPACE"
 fi
 
-echo -n "* Deploying a toolbox: "
+echo -n "* Scheduling a pod toolbox-$ID: "
 if $kubectl -f "$temp" apply >/dev/null; then 
   echo "Done"
 else 
@@ -93,15 +92,14 @@ echo "Done"
 
 cloud=$($dotenv get HUB_CLOUD_PROVIDER)
 if test -n "$cloud"; then
+  echo -n "* Configuring $cloud credentials: "
   case "$cloud" in
     "aws" )
       shift
-      echo "Configuring $cloud credential: "
       "$(dirname "$0")/aws" \
         --namespace "$TOOLBOX_NAMESPACE" \
         --pod "toolbox-$ID" \
-        --profile "$($dotenv get HUB_CLOUD_PROVIDER)"
-      echo "Done"
+        --profile "$($dotenv get AWS_PROFILE)" && echo "Done"
     ;;
     * )
       echo "Warning; $cloud provider not yet supported!"
