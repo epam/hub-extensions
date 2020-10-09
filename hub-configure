@@ -104,6 +104,9 @@ EOF
   exit 1
 fi
 
+TEMP_FILES=""
+trap 'rm -f $TEMP_FILES' EXIT
+
 download_file() {
   if test -f "$2"; then
     return
@@ -111,7 +114,7 @@ download_file() {
 
   local temp http_code
   temp=$(mktemp) || exit 1
-  trap "rm -f $temp" EXIT
+  TEMP_FILES="$TEMP_FILES $temp"
   echo "  Downloading $(basename $2) from: $1"
   http_code=$(
     curl -sLo "$temp" -w "%{http_code}" "$1"
@@ -204,6 +207,7 @@ if test -z "$ARGS" || $HELP; then
   exit
 fi
 
+MERGE_FILES=""
 echo -n "Reading .env file: "
 if test -f "$WORKDIR/.env"; then
   set +a
@@ -216,48 +220,46 @@ if test -f "$WORKDIR/.env"; then
 EOF
 
   if test -L "$WORKDIR/.env"; then
-    DOT_FILES=$(readlink -n "$WORKDIR/.env")
+    MERGE_FILES="-f $(readlink -n "$WORKDIR/.env")"
   else 
-    DOT_FILES="$WORKDIR/.env"
+    MERGE_FILES="-f $WORKDIR/.env"
   fi
 else
   echo "to be created"
-  DOT_FILES=""
 fi
 
-# mkdir -p "$WORKDIR/.hub/configure"
-# trap "rm -rf $WORKDIR/.hub/configure" EXIT
 echo "Apply configuration for: $(echo "$REQS" | xargs)"
 for req in $(echo "$REQS" | xargs -n1); do
   if test -f "$(dirname "$0")/$req/configure"; then
-    TEMP=$(mktemp /tmp/$(basename "$0").XXXXXX) || exit 1
-    trap "rm -f $TEMP" EXIT
+    TEMP=$(mktemp) || exit 1
+    TEMP_FILES="$TEMP_FILES $TEMP"
     $(dirname "$0")/"$req"/configure --output "$TEMP" $ARGS
     if test -s "$TEMP"; then
       set +a
       eval $($dotenv export -f "$TEMP")
       set -a
-      DOT_FILES="$DOT_FILES $TEMP"
+      MERGE_FILES="$MERGE_FILES -f $TEMP"
     fi
   fi
 done
 
 echo "Finalizing env files..."
-TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
-trap "rm -f $TEMP" EXIT
-TEMP2=$(mktemp /tmp/superhub.XXXXXX) || exit 1
-trap "rm -f $TEMP2" EXIT
+TEMP1=$(mktemp) || exit 1
+TEMP2=$(mktemp) || exit 1
+TEMP_FILES="$TEMP_FILES $TEMP1 $TEMP2"
+
 cat << EOF >> $TEMP2
 # stack definition files
 HUB_FILES="$HUB_FILES"
 # deploy options can have value: (pod | toolbox | local)
 HUB_DEPLOY_PROFILE="pod"
 EOF
+MERGE_FILES="$MERGE_FILES -f $TEMP2"
 # shellcheck disable=SC2001
-$dotenv merge $(echo $DOT_FILES | sed 's/[^ ]* */-f &/g') -f $TEMP2 > $TEMP
-HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME" -f "$TEMP")}
+$dotenv merge $MERGE_FILES > $TEMP1
+HUB_DOMAIN_NAME=$($dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
 echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
-$(dirname "$0")/env/copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+$(dirname "$0")/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
 
 if test -L "$WORKDIR/.env" && test $(readlink -n "$WORKDIR/.env") != "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"; then
   unlink "$WORKDIR/.env"

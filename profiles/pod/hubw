@@ -9,7 +9,7 @@ if test -z "$HUB"; then
 fi
 
 # shellcheck disable=SC2046
-dotenv="$(dirname $(dirname $(dirname "$0")))/env/dotenv"
+dotenv="$(dirname $(dirname $(dirname "$0")))/env/dotenv -f .env"
 if test -f ".env"; then
   set +a
   eval "$($dotenv export -f ".env" )"
@@ -36,19 +36,27 @@ if test -z "$STATE_FILE"; then
 fi
 
 finalize() {
-  set +e
   echo
   echo  -n "* Saving hub state $STATE_FILE"
   $kubectl cp --no-preserve=false "toolbox-$ID:$STATE_FILE" "$STATE_FILE" >/dev/null 2>&1; 
   echo "Done"
   echo -n "* Finalizing toolbox-$ID: "
-  $kubectl delete -f "$1" --force >/dev/null 2>&1; 
-  set -e
+  set +e
+  out=$($kubectl delete -f "$1" --force)
+  rv=$?
   rm -rf "$1"
-  echo "Done"
+  set -e
+  if test "$rv" -ne "0"; then
+    cat <<EOF
+Warning: toolbox-$ID deletion exited with: $rv
+$out
+EOF
+  else
+    echo "Done"
+  fi
 }
 
-echo "Starting deployment with kubernetes pod: toolbox-$ID"
+echo "Starting toolbox pod: toolbox-$ID"
 temp=$(mktemp) || exit 1
 # shellcheck disable=SC2064
 trap "finalize $temp" EXIT
@@ -83,31 +91,22 @@ find "." -type f \
   $kubectl exec -i "toolbox-$ID" -- tar xf -
 echo "Done"
 
-aws_profile=$($dotenv get "AWS_PROFILE")
-# FIXME: maybe move this to before deploy (aws)?
-if test -n "$aws_profile"; then
-  echo -n "* Getting temporary aws credentials (valid for 2h) for profile: $aws_profile"
-  # aws_creds=$(mktemp)
-  # shellcheck disable=SC2064
-  # trap "rm -rf $aws_creds" EXIT
-  # line=$(aws --profile "$aws_profile" sts get-session-token --duration-seconds 7200 --output text)
-  # command above will output
-  # CREDENTIALS <access-key> <valid-through> <secret-key> <session-token>
-# cat <<EOF > $aws_creds
-# [$aws_profile]
-# aws_access_key_id=$(echo $line | awk '{print $2}')
-# aws_secret_access_key=$(echo $line | awk '{print $4}')
-# aws_session_token=$(echo $line | awk '{print $5}')
-# EOF
-  $kubectl exec "toolbox-$ID" -- mkdir "$HOME/.aws"
-  # we should not set credentials via env vars
-  # TODO: validate STS
-  # $kubectl cp "$aws_creds" "toolbox-$ID:$HOME/.aws/credentials"
-  if test ! -f "$HOME/.aws/credentials"; then
-    echo "Error: cannot find $HOME/.aws/credentials"
-  fi 
-  $kubectl cp "$HOME/.aws/credentials" "toolbox-$ID:$HOME/.aws/credentials"
-  echo "Done"
+cloud=$($dotenv get HUB_CLOUD_PROVIDER)
+if test -n "$cloud"; then
+  case "$cloud" in
+    "aws" )
+      shift
+      echo "Configuring $cloud credential: "
+      "$(dirname "$0")/aws" \
+        --namespace "$TOOLBOX_NAMESPACE" \
+        --pod "toolbox-$ID" \
+        --profile "$($dotenv get HUB_CLOUD_PROVIDER)"
+      echo "Done"
+    ;;
+    * )
+      echo "Warning; $cloud provider not yet supported!"
+    ;;    
+  esac
 fi
 
 echo "Starting deployment"

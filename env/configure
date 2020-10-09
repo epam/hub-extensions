@@ -9,7 +9,7 @@ Environment variables parameters:
 EOF
 }
 
-CACHE_FILE=${CACHE_FILE:-$(dirname "$0")/.cache.env}
+CACHE_FILE=${CACHE_FILE:-$(dirname "$0")/.history}
 dotenv="$(dirname "$0")/dotenv -f $CACHE_FILE"
 while [ "$1" != "" ]; do
   case $1 in
