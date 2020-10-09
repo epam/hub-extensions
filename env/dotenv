@@ -5,11 +5,13 @@ usage() {
 .env file parser written in bash
 
 Parameters:
+  --default               Default value if applicable (can repeat multiple times)
   -f  --file              Path to .env file (can repeat multiple times)
   --verbose               Verbose output for debugging
 
 Subcommands:
-  $(basename "$0") get KEY               returns value associated with KEY or empty string
+  $(basename "$0") keys -f FILE          returns all keys in dotenv file
+  $(basename "$0") get KEY -f FILE       returns value associated with KEY or empty string
   $(basename "$0") merge (-f FILE1)...   merges two or .env files
   $(basename "$0") export                exports dotenv file for bash
 EOF
@@ -18,6 +20,7 @@ EOF
 FILES=
 ACTION=
 VERBOSE=${VERBOSE:-false}
+DEFAULTS=
 while [ "$1" != "" ]; do
   case "$1" in
     get )
@@ -36,6 +39,10 @@ while [ "$1" != "" ]; do
       shift
       FILES=$(echo "$FILES" "$1" | xargs)
       ;;
+    --default ) 
+      shift
+      DEFAULTS=$(echo "$DEFAULT" "$1" | xargs)
+      ;;      
     -h | --help )
       usage
       exit
@@ -74,7 +81,9 @@ dotenv::merge() {
   temp=$(mktemp) || exit 1
   trap "rm -f $temp" EXIT
   for f in "$@"; do
-    __merge "$temp" "$f"
+    if test -f "$f"; then
+      __merge "$temp" "$f"
+    fi
   done
   cat $temp
 }
@@ -155,8 +164,7 @@ dotenv::keys() {
       continue
     fi
     if [[ "$line" =~ ^(export[ ]+)?(.*)=(.*)$ ]]; then
-      key="${BASH_REMATCH[2]}"
-        echo "$key"
+      echo "${BASH_REMATCH[2]}"
     fi
   done < $1
 }
@@ -165,8 +173,9 @@ FIRST_FILE=$(echo "$FILES" | awk '{print $1;}')
 case $ACTION  in
   "export" | "keys" | "merge" )  
     dotenv::$ACTION $FIRST_FILE ;;
-  "get"    )  
-    dotenv::$ACTION $KEY $FIRST_FILE ;;
+  "get"    )
+    echo "$(dotenv::$ACTION $KEY $FIRST_FILE) $DEFAULTS" | awk '{print $1;}'
+  ;;
   "set" )  
     dotenv::$ACTION $ARG;;
   * )
