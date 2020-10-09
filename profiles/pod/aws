@@ -36,7 +36,7 @@ if test -z "$POD"; then
   exit 1
 fi
 
-aws_config=$($dotenv get "AWS_CONFIG_FILE" "$HOME/.aws/credentials")
+aws_config=$($dotenv get "AWS_CONFIG_FILE" --default "$HOME/.aws/credentials")
 # FIXME: maybe move this to before deploy (aws)?
 if test -n "$aws_profile"; then
   ARGS="$ARGS --profile $aws_profile"
@@ -45,19 +45,23 @@ else
   aws_profile="default"
 fi
 
-temp=$(mktemp)
-# shellcheck disable=SC2064
-trap "rm -rf $temp" EXIT
-cat <<EOF > $temp
-[$aws_profile]
-aws_access_key_id=$(aws $ARGS configure get aws_access_key_id)
-aws_secret_access_key=$(aws $ARGS configure get aws_secret_access_key)
-EOF
-aws_session_token=$(aws $ARGS configure get aws_session_token)
-if test -n "$aws_session_token"; then
-  echo "aws_session_token=$aws_session_token" >> $temp
-fi
+# temp=$(mktemp)
+# # shellcheck disable=SC2064
+# trap "rm -rf $temp" EXIT
+# cat <<EOF > $temp
+# [$aws_profile]
+# aws_access_key_id=$(aws $ARGS configure get aws_access_key_id)
+# aws_secret_access_key=$(aws $ARGS configure get aws_secret_access_key)
+# EOF
+# aws_session_token=$(aws $ARGS configure get aws_session_token)
+# if test -n "$aws_session_token"; then
+#   echo "aws_session_token=$aws_session_token" >> $temp
+# fi
 
 $kubectl exec "toolbox-$ID" -- mkdir "$(dirname "$aws_config")"
 # we should not set credentials via env vars
-$kubectl cp "$temp" "$POD:$aws_config"
+# $kubectl cp "$temp" "$POD:$aws_config"
+
+if test -f "$aws_config"; then
+  $kubectl cp "$aws_config" "$POD:$aws_config"
+fi
