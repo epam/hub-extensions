@@ -42,18 +42,8 @@ finalize() {
   $kubectl cp --no-preserve=false "toolbox-$ID:$STATE_FILE" "$STATE_FILE" >/dev/null 2>&1; 
   echo "Done"
   echo -n "* Finalizing toolbox-$ID: "
-  out=$(kubectl delete -f "$1" --wait --timeout=300s)
-  rv=$?
-  rm -rf "$1"
-  set -e
-  if test "$rv" -ne "0"; then
-    cat <<EOF
-Warning: toolbox-$ID deletion exited with: $rv
-$out
-EOF
-  else
-    echo "Done"
-  fi
+  kubectl delete -f "$1" --wait --timeout=300s >/dev/null &
+  echo "Done"
 }
 
 echo "Starting toolbox pod: toolbox-$ID"
@@ -92,7 +82,7 @@ echo "Done"
 
 cloud=$($dotenv get HUB_CLOUD_PROVIDER)
 if test -n "$cloud"; then
-  echo -n "* Configuring $cloud credentials: "
+  echo -n "* Mounting $cloud credentials: "
   case "$cloud" in
     "aws" )
       shift

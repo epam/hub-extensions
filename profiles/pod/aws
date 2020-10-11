@@ -1,20 +1,12 @@
 #!/bin/bash -e
 # shellcheck disable=SC2086
-
-aws="$(which aws)"
 kubectl="$(which kubectl)"
-aws_profile="default"
 while (( "$#" )); do
   case $1 in
     --namespace )
       shift 
       kubectl="$kubectl -n $1"
     ;;
-    --profile )
-      shift
-      aws_profile="$1"
-      aws="$aws --profile $1"
-    ;;    
     --pod )
       shift
       POD="$1"
@@ -36,32 +28,43 @@ if test -z "$POD"; then
   exit 1
 fi
 
-aws_config=$($dotenv get "AWS_CONFIG_FILE" --default "$HOME/.aws/credentials")
-# FIXME: maybe move this to before deploy (aws)?
+aws_creds=$($dotenv get "AWS_SHARED_CREDENTIALS_FILE" --default "$HOME/.aws/credentials")
+aws_config=$($dotenv get "AWS_CONFIG_FILE" --default "$HOME/.aws/config")
+aws_profile=$($dotenv get "AWS_PROFILE")
+
 if test -n "$aws_profile"; then
-  ARGS="$ARGS --profile $aws_profile"
+  AWS_ARGS="$AWS_ARGS --profile $aws_profile"
 else
   # do not add aws cli arg
   aws_profile="default"
 fi
 
-# temp=$(mktemp)
-# # shellcheck disable=SC2064
-# trap "rm -rf $temp" EXIT
-# cat <<EOF > $temp
-# [$aws_profile]
-# aws_access_key_id=$(aws $ARGS configure get aws_access_key_id)
-# aws_secret_access_key=$(aws $ARGS configure get aws_secret_access_key)
-# EOF
-# aws_session_token=$(aws $ARGS configure get aws_session_token)
-# if test -n "$aws_session_token"; then
-#   echo "aws_session_token=$aws_session_token" >> $temp
-# fi
+render_conf_line() {
+  local val
+  if val=$(aws $AWS_ARGS configure get "$1"); then
+    if test -n "$val"; then
+      echo "$1 = $val"
+    fi
+  fi
+}
 
-$kubectl exec "toolbox-$ID" -- mkdir "$(dirname "$aws_config")"
-# we should not set credentials via env vars
-# $kubectl cp "$temp" "$POD:$aws_config"
+temp_dir=$(mktemp -d)
+mkdir -p "$temp_dir"
+# shellcheck disable=SC2064
+trap "rm -rf $temp_dir" EXIT
+{
+  echo "[$aws_profile]"
+  render_conf_line "aws_access_key_id"
+  render_conf_line "aws_secret_access_key"
+  render_conf_line "aws_session_token"
+} > "$temp_dir/$(basename $aws_creds)"
+{
+  echo "[profile $aws_profile]"
+  render_conf_line "region"
+} > "$temp_dir/$(basename $aws_config)"
 
-if test -f "$aws_config"; then
-  $kubectl cp "$aws_config" "$POD:$aws_config"
-fi
+$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_config")"
+$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_creds")"
+# it is not nice to set creds as pod env vars
+$kubectl cp "$temp_dir/credentials" "$POD:$(dirname "$aws_config")"
+$kubectl cp "$temp_dir/config" "$POD:$(dirname "$aws_config")"
