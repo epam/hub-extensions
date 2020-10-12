@@ -1,12 +1,5 @@
 #!/bin/bash -e
-
-# Simple wrapper script around hub deploy
-
-HUB=$(which hub)
-if test -z "$HUB"; then
-  echo "Error: hub cli cannot be found"
-  exit 1
-fi
+# Simple wrapper script around hub deploy however it will use pod (see ./template)
 
 # shellcheck disable=SC2046
 dotenv="$(dirname $(dirname $(dirname "$0")))/env/dotenv -f .env"

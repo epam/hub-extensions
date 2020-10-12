@@ -1,4 +1,3 @@
 #!/bin/bash -e
-# Simple wrapper script around hub undeploy
-
+# shellcheck disable=SC2046,SC2068
 $(dirname "$0")/hubw undeploy $@

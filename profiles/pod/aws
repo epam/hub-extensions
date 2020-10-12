@@ -50,21 +50,19 @@ render_conf_line() {
 
 temp_dir=$(mktemp -d)
 mkdir -p "$temp_dir"
-# shellcheck disable=SC2064
-trap "rm -rf $temp_dir" EXIT
+trap 'rm -rf $temp_dir' EXIT
 {
   echo "[$aws_profile]"
   render_conf_line "aws_access_key_id"
   render_conf_line "aws_secret_access_key"
   render_conf_line "aws_session_token"
 } > "$temp_dir/$(basename $aws_creds)"
+$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_config")"
+$kubectl cp "$temp_dir/$(basename $aws_creds)" "$POD:$(dirname "$aws_config")"
+
 {
   echo "[profile $aws_profile]"
   render_conf_line "region"
 } > "$temp_dir/$(basename $aws_config)"
-
-$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_config")"
 $kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_creds")"
-# it is not nice to set creds as pod env vars
-$kubectl cp "$temp_dir/credentials" "$POD:$(dirname "$aws_config")"
-$kubectl cp "$temp_dir/config" "$POD:$(dirname "$aws_config")"
+$kubectl cp "$temp_dir/$(basename $aws_config)" "$POD:$(dirname "$aws_config")"
