@@ -170,14 +170,21 @@ else
     DOCEXT="$(echo "$PARAMETERS" | jq -cM '{"parameters": .}')"
     DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"parameters": .}')"
 fi
-
 if test -z "$HUB_TOKEN"; then
-  DOCBASE=$(echo "$RESP" | jq -crM '{
+  if test -n "$(echo $RESP | jq -crM '.components|select(.)')"; then
+    DOCBASE=$(echo $RESP | jq -crM '{
       "components" : [select(.components != null).components|to_entries[]|.key],
       "provides" : [select(.provides != null).provides|to_entries[]|.key]
-  }')
+    }')
+  else
+    # derive components from "provides"
+    DOCBASE=$(echo $RESP | jq -crM '{
+      "components" : [.provides|to_entries[].value|select(.)[]] | unique,
+      "provides" : [select(.provides != null).provides|to_entries[]|.key]
+    }')  
+  fi
 else
-  DOCBASE=$(echo "$RESP" | jq -crM '{
+  DOCBASE=$(echo $RESP | jq -crM '{
       "environment": .environment.name,
       "provides": [.provides|to_entries[]|.key],
       "components": .componentsEnabled,
