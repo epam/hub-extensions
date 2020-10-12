@@ -1,5 +1,4 @@
 #!/bin/bash -e
-
 # shellcheck disable=SC2086
 
 usage()
@@ -24,19 +23,24 @@ EOF
 FORMAT="${FORMAT:-json}"
 JQ_ARGS="${JQ_ARGS:- -S}"
 
+dotenv="$(dirname "$0")/env/dotenv -f .env"
+set +a
+eval "$($dotenv "export")"
+set -a
+
 if ! test -t 0; then
-    STACK=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
+    HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
 fi
 
-if test -z "$1" && test -z "$STACK"; then
-    usage;
-    exit 1
-fi
+# if test -z "$1" && test -z "$HUB_DOMAIN_NAME"; then
+#     usage;
+#     exit 1
+# fi
 
 while [ "$1" != "" ]; do
     case $1 in
         -s | --stack )      shift
-                            STACK=$1
+                            HUB_DOMAIN_NAME=$1
                             ;;
         -c | --COMPONENT )  shift
                             HUB_COMPONENT=$1
@@ -60,7 +64,7 @@ while [ "$1" != "" ]; do
                             ;;
         -v | --verbose )    set -x
                             ;;
-        - )                 STACK=$(< /dev/stdin xargs | cut -d " " -f1)
+        - )                 HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1)
                             ;;
         -h | --help )       usage
                             exit
@@ -72,25 +76,41 @@ while [ "$1" != "" ]; do
 done
 
 if test -z "$HUB_TOKEN"; then
-  HUBDIR="$(pwd)/.hub";
-  STATEFILE="$HUBDIR/$STACK.yaml.state";
+  STATEFILE=".hub/$HUB_DOMAIN_NAME.yaml.state";
   if test -f "$STATEFILE"; then
     RESP=$(hub explain "$STATEFILE" --json)
   else
-    ns=kube-system
-    cm=superhub
-    RESP=$(kubectl -n $ns get configmap $cm -o json | jq -r ".data[\"${STACK}\"]" | base64 -d)
+    kubectl="kubectl -n kube-system -o json"
+    if ! $kubectl get configmap "superhub" > /dev/null 2>&1; then
+      echo "Error: any deployed stack"
+      exit 5
+    fi
+    if test -z "$HUB_DOMAIN_NAME"; then
+      HUB_DOMAIN_NAME=$( \
+        $kubectl get configmap "superhub" \
+        | jq -r '.data|keys[0]|select(.)'
+      )
+      if test -z "$HUB_DOMAIN_NAME"; then
+        echo "Error: cannot find stack data"
+        exit 4
+      fi
+    fi
+    RESP=$( \
+      $kubectl get configmap "superhub" | \
+      jq -r ".data[\"$HUB_DOMAIN_NAME\"] | select(.)" | \
+      base64 -d
+    )
   fi
 
 else
   RESP=$(hub api instance get -j \
       | jq -S '. | if type=="array" then . else [.] end' \
-      | jq -cMr '.[] | select(.domain=="'$STACK'")')
+      | jq -cMr '.[] | select(.domain=="'$HUB_DOMAIN_NAME'")')
 fi
 
 
 if test -z "$RESP"; then
-    echo "Stack $STACK not found";
+    echo "Stack $HUB_DOMAIN_NAME not found";
     exit 2;
 fi
 
@@ -113,14 +133,14 @@ to_obj() {
 if test ! -z "$HUB_COMPONENT"; then
     if test -z "$HUB_TOKEN"; then
       if test "$(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key] | index("'$HUB_COMPONENT'")')" == "null"; then
-        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$STACK\""
+        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$HUB_DOMAIN_NAME\""
         exit 3
       fi
       OUTPUTS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.outputs != null).outputs')
       PARAMETERS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.parameters != null).parameters')
     else
       if test "$(echo "$RESP" | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
-        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$STACK\""
+        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$HUB_DOMAIN_NAME\""
         exit 3
       fi
       OUTPUTS=$(echo "$RESP" | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
