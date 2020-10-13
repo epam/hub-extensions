@@ -42,8 +42,7 @@ fi
 dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
 
-if test -z "$KUBECONTEXT" || \
-   test -z "$HUB_DOMAIN_NAME"; then
+if test -z "$KUBECONTEXT"; then
   usage
   exit 1
 fi
@@ -65,6 +64,13 @@ fi
 
 CLUSTER_NAME="$(kubectl config view --raw -o json \
 | jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.cluster')"
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "* HUB_DOMAIN_NAME not defined using from context: $CLUSTER_NAME"
+  # FIXME: not clear if we should take cluster.server instead
+  HUB_DOMAIN_NAME="$CLUSTER_NAME"
+fi
+
 USERNAME="$(kubectl config view --raw -o json \
 | jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.user')"
 CLUSTER="$(kubectl config view --raw -o json \

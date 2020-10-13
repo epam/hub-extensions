@@ -1,6 +1,8 @@
 #!/bin/bash -e
 # shellcheck disable=SC2046,SC2068,SC2064,SC2086
 
+HUB_HOME=${HUB_HOME:-$(dirname "$0")}
+
 usage() {
   cat << EOF
 Reads configuration in hub.yaml and configures stack for deployment
@@ -24,9 +26,15 @@ EOF
     if echo "$2" | grep -oh "\w*$req\w*"; then
       continue
     fi
-    if test -f "$(dirname "$0")/$req/configure"; then
-      $(dirname "$0")/$req/configure --help
+    local configure
+    if test -f "$WORKDIR/.hub/$req/configure"; then
+      configure="$WORKDIR/.hub/$req/configure"
+    elif test -f "$HUB_HOME/$req/configure"; then
+      configure=$HUB_HOME/$req/configure
+    else
+      continue
     fi
+    $configure --help
   done
 }
 
@@ -42,7 +50,6 @@ VERBOSE=false
 SILENT=false
 HELP=false
 ARGS=$*
-
 HUB_FILES=""
 while [ "$1" != "" ]; do
   case $1 in
@@ -72,10 +79,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-# too much output with this utility file
-# source "$(dirname $0)/dotenv/dotenv"
-# HACK: untill "source dotenv" will be fixed
-dotenv=$(dirname "$0")/env/dotenv
+dotenv=$HUB_HOME/env/dotenv
 if $VERBOSE; then
   set -x
 fi
@@ -98,14 +102,20 @@ fi
 TEMP_FILES=""
 trap 'rm -f $TEMP_FILES' EXIT
 
+temp_file(){
+  local temp
+  temp=$(mktemp) || exit 1
+  TEMP_FILES="$TEMP_FILES $temp"
+  echo $temp
+}
+
 download_file() {
   if test -f "$2"; then
     return
   fi
 
   local temp http_code
-  temp=$(mktemp) || exit 1
-  TEMP_FILES="$TEMP_FILES $temp"
+  temp=$(temp_file)
   echo "  Downloading $(basename $2) from: $1"
   http_code=$(
     curl -sLo "$temp" -w "%{http_code}" "$1"
@@ -120,7 +130,7 @@ download_file() {
     return 1
   fi
   echo -n "  Saving to $(pwd): "
-  $(dirname "$0")/env/copy "$temp" "$2"
+  $HUB_HOME/env/copy "$temp" "$2"
 }
 
 KNOWN_URLS=""
@@ -182,7 +192,7 @@ HUB_FILES="$EXPANDED"
 mkdir -p "$WORKDIR/.hub/env"
 # common environment variables that 
 # will be used by exact extensions
-export WORKDIR SILENT VERBOSE HUB_FILES
+export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME
 REQS=$(echo "$REQS" | xargs)
 if test -z "$REQS"; then
   REQS=""
@@ -221,24 +231,27 @@ fi
 
 echo "Apply configuration for: $(echo "$REQS" | xargs)"
 for req in $(echo "$REQS" | xargs -n1); do
-  if test -f "$(dirname "$0")/$req/configure"; then
-    TEMP=$(mktemp) || exit 1
-    TEMP_FILES="$TEMP_FILES $TEMP"
-    $(dirname "$0")/"$req"/configure --output "$TEMP" $ARGS
-    if test -s "$TEMP"; then
-      set +a
-      eval $($dotenv export -f "$TEMP")
-      set -a
-      MERGE_FILES="$MERGE_FILES -f $TEMP"
-    fi
+  if test -f "$WORKDIR/.hub/$req/configure"; then
+    configure="$WORKDIR/.hub/$req/configure"
+  elif test -f "$HUB_HOME/$req/configure"; then
+    configure=$HUB_HOME/$req/configure
+  else
+    echo "* Cannot find configure script for $req: skipping"
+    continue
+  fi
+  TEMP=$(temp_file)
+  $configure --output "$TEMP" $ARGS
+  if test -s "$TEMP"; then
+    set +a
+    eval $($dotenv export -f "$TEMP")
+    set -a
+    MERGE_FILES="$MERGE_FILES -f $TEMP"
   fi
 done
 
 echo "Finalizing env files..."
-TEMP1=$(mktemp) || exit 1
-TEMP2=$(mktemp) || exit 1
-TEMP_FILES="$TEMP_FILES $TEMP1 $TEMP2"
-
+TEMP1=$(temp_file)
+TEMP2=$(temp_file)
 cat << EOF >> $TEMP2
 # stack definition files
 HUB_FILES="$HUB_FILES"
@@ -250,7 +263,7 @@ MERGE_FILES="$MERGE_FILES -f $TEMP2"
 $dotenv merge $MERGE_FILES > $TEMP1
 HUB_DOMAIN_NAME=$($dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
 echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
-$(dirname "$0")/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+$HUB_HOME/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
 
 if test -L "$WORKDIR/.env" && test $(readlink -n "$WORKDIR/.env") != "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"; then
   unlink "$WORKDIR/.env"
