@@ -58,8 +58,8 @@ cat $TEMP > $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble
 cat << EOF >> $DOT_ENV
 # Bubble DNS record TTL 72 hours. To renew run:
 # $ hub configure -r dns --dns-update
-export HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
-export HUB_DOMAIN_NAME="$HUB_DOMAIN_NAME"
-export HUB_DOMAIN_SECRET="$HUB_DOMAIN_SECRET"
-export HUB_BUBBLE_DNS="$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble"
+HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
+HUB_DOMAIN_NAME="$HUB_DOMAIN_NAME"
+HUB_DOMAIN_SECRET="$HUB_DOMAIN_SECRET"
+HUB_BUBBLE_DNS="$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble"
 EOF

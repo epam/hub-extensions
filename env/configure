@@ -5,14 +5,23 @@ usage() {
   cat << EOF
 Environment variables parameters:
   -f --file               Path to hub.yaml or parameter files (can repeat multiple times; default: hub.yaml params.yaml)
-
+  --defaults              Do not ask for user input and accept default values instead
 EOF
 }
+
+if test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
+  INTERACTIVE=true
+else
+  INTERACTIVE=false
+fi
 
 CACHE_FILE=${CACHE_FILE:-$(dirname "$0")/.history}
 dotenv="$(dirname "$0")/dotenv -f $CACHE_FILE"
 while [ "$1" != "" ]; do
   case $1 in
+    --defaults ) 
+      INTERACTIVE=false
+      ;;  
     --output ) 
       shift         
       DOT_ENV="$1"
@@ -72,20 +81,24 @@ getBriefByEnvVar() {
   fi 
 }
 
+touch $DOT_ENV
 for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   VALUE=$(printenv "$ENV" || echo "")
   BRIEF=$(getBriefByEnvVar $ENV)
-  if test -n "$VALUE"; then
-    echo "* $BRIEF: discovered"
-  elif $INTERACTIVE; then
-    echo
+  if test -z "$VALUE"; then
     echo "* $BRIEF"
     DEFAULT="$($dotenv get $ENV)"
     if test -z "$DEFAULT"; then
       DEFAULT="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)"
-      read -rp "  Enter value ($(echo $DEFAULT| cut -c1-15)... #random): " VALUE
+      if $INTERACTIVE; then
+        read -rp "  Enter value ($(echo $DEFAULT| cut -c1-15)... #random): " VALUE
+      else
+        VALUE="$DEFAULT"
+      fi
     else
-      if test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-15)"; then
+      if ! $INTERACTIVE; then
+        VALUE="$DEFAULT"
+      elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-15)"; then
         read -rp "  Enter value ($DEFAULT #default): " VALUE
       else 
         read -rp "  Enter value ($(echo $DEFAULT | cut -c1-15)... #default): " VALUE
@@ -97,10 +110,8 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     else
       VALUE="$DEFAULT"
     fi
-  fi
-  touch $DOT_ENV
-  if test -n "$BRIEF"; then
-    echo "# $BRIEF" >> $DOT_ENV
+  else    
+    echo "* $BRIEF: already configured"
   fi
   echo "$ENV=\"$VALUE\"" >> $DOT_ENV
   echo "  saved as $ENV to .env file"

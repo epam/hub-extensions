@@ -61,7 +61,6 @@ if test -z "$DOT_ENV"; then
 fi
 
 dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV"
-# HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
 if test -z "$HUB_DOMAIN_NAME"; then
   echo "Configuring Bubble DNS"
   $(dirname $(dirname "$0"))/bubble-dns/new --output "$DOT_ENV" $FLAGS
@@ -130,12 +129,12 @@ fi
 
 cat << EOF >> "$DOT_ENV"
 # Cloud provider AWS configuration
-export AWS_PROFILE="$AWS_PROFILE"
-export AWS_REGION="$AWS_REGION"
-export HUB_CLOUD_PROVIDER="aws"
+AWS_PROFILE="$AWS_PROFILE"
+AWS_REGION="$AWS_REGION"
+HUB_CLOUD_PROVIDER="aws"
 # S3 bucket to store hub and terraform state
-export HUB_STATE_BUCKET="$STATE_BUCKET"
-export HUB_STATE_REGION="$STATE_REGION"
+HUB_STATE_BUCKET="$STATE_BUCKET"
+HUB_STATE_REGION="$STATE_REGION"
 EOF
 
 if ! $DRY_RUN; then

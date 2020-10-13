@@ -114,5 +114,5 @@ ABSPATH="$(abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"
 DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
 cat << EOF >> $DOT_ENV
 # Location of sand boxed kubeconfig
-export KUBECONFIG="$ABSPATH"
+KUBECONFIG="$ABSPATH"
 EOF

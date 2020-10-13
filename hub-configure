@@ -12,7 +12,6 @@ Common parameters:
   -f  --file              Path to stack definition file (can be repeated multiple times)
   -r  --requirement       Configure one requirement (can be repeated multiple times)
   -s  --silent            Suppress console outputs in favor of result codes
-  --non-interactive       Run this command in non-interactive mode
   -V  --verbose           Verbose outputs for debug purposeEOF
   -h  --help              Print this message
 
@@ -43,18 +42,10 @@ VERBOSE=false
 SILENT=false
 HELP=false
 ARGS=$*
-if test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
-  INTERACTIVE=true
-else
-  INTERACTIVE=false
-fi
 
 HUB_FILES=""
 while [ "$1" != "" ]; do
   case $1 in
-    --non-interactive ) 
-      INTERACTIVE=false
-      ;;
     -f | --file ) 
       shift
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
@@ -191,7 +182,7 @@ HUB_FILES="$EXPANDED"
 mkdir -p "$WORKDIR/.hub/env"
 # common environment variables that 
 # will be used by exact extensions
-export WORKDIR SILENT VERBOSE INTERACTIVE HUB_FILES
+export WORKDIR SILENT VERBOSE HUB_FILES
 REQS=$(echo "$REQS" | xargs)
 if test -z "$REQS"; then
   REQS=""
