@@ -30,12 +30,14 @@ fi
 
 finalize() {
   echo
+  echo "Gracefully shutting down toolbox-$ID, stand by"
   echo  -n "* Downloading hub state to $STATE_FILE: "
   set +e
   $kubectl cp --no-preserve=false "toolbox-$ID:$STATE_FILE" "$STATE_FILE" >/dev/null 2>&1; 
   echo "Done"
   echo -n "* Finalizing toolbox-$ID: "
   kubectl delete -f "$1" --wait --timeout=300s >/dev/null &
+  rm -rf "$1"
   echo "Done"
 }
 

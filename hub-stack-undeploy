@@ -64,6 +64,7 @@ EOF
   exit 1
 fi
 
+HUB_FILES=$($dotenv get "HUB_FILES")
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
 HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
 HUB_OPTS="--force --clouds=aws $HUB_OPTS"
@@ -106,8 +107,34 @@ if test ! -f "$(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/undeploy"; then
   HUB_DEPLOY_PROFILE="local"
 fi
 
+for f in $HUB_FILES; do
+  test -f "$f" || continue;
+  AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.undeploy.before? | select(.)[]')"
+done
+if test -n "$AFTER"; then
+  echo "Running post deployment extensions: $AFTER"
+  for i in $(echo "$AFTER" | xargs -n1); do
+    if test -f "$(dirname "$0")/$i/before-undeploy"; then
+      "$(dirname "$0")/$i/before-undeploy"
+    fi
+  done
+fi
+
 # shellcheck disable=SC2086,SC2046
 $(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/undeploy \
   "$HUB_ELABORATE_FILE" \
   -s "$HUB_STATE_FILE" \
   $HUB_OPTS
+
+for f in $HUB_FILES; do
+  test -f "$f" || continue;
+  AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.undeploy.after? | select(.)[]')"
+done
+if test -n "$AFTER"; then
+  echo "Running post deployment extensions: $AFTER"
+  for i in $(echo "$AFTER" | xargs -n1); do
+    if test -f "$(dirname "$0")/$i/after-undeploy"; then
+      "$(dirname "$0")/$i/after-undeploy"
+    fi
+  done
+fi

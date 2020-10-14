@@ -135,10 +135,7 @@ if test -n "$BEFORE"; then
 fi
 
 if test -z "$HUB_DEPLOY_PROFILE"; then
-  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE")
-  if test -z "$HUB_DEPLOY_PROFILE"; then
-    HUB_DEPLOY_PROFILE="deploy-pod"
-  fi
+  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE" --default "pod")
 fi
 if test ! -f "$(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/deploy"; then
   echo "Warning: $(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/deploy not found!"
