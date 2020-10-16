@@ -51,6 +51,14 @@ SILENT=false
 HELP=false
 ARGS=$*
 HUB_FILES=""
+dotenv=$HUB_HOME/env/dotenv
+
+if test -f ".env"; then
+  set +a
+  eval $($dotenv export -f ".env" )
+  set -a
+fi
+
 while [ "$1" != "" ]; do
   case $1 in
     -f | --file ) 
@@ -79,7 +87,6 @@ while [ "$1" != "" ]; do
   shift
 done
 
-dotenv=$HUB_HOME/env/dotenv
 if $VERBOSE; then
   set -x
 fi
@@ -100,12 +107,11 @@ EOF
 fi
 
 TEMP_FILES=""
-trap 'rm -f $TEMP_FILES' EXIT
-
 temp_file(){
   local temp
   temp=$(mktemp) || exit 1
   TEMP_FILES="$TEMP_FILES $temp"
+  trap "rm -f $TEMP_FILES" EXIT
   echo $temp
 }
 

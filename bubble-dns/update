@@ -21,7 +21,7 @@ if test $VERBOSE = "true"; then
   set -x
 fi
 
-if test -n "$(echo $REQS | xargs)"; then
+if test -n "$(echo $NAMESERVERS | xargs)"; then
   NAMESERVERS=$(echo "\"$NAMESERVERS\"" | jq -cM '[split(" ") []| select(length > 0)]')
 else 
   NAMESERVERS=$($(dirname $(dirname "$0"))/aws/route53/nameservers --domain-name "$HUB_DOMAIN_NAME" --json)
