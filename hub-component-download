@@ -162,7 +162,7 @@ for component in $COMPONENTS; do
   ref=$(git_ref "$component")
   sub_dir=$(git_sub_dir "$component")
 
-  temp="$TEMP_DIR/$(echo "$remote+$ref" | md5sum | cut -f1 -d' ')"
+  temp="$TEMP_DIR/$(echo "$remote+$ref" | sed 's/[^0-9a-zA-Z-]*//g')"
   if test ! -d "$temp"; then
     echo -n "  Cloning remote $remote ($ref): "
     git clone "$remote" "$temp" > /dev/null 2>&1
