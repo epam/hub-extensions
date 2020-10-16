@@ -80,10 +80,7 @@ if aws --profile $AWS_PROFILE configure list > /dev/null 2>&1; then
 fi
 
 if test -z "$AWS_REGION"; then
-  AWS_REGION=$(aws $AWS_OPTS configure get region)
-  if test -z "$AWS_REGION"; then
-    AWS_REGION="us-east-1"
-  fi
+  AWS_REGION=$(aws $AWS_OPTS configure get region || echo "us-east-1")
 fi
 
 echo "* Using AWS region: $AWS_REGION"
