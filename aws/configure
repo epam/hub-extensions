@@ -103,10 +103,17 @@ AWS_PROFILE=${AWS_PROFILE:-$(echo "$AWS_DEFAULT_PROFILE default" | awk '{print $
 if aws --profile $AWS_PROFILE configure list > /dev/null 2>&1; then
   AWS_OPTS="$AWS_OPTS --profile $AWS_PROFILE"
   echo "* Using AWS profile: $AWS_PROFILE"
+else
+  unset AWS_DEFAULT_PROFILE AWS_PROFILE
 fi
 
 if test -z "$AWS_REGION"; then
-  AWS_REGION=$(aws $AWS_OPTS configure get region || echo "us-east-1")
+  if test -z "$AWS_DEFAULT_REGION"; then
+    AWS_REGION="$AWS_DEFAULT_REGION"
+    unset "$AWS_DEFAULT_REGION"
+  else
+    AWS_REGION=$(aws $AWS_OPTS configure get region || echo "us-east-1")
+  fi
 fi
 
 echo "* Using AWS region: $AWS_REGION"
