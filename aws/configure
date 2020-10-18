@@ -150,7 +150,7 @@ if test -z "$($(dirname $0)/route53/nameservers --domain-name $HUB_DOMAIN_NAME)"
     echo "will be deployed"
   else
     echo "not found"
-    echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes some minutes)... "
+    echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes a minute)... "
     $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
   fi
 else
@@ -170,7 +170,7 @@ EOF
 if ! $DRY_RUN; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
   cat << EOF
-* DNS record has time to live: 72 hours (refresh before expires)
+* DNS record has time to live: 72 hours (use hub configure to refresh)
 
 # Hint! To refresh DNS: hub configure -r aws --dns-update
 
