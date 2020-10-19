@@ -71,7 +71,7 @@ while [ "$1" != "" ]; do
     #   ;;             
     -r | --requirement ) 
       shift 
-      REQS="$REQS $1" 
+      REQS=$(echo "$REQS" | xargs)
       ;;
     -S | --silent )
       SILENT=true
@@ -100,7 +100,7 @@ Full usage info:
   hub configure -f hub.yaml --help
 
 Example:
-  hub configure -f hub.yaml -f params.yaml
+  hub configure -f hub.yaml
 
 EOF
   exit 1
@@ -111,7 +111,6 @@ temp_file(){
   local temp
   temp=$(mktemp) || exit 1
   TEMP_FILES="$TEMP_FILES $temp"
-  trap "rm -f $TEMP_FILES" EXIT
   echo $temp
 }
 
@@ -182,6 +181,37 @@ expand_hub_files() {
   done
 }
 
+update_symlink() {
+  if test -L "$2" && test $(readlink -n "$2") != "$1"; then
+    unlink "$2"
+  fi
+  if test ! -f ".env"; then
+    ln -sf "$1" "$2"
+    echo "* Updated .env link to $(basename $1)"
+  fi
+}
+
+finalize() {
+  echo "Finalizing env files..."
+  TEMP1=$(temp_file)
+  TEMP2=$(temp_file)
+cat << EOF >> $TEMP2
+  # stack definition files
+  HUB_FILES="$HUB_FILES"
+  # deploy options can have value: (pod | toolbox | local)
+  HUB_DEPLOY_PROFILE="pod"
+EOF
+  MERGE_FILES="$MERGE_FILES -f $TEMP2"
+  # shellcheck disable=SC2001
+  $dotenv merge $MERGE_FILES > $TEMP1
+  HUB_DOMAIN_NAME=$($dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
+  echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
+  $HUB_HOME/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+  update_symlink "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
+  echo "Done!"
+}
+trap 'finalize' EXIT
+
 if test -z "$WORKDIR"; then
   first=$(echo "$HUB_FILES" | awk '{print $1;}')
   if test -f $first; then
@@ -202,9 +232,7 @@ mkdir -p "$WORKDIR/.hub/env"
 # common environment variables that 
 # will be used by exact extensions
 export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME
-REQS=$(echo "$REQS" | xargs)
 if test -z "$REQS"; then
-  REQS=""
   for f in $HUB_FILES; do
     test -f $f || continue;
     REQS="$REQS $(yq r "$f" -j | jq -r '.extensions.configure? | select(.)[]')"
@@ -248,7 +276,7 @@ for req in $(echo "$REQS" | xargs -n1); do
     rv=$?
     echo "Error: $req completed with error!"
     exit $rv
-  fi 
+  fi
   if test -s "$TEMP"; then
     set +a
     eval $($dotenv export -f "$TEMP")
@@ -256,28 +284,3 @@ for req in $(echo "$REQS" | xargs -n1); do
     MERGE_FILES="$MERGE_FILES -f $TEMP"
   fi
 done
-
-echo "Finalizing env files..."
-TEMP1=$(temp_file)
-TEMP2=$(temp_file)
-cat << EOF >> $TEMP2
-# stack definition files
-HUB_FILES="$HUB_FILES"
-# deploy options can have value: (pod | toolbox | local)
-HUB_DEPLOY_PROFILE="pod"
-EOF
-MERGE_FILES="$MERGE_FILES -f $TEMP2"
-# shellcheck disable=SC2001
-$dotenv merge $MERGE_FILES > $TEMP1
-HUB_DOMAIN_NAME=$($dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
-echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
-$HUB_HOME/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
-
-if test -L "$WORKDIR/.env" && test $(readlink -n "$WORKDIR/.env") != "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"; then
-  unlink "$WORKDIR/.env"
-fi
-if test ! -f ".env"; then
-  ln -sf "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
-  echo "* Updated .env link to $HUB_DOMAIN_NAME.env"
-fi
-echo "Done!"
