@@ -8,12 +8,12 @@ EOF
 }
 
 dotenv=$(dirname $(dirname "$0"))/env/dotenv
-if test ! -f "$DOT_ENV"; then
+if test ! -f ".env"; then
   echo "Error: cannot find .env file. Please run 'hub configure'"
   exit 1
 fi
 set +a
-eval "$($dotenv export -f "$DOT_ENV" )"
+eval "$($dotenv export -f ".env" )"
 set -a
 
 echo -n "* Checking connectivity to cluster: "
