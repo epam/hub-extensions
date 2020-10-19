@@ -1,0 +1,24 @@
+#!/bin/bash -e
+# shellcheck disable=SC2068,SC2086,SC2155
+
+usage() {
+  cat << EOF
+Check if kubernetes cluster has been reachable
+EOF
+}
+
+dotenv=$(dirname $(dirname "$0"))/env/dotenv
+if test ! -f "$DOT_ENV"; then
+  echo "Error: cannot find .env file. Please run 'hub configure'"
+  exit 1
+fi
+set +a
+eval "$($dotenv export -f "$DOT_ENV" )"
+set -a
+
+echo -n "* Checking connectivity to cluster: "
+if kubectl cluster-info > /dev/null; then
+  echo "Connected"
+else
+  exit 2
+fi
