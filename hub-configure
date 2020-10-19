@@ -143,10 +143,13 @@ KNOWN_URLS=""
 EXPANDED=""
 expand_hub_files() {
   local f included local_file
-  for f in $@; do
+  for f in $@; do 
+    if grep -q "$f" <<< "$EXPANDED"; then 
+      continue
+    fi
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
-      echo "  File $(basename $f): exist"
+      echo "* File $(basename $f): exist"
       included=$(yq r "$f" -j | jq -r '.extensions.include|select(.)[]')
       if test -n "$included"; then
         expand_hub_files $included
