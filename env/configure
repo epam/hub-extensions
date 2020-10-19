@@ -89,7 +89,7 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   if test -z "$VALUE"; then
     echo "* $BRIEF"
     default=$(getByEnvVar "default" "$ENV" "")
-    DEFAULT="$($dotenv get $ENV --default $default)"
+    DEFAULT="$($dotenv get $ENV --default "$default")"
     if test -z "$DEFAULT"; then
       DEFAULT="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)"
       if $INTERACTIVE; then
