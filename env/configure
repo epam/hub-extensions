@@ -63,31 +63,33 @@ if test -z "$DOT_ENV"; then
   exit 2
 fi
 
-getBriefByEnvVar() {
-  local f brief
+getByEnvVar() {
+  local f result
   for f in $HUB_FILES; do
     test -f $f || continue;
-    brief=$(
+    result=$(
       yq r $f -j | jq -cr \
-        '.. | objects | select(.fromEnv == "'$1'" ).brief | select(.)'
+        ".. | objects | select(.fromEnv == \"$2\" ).$1 | select(.)"
     )
-    if test -n "$brief"; then
-      echo "$brief"
+    if test -n "$result"; then
+      echo "$result"
       break
     fi
   done
-  if test -z "$brief"; then
-    echo "$1"
+  if test -z "$result"; then
+    # default value
+    echo "$3"
   fi 
 }
 
 touch $DOT_ENV
 for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   VALUE=$(printenv "$ENV" || echo "")
-  BRIEF=$(getBriefByEnvVar $ENV)
+  BRIEF=$(getByEnvVar "brief" "$ENV" "$ENV")
   if test -z "$VALUE"; then
     echo "* $BRIEF"
-    DEFAULT="$($dotenv get $ENV)"
+    default=$(getByEnvVar "default" "$ENV" "")
+    DEFAULT="$($dotenv get $ENV --default $default)"
     if test -z "$DEFAULT"; then
       DEFAULT="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)"
       if $INTERACTIVE; then
@@ -98,10 +100,10 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     else
       if ! $INTERACTIVE; then
         VALUE="$DEFAULT"
-      elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-15)"; then
+      elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-31)"; then
         read -rp "  Enter value ($DEFAULT #default): " VALUE
       else 
-        read -rp "  Enter value ($(echo $DEFAULT | cut -c1-15)... #default): " VALUE
+        read -rp "  Enter value ($(echo $DEFAULT | cut -c1-31)... #default): " VALUE
       fi
     fi
 

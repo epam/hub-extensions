@@ -215,17 +215,13 @@ if test -z "$ARGS" || $HELP; then
 fi
 
 MERGE_FILES=""
-echo -n "Reading .env file: "
+echo "Reading .env file: "
 if test -f "$WORKDIR/.env"; then
   set +a
   eval $($dotenv export -f "$WORKDIR/.env" )
   set -a
-  cat << EOF
-
-* Cloud provider: $HUB_CLOUD_PROVIDER
-* Stack domain name: $HUB_DOMAIN_NAME
-EOF
-
+  if test -n "$HUB_CLOUD_PROVIDER"; then echo "Cloud provider: $HUB_CLOUD_PROVIDER"; fi
+  if test -n "$HUB_DOMAIN_NAME"; then echo "Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$WORKDIR/.env"; then
     MERGE_FILES="-f $(readlink -n "$WORKDIR/.env")"
   else 
@@ -235,7 +231,6 @@ else
   echo "to be created"
 fi
 
-echo "Apply configuration for: $(echo "$REQS" | xargs)"
 for req in $(echo "$REQS" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$req/configure"; then
     configure="$WORKDIR/.hub/$req/configure"
@@ -246,7 +241,11 @@ for req in $(echo "$REQS" | xargs -n1); do
     continue
   fi
   TEMP=$(temp_file)
-  $configure --output "$TEMP" $ARGS
+  if ! $configure --output "$TEMP" $ARGS; then
+    rv=$?
+    echo "Error: $req completed with error!"
+    exit $rv
+  fi 
   if test -s "$TEMP"; then
     set +a
     eval $($dotenv export -f "$TEMP")
