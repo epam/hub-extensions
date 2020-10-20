@@ -30,20 +30,23 @@ fi
 
 finalize() {
   echo
-  echo "Gracefully shutting down toolbox-$ID, stand by"
-  echo  -n "* Downloading hub state to $STATE_FILE: "
+  echo "Stand by while gracefully terminating toolbox-$ID"
+  echo  -n "* Downloading hub state to $(basename $STATE_FILE): "
   set +e
   $kubectl cp --no-preserve=false "toolbox-$ID:$STATE_FILE" "$STATE_FILE" >/dev/null 2>&1; 
+  set -e
   echo "Done"
-  echo -n "* Finalizing toolbox-$ID: "
-  kubectl delete -f "$1" --wait --timeout=300s >/dev/null &
-  rm -rf "$1"
+  echo -n "* Cleaning toolbox-$ID: "
+  {
+    kubectl delete -f "$1" --wait --timeout=300s >/dev/null
+    rm -rf "$1"
+  } &
   echo "Done"
 }
 
 echo "Starting toolbox pod: toolbox-$ID"
-temp=$(mktemp) || exit 1
-trap 'finalize $temp' EXIT
+temp=$(mktemp)
+trap "finalize $temp" EXIT
 "$(dirname "$0")/template" --exec-id "$ID" --namespace="$TOOLBOX_NAMESPACE" > "$temp"
 
 kubectl="kubectl -n $TOOLBOX_NAMESPACE" 
@@ -66,13 +69,17 @@ $kubectl wait "pod/toolbox-$ID" \
   --timeout=1200s
 
 echo -n "* Synchronizing working directory (may take few minutes): "
-find "." -type f \
-  ! -path './.git/*' \
+find -L "." \
+  -type f \
+  ! -path '*/.git/*'  \
+  ! -path '*/.helm/*'  \
+  ! -path '*/.terraform/*'  \
+  ! -path '*/.cache/*'  \
   ! -path './.envrc' \
-  ! -path './.kubeconfig' \
-  ! -path './kubeconfig.*' \
-  | tar -cT - | \
-  $kubectl exec -i "toolbox-$ID" -- tar xf -
+  ! -path './.env' \
+  ! -path './.kubeconfig'  \
+  | tar -chz -T - \
+  | $kubectl exec -i "toolbox-$ID" -- tar xfz -
 echo "Done"
 
 cloud=$($dotenv get HUB_CLOUD_PROVIDER)
