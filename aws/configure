@@ -108,7 +108,7 @@ else
 fi
 
 if test -z "$AWS_REGION"; then
-  if test -z "$AWS_DEFAULT_REGION"; then
+  if test -n "$AWS_DEFAULT_REGION"; then
     AWS_REGION="$AWS_DEFAULT_REGION"
     unset "$AWS_DEFAULT_REGION"
   else
