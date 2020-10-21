@@ -29,6 +29,7 @@ if test -z "$STATE_FILE"; then
 fi
 
 finalize() {
+  rv=$?
   echo
   echo "Stand by while gracefully terminating toolbox-$ID"
   echo  -n "* Downloading hub state to $(basename $STATE_FILE): "
@@ -36,12 +37,14 @@ finalize() {
   $kubectl cp --no-preserve=false "toolbox-$ID:$STATE_FILE" "$STATE_FILE" >/dev/null 2>&1;
   set -e
   echo "Done"
-  echo -n "* Cleaning toolbox-$ID: "
+  echo "* Cleaning toolbox-$ID: "
   {
     kubectl delete -f "$1" --wait --timeout=300s >/dev/null
     rm -rf "$1"
   } &
-  echo "Done"
+  if test "$rv" != "0"; then
+    echo "Aborted!"
+  fi
 }
 
 echo "Starting toolbox pod: toolbox-$ID"
@@ -100,10 +103,5 @@ if test -n "$cloud"; then
 fi
 
 echo "Starting deployment"
-set +e
 # shellcheck disable=SC2086
 $kubectl exec -ti "toolbox-$ID" -- hub $HUB_ARGS
-set -e
-RET_VAL=$?
-echo  "Done"
-exit $RET_VAL
