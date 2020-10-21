@@ -194,18 +194,17 @@ update_symlink() {
 
 finalize() {
   # shellcheck disable=SC2046
-  local profiles
-  if test -d "$WORKDIR/.hub/profiles"; then profiles="$(ls "$WORKDIR/.hub/profiles")"; fi
-  if test -d "$script_dir/profiles"; then profiles="$(ls $script_dir/profiles)"; fi
-
   local rv=$?
+  local profiles
+  if test -d "$WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$WORKDIR/.hub/profiles")"; fi
+  if test -d "$HUB_HOME/profiles"; then profiles="$profiles $(ls $HUB_HOME/profiles)"; fi
   echo "Finalizing env files..."
   TEMP1=$(temp_file)
   TEMP2=$(temp_file)
 cat << EOF >> $TEMP2
   # stack definition files
   HUB_FILES="$HUB_FILES"
-  # deploy options can be: $profiles
+  # deploy options can be: $(echo "$profiles" | xargs)
   HUB_DEPLOY_PROFILE="$HUB_DEPLOY_PROFILE"
 EOF
   MERGE_FILES="$MERGE_FILES -f $TEMP2"

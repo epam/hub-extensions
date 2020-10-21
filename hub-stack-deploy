@@ -151,8 +151,8 @@ elif test -f "$script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy"; then
   deploy="$script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy"
 else
   # shellcheck disable=SC2046
-  if test -d "$WORKDIR/.hub/profiles"; then profiles="$(ls "$WORKDIR/.hub/profiles")"; fi
-  if test -d "$script_dir/profiles"; then profiles="$(ls $script_dir/profiles)"; fi
+  if test -d "$WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$WORKDIR/.hub/profiles")"; fi
+  if test -d "$script_dir/profiles"; then profiles="$profiles $(ls $script_dir/profiles)"; fi
   cat << EOF
 
 Error! Cannot find deployment profile $HUB_DEPLOY_PROFILE
