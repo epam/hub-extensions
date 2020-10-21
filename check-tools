@@ -20,3 +20,7 @@ if ! which aws >/dev/null 2>&1 ||
     echo '... then run `hub extensions update` again'
     exit 1
 fi
+
+if test "$(jq -V)" != "jq-1.6"; then
+    echo ${color_start}'We recommend to update JQ to v1.6 or up - https://stedolan.github.io/jq/'${color_end}
+fi
