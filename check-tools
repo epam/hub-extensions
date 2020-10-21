@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if tty >/dev/null 2>&1; then
+if test -t 1; then
     color_start="\033[35;1m"
     color_end="\033[0m"
 fi
