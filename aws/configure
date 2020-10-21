@@ -121,24 +121,25 @@ echo "* Using AWS region: $AWS_REGION"
 export AWS_PROFILE AWS_REGION
 
 AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
-STATE_BUCKET="$AWS_ACCOUNT.$HUB_PARENT_DOMAIN"
+HUB_STATE_BUCKET="$AWS_ACCOUNT.$HUB_PARENT_DOMAIN"
 
-echo -n "* Checking presence of S3 bucket $STATE_BUCKET: "
-if aws $AWS_OPTS s3api head-bucket --bucket=$STATE_BUCKET > /dev/null 2>&1; then
-  STATE_REGION="$(aws $AWS_OPTS s3api get-bucket-location \
-    --bucket="$STATE_BUCKET" --query 'LocationConstraint' \
-    --output text \
-    | sed -e 's/null/us-east-1/g')"
+echo -n "* Checking presence of S3 bucket $HUB_STATE_BUCKET: "
+if aws $AWS_OPTS s3api head-bucket --bucket=$HUB_STATE_BUCKET > /dev/null 2>&1; then
+  HUB_STATE_REGION="$(
+    aws $AWS_OPTS s3api get-bucket-location \
+      --bucket="$HUB_STATE_BUCKET" --query 'LocationConstraint' \
+      --output text \
+      | sed -e 's/None/us-east-1/g')"
   echo "exist"
 else
-  STATE_REGION="$AWS_REGION"
+  HUB_STATE_REGION="$AWS_REGION"
   if $DRY_RUN; then
     echo "will be deployed"
   else
     echo "not found"
-    echo -n "* Deployng S3 bucket $STATE_BUCKET: "
+    echo -n "* Deployng S3 bucket $HUB_STATE_BUCKET: "
     $(dirname "$0")/s3-bucket/deploy \
-      --bucket-name "$STATE_BUCKET" \
+      --bucket-name "$HUB_STATE_BUCKET" \
       --aws-region "$AWS_REGION" \
       --acl "private" || exit 1
   fi
@@ -163,8 +164,8 @@ AWS_PROFILE="$AWS_PROFILE"
 AWS_REGION="$AWS_REGION"
 HUB_CLOUD_PROVIDER="aws"
 # S3 bucket to store hub and terraform state
-HUB_STATE_BUCKET="$STATE_BUCKET"
-HUB_STATE_REGION="$STATE_REGION"
+HUB_STATE_BUCKET="$HUB_STATE_BUCKET"
+HUB_STATE_REGION="$HUB_STATE_REGION"
 EOF
 
 if ! $DRY_RUN; then
