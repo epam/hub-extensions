@@ -1,6 +1,7 @@
 #!/bin/bash -e
 
 usage() {
+# shellcheck disable=SC2006
 cat << EOF
 
 Deploys this stack
@@ -28,7 +29,6 @@ EOF
 }
 
 FULL_STACK=true
-
 dotenv="$(dirname "$0")/env/dotenv -f .env"
 set +a
 eval "$($dotenv "export")"
@@ -124,40 +124,65 @@ export HUB_YAML HUB_FILES HUB_STATE_FILE HUB_ELABORATE_FILE
 for f in $HUB_FILES; do
   test -f $f || continue;
   BEFORE="$BEFORE $(yq r "$f" -j | jq -r '.extensions.deploy.before? | select(.)[]')"
+  AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.deploy.after? | select(.)[]')"
 done
-if test -n "$BEFORE"; then
-  echo "Running before deployment extensions: $BEFORE"
-  for i in $(echo "$BEFORE" | xargs -n1); do
-    if test -f "$(dirname "$0")/$i/before-deploy"; then
-      "$(dirname "$0")/$i/before-deploy"
-    fi
-  done
-fi
+
+for i in $(echo "$BEFORE" | xargs -n1); do
+  if test -f "$WORKDIR/.hub/$i/before-deploy"; then
+    hook="$WORKDIR/.hub/$i/before-deploy"
+  elif test -f "$(dirname "$0")/$i/before-deploy"; then
+    hook="$(dirname "$0")/$i/before-deploy"
+  else
+    echo "Warning! cannot find before deploy hook: $i"
+    continue
+  fi
+  echo "Running before deploy: $i"
+  $hook
+done
 
 if test -z "$HUB_DEPLOY_PROFILE"; then
   HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE" --default "pod")
 fi
-if test ! -f "$(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/deploy"; then
-  echo "Warning: $(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/deploy not found!"
-  echo "Falling back to deployment profile: local"
-  HUB_DEPLOY_PROFILE="local"
+
+script_dir=$(dirname "$0")
+if test -f "$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/deploy"; then
+  deploy="$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/deploy"
+elif test -f "$script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy"; then
+  deploy="$script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy"
+else
+  # shellcheck disable=SC2046
+  if test -d "$WORKDIR/.hub/profiles"; then profiles="$(ls "$WORKDIR/.hub/profiles")"; fi
+  if test -d "$script_dir/profiles"; then profiles="$(ls $script_dir/profiles)"; fi
+  cat << EOF
+
+Error! Cannot find deployment profile $HUB_DEPLOY_PROFILE
+* Not found: $WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/deploy
+* Not found: $script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy
+
+Deployment profile configured via .env variable HUB_DEPLOY_PROFILE
+
+Currently supported profiles: $(echo "$profiles" | xargs)
+
+Completed with errors!
+EOF
+  exit 5
 fi
 
+echo "Using deployment profile: $HUB_DEPLOY_PROFILE"
 # shellcheck disable=SC2086,SC2046
-$(dirname "$0")/profiles/$HUB_DEPLOY_PROFILE/deploy \
-  "$HUB_ELABORATE_FILE" \
-  -s "$HUB_STATE_FILE" \
-  $HUB_DEPLOY_OPTS
-
-for f in $HUB_FILES; do
-  test -f "$f" || continue;
-  AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.deploy.after? | select(.)[]')"
+$deploy  "$HUB_ELABORATE_FILE" -s "$HUB_STATE_FILE" $HUB_DEPLOY_OPTS
+for i in $(echo "$AFTER" | xargs -n1); do
+  if test -f "$WORKDIR/.hub/$i/after-deploy"; then
+    hook="$WORKDIR/.hub/$i/after-deploy"
+  elif test -f "$(dirname "$0")/$i/after-deploy"; then
+    hook="$(dirname "$0")/$i/after-deploy"
+  else
+    echo "Warning! cannot find post hook: $i"
+    continue
+  fi
+  echo "Running after deploy hook: $i"
+  $hook
 done
-if test -n "$AFTER"; then
-  echo "Running post deployment extensions: $AFTER"
-  for i in $(echo "$AFTER" | xargs -n1); do
-    if test -f "$(dirname "$0")/$i/after-deploy"; then
-      "$(dirname "$0")/$i/after-deploy"
-    fi
-  done
-fi
+
+echo 
+echo "Done!"

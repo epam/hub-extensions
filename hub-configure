@@ -5,10 +5,10 @@ HUB_HOME=${HUB_HOME:-$(dirname "$0")}
 
 usage() {
   cat << EOF
-Reads configuration in hub.yaml and configures stack for deployment
+Reads configuration information in $HUB_FILES and configures stack for deployment
 
 Use: 
-  hub configure -f hub.yaml -f params.yaml <parameters>
+  hub configure -f hub.yaml <parameters>
 
 Common parameters:
   -f  --file              Path to stack definition file (can be repeated multiple times)
@@ -51,6 +51,7 @@ SILENT=false
 HELP=false
 ARGS=$*
 HUB_FILES=""
+HUB_DEPLOY_PROFILE="pod"
 dotenv=$HUB_HOME/env/dotenv
 
 if test -f ".env"; then
@@ -71,7 +72,7 @@ while [ "$1" != "" ]; do
     #   ;;             
     -r | --requirement ) 
       shift 
-      REQS=$(echo "$REQS" | xargs)
+      REQS=$(echo "$REQS $1" | xargs)
       ;;
     -S | --silent )
       SILENT=true
@@ -148,7 +149,7 @@ expand_hub_files() {
     fi
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
-      echo "* File $(basename $f): exist"
+      $HELP || echo "* File $(basename $f): exist"
       included=$(yq r "$f" -j | jq -r '.extensions.include|select(.)[]')
       if test -n "$included"; then
         expand_hub_files $included
@@ -192,14 +193,20 @@ update_symlink() {
 }
 
 finalize() {
+  # shellcheck disable=SC2046
+  local profiles
+  if test -d "$WORKDIR/.hub/profiles"; then profiles="$(ls "$WORKDIR/.hub/profiles")"; fi
+  if test -d "$script_dir/profiles"; then profiles="$(ls $script_dir/profiles)"; fi
+
+  local rv=$?
   echo "Finalizing env files..."
   TEMP1=$(temp_file)
   TEMP2=$(temp_file)
 cat << EOF >> $TEMP2
   # stack definition files
   HUB_FILES="$HUB_FILES"
-  # deploy options can have value: (pod | toolbox | local)
-  HUB_DEPLOY_PROFILE="pod"
+  # deploy options can be: $profiles
+  HUB_DEPLOY_PROFILE="$HUB_DEPLOY_PROFILE"
 EOF
   MERGE_FILES="$MERGE_FILES -f $TEMP2"
   # shellcheck disable=SC2001
@@ -208,9 +215,14 @@ EOF
   echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
   $HUB_HOME/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
   update_symlink "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
-  echo "Done!"
+  echo 
+  if test "$rv" = "0"; then
+    echo "Done!"
+  else
+    echo "See error above!"
+  fi
+  exit $rv
 }
-trap 'finalize' EXIT
 
 if test -z "$WORKDIR"; then
   first=$(echo "$HUB_FILES" | awk '{print $1;}')
@@ -225,7 +237,7 @@ if test ! -d $WORKDIR; then
   mkdir -p "$WORKDIR"
 fi
 
-echo "Checking hub files:"
+$HELP || echo "Checking hub files:"
 expand_hub_files $HUB_FILES
 HUB_FILES="$EXPANDED"
 mkdir -p "$WORKDIR/.hub/env"
@@ -245,9 +257,11 @@ if test -z "$ARGS" || $HELP; then
   exit
 fi
 
+trap 'finalize $?' EXIT
+
 MERGE_FILES=""
-echo "Reading .env file: "
 if test -f "$WORKDIR/.env"; then
+  echo "Reading .env file: "
   set +a
   eval $($dotenv export -f "$WORKDIR/.env" )
   set -a
@@ -273,9 +287,18 @@ for req in $(echo "$REQS" | xargs -n1); do
   fi
   TEMP=$(temp_file)
   if ! $configure --output "$TEMP" $ARGS; then
-    rv=$?
-    echo "Error: $req completed with error!"
-    exit $rv
+    cat << EOF
+
+Error: $req completed with error!
+
+For trouble shooting:
+  hub configure -r $req --verbose
+
+For additional options:
+  hub configure -r $req --help
+
+EOF
+    exit 4
   fi
   if test -s "$TEMP"; then
     set +a
