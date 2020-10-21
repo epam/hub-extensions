@@ -47,7 +47,7 @@ set +e
 HTTP_CODE=$(curl -sLo $TEMP -w "%{http_code}" -X PUT \
       "$HUB_BUBBLE_DNS_URL/$HUB_DOMAIN_NAME" \
       -H 'Content-Type: application/json;charset=UTF-8' \
-      -d "{\"key\": \"$HUB_DOMAIN_SECRET\",\"nameservers\": $(echo $NAMESERVERS | jq -cM)}")
+      -d "{\"key\": \"$HUB_DOMAIN_SECRET\",\"nameservers\": $(echo $NAMESERVERS | jq -cM '.')}")
 set -e
 # Checking for return code 2??
 if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
