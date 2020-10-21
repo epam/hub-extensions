@@ -10,7 +10,7 @@ AWS parameters:
 
 Bubble DNS parameters:
   --dns-new     Request new DNS domain
-  --dns-update  Request to update DNS registration 
+  --dns-update  Request to update DNS registration
 
   New DNS record request:
     --parent-domain         Parent domain for stack (defaults to: bubble.superhub.io)
@@ -41,10 +41,10 @@ while [ "$1" != "" ]; do
     --dns-update )      DNS_ACTION="update"
                         ;;
     --dry-run )         DRY_RUN=true
-                        ;;                 
+                        ;;
     --output )          shift
                         DOT_ENV="$1"
-                        ;;                 
+                        ;;
     -h | --help )       usage
                         exit
                         ;;
@@ -52,7 +52,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test $VERBOSE = "true"; then 
+if test $VERBOSE = "true"; then
   set -x
 fi
 
@@ -85,7 +85,7 @@ if test "$DNS_ACTION" = "update"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
   exit $?
 fi
- 
+
 if test -z "$HUB_DOMAIN_NAME"; then
   echo "Configuring Bubble DNS"
   $(dirname $(dirname "$0"))/bubble-dns/new --output "$DOT_ENV" $FLAGS
@@ -176,4 +176,3 @@ if ! $DRY_RUN; then
 
 EOF
 fi
-
