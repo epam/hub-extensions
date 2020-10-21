@@ -102,6 +102,5 @@ if test -n "$cloud"; then
   esac
 fi
 
-echo "Starting deployment"
 # shellcheck disable=SC2086
 $kubectl exec -ti "toolbox-$ID" -- hub $HUB_ARGS
