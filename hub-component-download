@@ -170,7 +170,7 @@ for component in $COMPONENTS; do
     echo "done"
   fi
   echo -n "  Store to $to_dir: "
-  mkdir -p "$WORKDIR/$to_dir"
-  cp -rf "$temp/$sub_dir/" "$WORKDIR/$to_dir"
+  mkdir -p "$(dirname $WORKDIR/$to_dir)"
+  cp -rf "$temp/$sub_dir" "$WORKDIR/$to_dir"
   echo "Done"
 done
