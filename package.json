@@ -1,6 +1,12 @@
 {
   "name": "hub-extensions-js",
   "version": "0.0.1",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agilestacks/hub-extensions.git"
+  },
+  "private": true,
   "scripts": {
     "hub-pull": "node hub-pull.js",
     "lint": "eslint *.js"
