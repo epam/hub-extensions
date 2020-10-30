@@ -130,7 +130,7 @@ to_obj() {
             | reduce .key[] as $item (.value; {($item): .})';
 }
 
-if test ! -z "$HUB_COMPONENT"; then
+if test -n "$HUB_COMPONENT"; then
     if test -z "$HUB_TOKEN"; then
       if test "$(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key] | index("'$HUB_COMPONENT'")')" == "null"; then
         echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$HUB_DOMAIN_NAME\""
@@ -160,9 +160,14 @@ if test ! -z "$TRANSFORM"; then
     PARAMETERS=$(to_obj "$PARAMETERS");
     OUTPUTS=$(to_obj "$OUTPUTS");
 fi
-PARAMETERS=$(echo "$PARAMETERS" | jq -cMs 'reduce .[] as $item ({}; . * $item)')
-OUTPUTS=$(echo "$OUTPUTS" | jq -cMs 'reduce .[] as $item ({}; . * $item)')
-
+PARAMETERS=$(
+  echo "$PARAMETERS" \
+  | jq -cMs 'reduce .[] as $item ({}; . * $item) | to_entries | [ .[] | {"key": .key | split("|")[0], "value": .value}] | from_entries'
+)
+OUTPUTS=$( \
+  echo "$OUTPUTS" \
+  | jq -cMs 'reduce .[] as $item ({}; . * $item) | to_entries | [ .[] | {"key": .key | split("|")[0], "value": .value}] | from_entries'
+)  
 if test ! -z "$SPLIT_OUTPUTS"; then
     DOCEXT="$(echo "$PARAMETERS" | jq -cM '{"parameters": .}')"
     DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"outputs": .}')"
