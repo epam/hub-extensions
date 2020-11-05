@@ -281,20 +281,20 @@ for req in $(echo "$REQS" | xargs -n1); do
   elif test -f "$HUB_HOME/$req/configure"; then
     configure=$HUB_HOME/$req/configure
   else
-    echo "* Cannot find configure script for $req: skipping"
+    echo "* Cannot find configure script for "$req": skipping"
     continue
   fi
   TEMP=$(temp_file)
   if ! $configure --output "$TEMP" $ARGS; then
     cat << EOF
 
-Error: $req completed with error!
+Error: "$req" completed with error!
 
 For trouble shooting:
-  hub configure -r $req --verbose
+  hub configure -r "$req" --verbose
 
 For additional options:
-  hub configure -r $req --help
+  hub configure -r "$req" --help
 
 EOF
     exit 4
