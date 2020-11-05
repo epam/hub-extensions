@@ -281,7 +281,7 @@ for req in $(echo "$REQS" | xargs -n1); do
   elif test -f "$HUB_HOME/$req/configure"; then
     configure=$HUB_HOME/$req/configure
   else
-    echo "* Cannot find configure script for "$req": skipping"
+    echo "* Cannot find configure script for \"$req\": skipping"
     continue
   fi
   TEMP=$(temp_file)
