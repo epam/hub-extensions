@@ -82,7 +82,7 @@ if test -z "$HUB_TOKEN"; then
   else
     kubectl="kubectl -n kube-system -o json"
     if ! $kubectl get configmap "superhub" > /dev/null 2>&1; then
-      echo "Error: any deployed stack"
+      echo "Error: no stack has been deployed"
       exit 5
     fi
     if test -z "$HUB_DOMAIN_NAME"; then
