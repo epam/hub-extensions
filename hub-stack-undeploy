@@ -19,6 +19,9 @@ Parameters:
     --profile             Can be: deploy-pod (default) | deploy-local | deploy-toolbox    
     -o --offset           Deploy starting with the given component
     -V  --verbose         Verbose outputs for debug purpose
+    --tty                 Use TTY (terminal) mode for hub deploy
+    --no-tty              Do not use TTY (terminal) mode for hub deploy
+    --                    Separator to define "hub undeploy" low level parameters (see: "hub undeploy --help")
     -h  --help            Print this message
 
 EOF
@@ -40,6 +43,10 @@ while [ "$1" != "" ]; do
         -o | --offset )     shift
                             HUB_OPTS="$HUB_OPTS -o $1"
                             ;;
+        --tty )             HUB_OPTS="$HUB_OPTS --tty true"
+                            ;;
+        --no-tty )          HUB_OPTS="$HUB_OPTS --tty false"
+                            ;;
         -V | --verbose )    set -x
                             export HUB_TRACE=1
                             export HUB_DEBUG=1
@@ -47,6 +54,10 @@ while [ "$1" != "" ]; do
         -h | --help )       usage
                             exit
                             ;;
+        -- )                shift
+                            HUB_OPTS="$HUB_OPTS $@"
+                            break
+                            ;;                            
         * )                 usage
                             exit 1
     esac
