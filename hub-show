@@ -11,12 +11,11 @@ Parameters:
     -o --split      split stack outpus from parameters
     -m --machine    transform parameters as nested objects for easy parsing
     -c --component  display parameters and outputs for the given component
-    -C --compact    compact json output (similar to jq -c)
-    -M --monochrome monochrome json output (similar to jq -M)
     -y --yaml       yaml output instead of json (requires yq)
     -r --raw        unconverted output from hub
     -q -jq --query  jq style query for the results (Implicitly enables -m)
     -h --help       print current message
+    --              separator for JQ style arguments see more here: https://stedolan.github.io/jq
 EOF
 }
 
@@ -50,10 +49,6 @@ while [ "$1" != "" ]; do
                             ;;
         -m | --machine )    TRANSFORM=1
                             ;;
-        -C | --compact )    JQ_ARGS="$JQ_ARGS -c"
-                            ;;
-        -M | --monochrome ) JQ_ARGS="$JQ_AGRS -M"
-                            ;;
         -y | --yaml )       FORMAT="yaml"
                             ;;
         -r | --raw )        RAW_OUTPUT=1
@@ -65,6 +60,10 @@ while [ "$1" != "" ]; do
         -v | --verbose )    set -x
                             ;;
         - )                 HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1)
+                            ;;
+        -- )                shift 
+                            JQ_ARGS="$JQ_ARGS $*"
+                            break
                             ;;
         -h | --help )       usage
                             exit
@@ -156,7 +155,7 @@ else
     fi
 fi
 
-if test ! -z "$TRANSFORM"; then
+if test -n "$TRANSFORM"; then
     PARAMETERS=$(to_obj "$PARAMETERS");
     OUTPUTS=$(to_obj "$OUTPUTS");
 fi
