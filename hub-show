@@ -201,5 +201,5 @@ fi
 if test "$FORMAT" = "yaml"; then
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item)' $JQ_QUERY | yq r -
 else
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS $JQ_QUERY
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)" 
 fi
