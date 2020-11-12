@@ -64,16 +64,17 @@ else
   exit 2
 fi
 
+CLUSTER_NAME="$(kubectl config view --raw -o json \
+| jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.cluster')"
+
 if test -z "$HUB_DOMAIN_NAME"; then
   SERVER_HOST="$(kubectl config view --raw -o json \
-| jq -r '.clusters[] | select(.name == "'$KUBECONTEXT'").cluster.server' \
+| jq -r '.clusters[] | select(.name == "'$CLUSTER_NAME'").cluster.server' \
 | awk -F '[/:]' '{print $4}')"
   echo "* HUB_DOMAIN_NAME not defined using from cluster.server: $SERVER_HOST"
   HUB_DOMAIN_NAME="$SERVER_HOST"
 fi
 
-CLUSTER_NAME="$(kubectl config view --raw -o json \
-| jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.cluster')"
 USERNAME="$(kubectl config view --raw -o json \
 | jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.user')"
 CLUSTER="$(kubectl config view --raw -o json \
