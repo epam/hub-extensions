@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# shellcheck disable=SC2046,SC2086
+# shellcheck disable=SC2046,SC2086,SC2034
 
 usage() {
   cat << EOF
@@ -82,38 +82,65 @@ getByEnvVar() {
   fi 
 }
 
+getParamNameByEnvVar() {
+  local f result
+  for f in $HUB_FILES; do
+    test -f $f || continue;
+    result=$(
+      yq r $f -j \
+        | jq -r \
+          ".parameters | walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \
+            | walk(if type==\"object\" and .name then {(.name):.} else . end) \
+            | path(..)|[.[]|tostring] | select(.[] | contains(\"fromEnv\")) \
+            | [ .[] | select(.!=\"fromEnv\" and .!=\"parameters\") | tonumber? //. \
+            | select(type==\"string\")] | join(\".\")"
+    )
+    if test -n "$result"; then
+      echo "$result"
+      break
+    fi
+  done
+}
+
 touch $DOT_ENV
 for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   VALUE=$(printenv "$ENV" || echo "")
-  BRIEF=$(getByEnvVar "brief" "$ENV" "$ENV")
+  PARAM=$(getParamNameByEnvVar "$ENV")
   if test -z "$VALUE"; then
-    echo "* $BRIEF"
-    default=$(getByEnvVar "default" "$ENV" "")
-    DEFAULT="$($dotenv get $ENV --default "$default")"
-    if test -z "$DEFAULT"; then
-      DEFAULT="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)"
-      if $INTERACTIVE; then
-        read -rp "  Enter value ($(echo $DEFAULT| cut -c1-15)... #random): " VALUE
-      else
-        VALUE="$DEFAULT"
-      fi
+    if test -n "$BRIEF"; then
+      echo "* Parameter $PARAM ($BRIEF)"
     else
-      if ! $INTERACTIVE; then
-        VALUE="$DEFAULT"
-      elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-31)"; then
-        read -rp "  Enter value ($DEFAULT #default): " VALUE
-      else 
-        read -rp "  Enter value ($(echo $DEFAULT | cut -c1-31)... #default): " VALUE
-      fi
+      echo "* Parameter $PARAM"
     fi
+    BRIEF=$(getByEnvVar "brief" "$ENV")
+    VAL_default=$(getByEnvVar "default" "$ENV" "")
+    VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM || echo "")
+    VAL_history=$($dotenv get $ENV)
+    VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
+    HASHTAGS="hubstate history default random"
+    for t in $HASHTAGS; do
+      val=$(eval echo "\$VAL_$t")
+      if test -z "$val"; then continue; fi
 
+      if ! $INTERACTIVE; then
+        VALUE="$val"
+      elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-31)"; then
+        read -rp "  Enter value ($val #$t): " VALUE
+      else
+        read -rp "  Enter value ($(echo $val | cut -c1-31)... #$t): " VALUE
+      fi
+      if test -z "$VALUE"; then
+        VALUE="$val"
+      fi
+      break;
+    done
     if test -n "$VALUE"; then
       $dotenv set "$ENV=\"$VALUE\""
     else
       VALUE="$DEFAULT"
     fi
   else    
-    echo "* $BRIEF: already configured"
+    echo "* Parameter $PARAM: already configured"
   fi
   echo "$ENV=\"$VALUE\"" >> $DOT_ENV
   echo "  saved as $ENV to .env file"
