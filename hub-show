@@ -35,7 +35,7 @@ fi
 #     usage;
 #     exit 1
 # fi
-
+JQ_QUERY="."
 while [ "$1" != "" ]; do
     case $1 in
         -s | --stack )      shift
@@ -198,8 +198,10 @@ else
   }')
 fi
 
+
+
 if test "$FORMAT" = "yaml"; then
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item)' $JQ_QUERY | yq r -
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs "reduce .[] as $item ({}; . * $item) $JQ_QUERY" | yq r -
 else
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)" 
 fi
