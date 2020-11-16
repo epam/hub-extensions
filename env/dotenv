@@ -155,7 +155,7 @@ dotenv::export() {
 
 dotenv::keys() {
   test -f "$1" || return
-  local key first
+  local key
   while read -r line; do
     # TODO: eliminate bashism
     line=${line#"${line%%[![:space:]]*}"}  # trim leading whitespace
@@ -164,7 +164,7 @@ dotenv::keys() {
     if [[ ! "$line" || "$line" == '#'* ]]; then
       continue
     fi
-    if [[ "$line" =~ ^(export[ ]+)?(.*)=(.*)$ ]]; then
+    if [[ "$line" =~ ^(export[ ]+)?(.*)=\"(.*)\"$ ]]; then
       echo "${BASH_REMATCH[2]}"
     fi
   done < $1
