@@ -58,7 +58,7 @@ fi
 echo "$KUBECONTEXT"
 
 echo -n "* Checking connectivity to cluster: "
-if kubectl cluster-info > /dev/null; then
+if kubectl cluster-info --context="$KUBECONTEXT" > /dev/null; then
   echo "Connected"
 else
   exit 2
