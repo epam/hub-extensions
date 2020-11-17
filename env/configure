@@ -114,7 +114,7 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     fi
     BRIEF=$(getByEnvVar "brief" "$ENV")
     VAL_default=$(getByEnvVar "default" "$ENV" "")
-    VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM || echo "")
+    VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
     VAL_history=$($dotenv get $ENV)
     VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
     HASHTAGS="hubstate history default random"

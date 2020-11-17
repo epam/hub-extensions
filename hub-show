@@ -17,7 +17,7 @@ Parameters:
     -h --help       print current message
     --              separator for JQ style arguments see more here: https://stedolan.github.io/jq
 EOF
-}
+} 
 
 FORMAT="${FORMAT:-json}"
 JQ_ARGS="${JQ_ARGS:- -S}"
@@ -31,10 +31,6 @@ if ! test -t 0; then
     HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
 fi
 
-# if test -z "$1" && test -z "$HUB_DOMAIN_NAME"; then
-#     usage;
-#     exit 1
-# fi
 JQ_QUERY="."
 while [ "$1" != "" ]; do
     case $1 in
@@ -81,7 +77,7 @@ if test -z "$HUB_TOKEN"; then
   else
     kubectl="kubectl -n kube-system -o json"
     if ! $kubectl get configmap "superhub" > /dev/null 2>&1; then
-      echo "Error: no stack has been deployed"
+      echo "Error: no stack deployed" 1>&2
       exit 5
     fi
     if test -z "$HUB_DOMAIN_NAME"; then
@@ -90,7 +86,7 @@ if test -z "$HUB_TOKEN"; then
         | jq -r '.data|keys[0]|select(.)'
       )
       if test -z "$HUB_DOMAIN_NAME"; then
-        echo "Error: cannot find stack data"
+        echo "Error: cannot find stack data" 1>&2
         exit 4
       fi
     fi
@@ -109,15 +105,15 @@ fi
 
 
 if test -z "$RESP"; then
-    echo "Stack $HUB_DOMAIN_NAME not found";
-    exit 2;
+    echo "Stack $HUB_DOMAIN_NAME not found" 1>&2
+    exit 2
 fi
 
 if test ! -z "$RAW_OUTPUT"; then
   if test "$FORMAT" = "yaml"; then
-    echo "$RESP" | yq r -
+    echo "$RESP" | yq r - 1>&2
   else
-    echo "$RESP" | jq $JQ_ARGS .
+    echo "$RESP" | jq $JQ_ARGS . 1>&2
   fi
   exit 0
 fi
@@ -132,14 +128,14 @@ to_obj() {
 if test -n "$HUB_COMPONENT"; then
     if test -z "$HUB_TOKEN"; then
       if test "$(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key] | index("'$HUB_COMPONENT'")')" == "null"; then
-        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$HUB_DOMAIN_NAME\""
+        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$HUB_DOMAIN_NAME\"" 1>&2
         exit 3
       fi
       OUTPUTS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.outputs != null).outputs')
       PARAMETERS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.parameters != null).parameters')
     else
       if test "$(echo "$RESP" | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
-        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$HUB_DOMAIN_NAME\""
+        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$HUB_DOMAIN_NAME\"" 1>&2
         exit 3
       fi
       OUTPUTS=$(echo "$RESP" | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
@@ -198,10 +194,8 @@ else
   }')
 fi
 
-
-
 if test "$FORMAT" = "yaml"; then
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs "reduce .[] as $item ({}; . * $item) $JQ_QUERY" | yq r -
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) '"$JQ_QUERY" | yq r -
 else
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)" 
 fi
