@@ -7,7 +7,7 @@ Runs reconciliation for all parameters of this stack components
 and this stack prerequisites
 
 Usage: 
-$ $(basename "$0")
+$ hub stack deploy
 
 Parameters:
     -V  --verbose          Verbose outputs for debug purpose

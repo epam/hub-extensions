@@ -17,13 +17,9 @@ $ hub-stack-deploy -c component1,component2 --profile pod
 Deploys deploys two components and executes deployment in a pod
 
 Parameters:
-    -c --components       List of components to deploy
-    --profile             Can be: deploy-pod (default) | deploy-local | deploy-toolbox
+    -c --component        List of components to deploy
+    --profile             Can be: pod | local
     -o --offset           Deploy starting with the given component
-    -s --silent           Suppress console outputs in favor of result codes
-    -p --no-precheck      Skip `hub ext aws status` command execution
-    -P --deploy-prereqs   Deploy prerequisites if one or few has not been met
-    --skip-guide          Suppress "What's next messages"
     -V  --verbose         Verbose outputs for debug purpose
     --tty                 Use TTY (terminal) mode for hub deploy
     --no-tty              Do not use TTY (terminal) mode for hub deploy
@@ -51,7 +47,7 @@ while test "$1" != ""; do
                             ;;
         --tty )             HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS --tty true"
                             ;;
-        --no-tty )             HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS --tty false"
+        --no-tty )          HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS --tty false"
                             ;;
         --profile )         shift
                             HUB_DEPLOY_PROFILE="$1"

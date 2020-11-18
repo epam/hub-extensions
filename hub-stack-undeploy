@@ -7,11 +7,11 @@ cat << EOF
 Deploys this stack
 
 Usage: 
-$ $(basename "$0")
+$ hub stack undeploy
 
 Deploys all components
 
-$ $(basename "$0") -c component1,component2
+$ hub stack undeploy -c component1,component2
 Deploys deploys two components 
 
 Parameters:

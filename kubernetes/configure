@@ -10,7 +10,7 @@ Kubernetes parameters:
   --current-kubecontext   Use current kubecontext existing
                           configuration (mandatory)
 
-Use: hub configure [-c _] or [--current-kubecontext] for current kubecontext
+Use: hub configure [--kubecontext _] or [--current-kubecontext] for current kubecontext
 
 EOF
 }
