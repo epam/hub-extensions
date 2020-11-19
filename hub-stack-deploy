@@ -10,10 +10,10 @@ Usage:
 $ hub stack deploy
 Deploys all components
 
-$ hub-stack-deploy -c component1,component2
+$ hub stack deploy -c component1,component2
 Deploys deploys two components
 
-$ hub-stack-deploy -c component1,component2 --profile pod
+$ hub stack deploy -c component1,component2 --profile pod
 Deploys deploys two components and executes deployment in a pod
 
 Parameters:
@@ -119,8 +119,11 @@ if test -f "$HUB_STATE_FILE"; then
   HUB_ELABORATE_OPTS="$HUB_ELABORATE_OPTS -s $HUB_STATE_FILE"
 fi
 
-if test -n "$CLOUD_PROVIDER"; then
-  HUB_DEPLOY_OPTS="--clouds=$CLOUD_PROVIDER $HUB_DEPLOY_OPTS"
+if test -z "$HUB_CLOUD_PROVIDER"; then
+  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_CLOUD_PROVIDER")
+fi
+if test -n "$HUB_CLOUD_PROVIDER"; then
+  HUB_DEPLOY_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_DEPLOY_OPTS"
 fi
 
 # shellcheck disable=SC2086
@@ -131,7 +134,7 @@ fi
 export HUB_YAML HUB_FILES HUB_STATE_FILE HUB_ELABORATE_FILE
 
 for f in $HUB_FILES; do
-  test -f $f || continue;
+  test -f "$f" || continue;
   BEFORE="$BEFORE $(yq r "$f" -j | jq -r '.extensions.deploy.before? | select(.)[]')"
   AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.deploy.after? | select(.)[]')"
 done
@@ -178,6 +181,7 @@ EOF
 fi
 
 echo "Using deployment profile: $HUB_DEPLOY_PROFILE"
+echo "* Executing CLI command: hub $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS"
 # shellcheck disable=SC2086,SC2046
 $deploy  "$HUB_ELABORATE_FILE" -s "$HUB_STATE_FILE" $HUB_DEPLOY_OPTS
 for i in $(echo "$AFTER" | xargs -n1); do
