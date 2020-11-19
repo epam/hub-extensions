@@ -158,15 +158,11 @@ else
   echo "exist"
 fi
 
-cat << EOF >> "$DOT_ENV"
-# Cloud provider AWS configuration
-AWS_PROFILE="$AWS_PROFILE"
-AWS_REGION="$AWS_REGION"
-HUB_CLOUD_PROVIDER="aws"
-# S3 bucket to store hub and terraform state
-HUB_STATE_BUCKET="$HUB_STATE_BUCKET"
-HUB_STATE_REGION="$HUB_STATE_REGION"
-EOF
+$dotenv set "HUB_CLOUD_PROVIDER=\"AWS\""
+test -z "$AWS_PROFILE"      || $dotenv set "AWS_PROFILE=\"$AWS_PROFILE\""
+test -z "$AWS_REGION"       || $dotenv set "AWS_REGION=\"$AWS_REGION\""
+test -z "$HUB_STATE_BUCKET" || $dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
+test -z "$HUB_STATE_REGION" || $dotenv set "HUB_STATE_REGION=\"$HUB_STATE_REGION\""
 
 if ! $DRY_RUN; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"

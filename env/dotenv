@@ -5,13 +5,14 @@ usage() {
 .env file parser written in bash
 
 Parameters:
-  --default               Default value if applicable (can repeat multiple times)
-  -f  --file              Path to .env file (can repeat multiple times)
+  --default VALUE         Default value if applicable (can repeat multiple times)
+  -f --file PATH          Path to .env file (can repeat multiple times)
   --verbose               Verbose output for debugging
 
 Subcommands:
-  $(basename "$0") keys -f FILE          returns all keys in dotenv file
+  $(basename "$0") set KEY -f FILE       returns all keys in dotenv file
   $(basename "$0") get KEY -f FILE       returns value associated with KEY or empty string
+  $(basename "$0") keys -f FILE          returns all keys in dotenv file
   $(basename "$0") merge (-f FILE1)...   merges two or .env files
   $(basename "$0") export                exports dotenv file for bash
 EOF
