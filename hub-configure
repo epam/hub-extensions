@@ -51,7 +51,6 @@ SILENT=false
 HELP=false
 ARGS=$*
 HUB_FILES=""
-HUB_DEPLOY_PROFILE="pod"
 dotenv=$HUB_HOME/env/dotenv
 
 if test -f ".env"; then
@@ -69,7 +68,11 @@ while [ "$1" != "" ]; do
     # -C | --workdir ) 
     #   shift
     #   WORKDIR=$1
-    #   ;;             
+    #   ;;        
+    --profile ) 
+      shift 
+      HUB_DEPLOY_PROFILE="$1"
+      ;;     
     -r | --requirement ) 
       shift 
       REQS=$(echo "$REQS $1" | xargs)
@@ -256,30 +259,47 @@ if test -z "$ARGS" || $HELP; then
   exit
 fi
 
+if test -z "$HUB_DEPLOY_PROFILE"; then
+  HUB_DEPLOY_PROFILE="local"
+  # We don't want run pod if inside of the pod
+  if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
+    for f in $HUB_FILES; do
+      test -f $f || continue;
+      r=$(yq r hub.yaml -j | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
+      if test "$r" = "kubernetes"; then
+        HUB_DEPLOY_PROFILE="pod"
+        break
+      fi
+    done
+  fi
+fi
+
 trap 'finalize $?' EXIT
 
 MERGE_FILES=""
 if test -f "$WORKDIR/.env"; then
-  echo "Reading .env file: "
+  echo "Configuration .env file: exist"
   set +a
   eval $($dotenv export -f "$WORKDIR/.env" )
   set -a
-  if test -n "$HUB_CLOUD_PROVIDER"; then echo "Cloud provider: $HUB_CLOUD_PROVIDER"; fi
-  if test -n "$HUB_DOMAIN_NAME"; then echo "Stack domain name: $HUB_DOMAIN_NAME"; fi
+  if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
+  if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$WORKDIR/.env"; then
     MERGE_FILES="-f $(readlink -n "$WORKDIR/.env")"
   else 
     MERGE_FILES="-f $WORKDIR/.env"
   fi
 else
-  echo "to be created"
+  echo "Configuration .env file: to be created"
 fi
+
+echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 
 for req in $(echo "$REQS" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$req/configure"; then
     configure="$WORKDIR/.hub/$req/configure"
   elif test -f "$HUB_HOME/$req/configure"; then
-    configure=$HUB_HOME/$req/configure
+    configure="$HUB_HOME/$req/configure"
   else
     echo "* Cannot find configure script for \"$req\": skipping"
     continue
