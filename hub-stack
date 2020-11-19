@@ -1,57 +1,14 @@
 #!/bin/bash -e
-# shellcheck disable=SC2068
 
 usage() {
   cat << EOF
 
-Usage: $(basename "$0") <sub command>
+Usage: hub stack <sub command>
 
 Parameters:
     deploy          Deploy current stack
-    remotedeploy    Running deployment process using remote kubernetes cluster
     undeploy        Undeploy current stack
-    ls              Show list components of this stack
-    show            Show parameters of this stack
     elaborate       Reconcile deployment plan for this stack
 
-To be discussed;
-    configure       To be discussed if appropriate
 EOF
 }
-
-if test -z "$*"; then
-  usage
-  exit 1
-fi
-
-HUB=${HUB:-hub}
-
-while [ "$1" != "" ]; do
-  cmd=$1
-  shift
-  case $cmd in
-    deploy )      $HUB stack deploy $@
-                  ;;
-    undeploy )    $HUB stack undeploy $@
-                  ;;
-    elaborate )   $HUB stack elaborate $@
-                  ;;
-    remotedeploy ) hub-remote-deploy $@
-                  ;;
-    remoteundeploy ) hub-remote-undeploy $@
-                  ;;
-    configure )   $HUB configure $@
-                  ;;
-    ls )          echo "Not yet implemented"
-                  exit 1
-                  ;;
-    show )        echo "Not yet implemented"
-                  exit 1
-                  ;;
-    -h | --help ) usage
-                  exit
-                  ;;
-    * )           usage
-                  exit 1
-  esac
-done
