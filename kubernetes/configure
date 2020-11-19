@@ -19,20 +19,25 @@ KUBECONTEXT="_"
 DOT_ENV=${DOT_ENV:-".env"}
 while [ "$1" != "" ]; do
   case "$1" in
-    --kubeconfig )           shift
-                             export KUBECONFIG="$1"
-                             ;;
-    --kubecontext )          shift
-                             KUBECONTEXT="$1"
-                             ;;
-    --current-kubecontext )  KUBECONTEXT="_"
-                             ;;
-    --output )               shift
-                             DOT_ENV="$1"
-                             ;;
-    --help )                 usage
-                             exit
-                             ;;
+    --kubeconfig ) 
+      shift
+      KUBECONFIG="$1" 
+      ;;
+    --kubecontext )
+      shift
+      KUBECONTEXT="$1"
+      ;;
+    --current-kubecontext )
+      KUBECONTEXT="_"
+      ;;
+    -o | --output )
+      shift
+      DOT_ENV="$1"
+      ;;
+    --help )
+      usage
+      exit
+      ;;
   esac
   shift
 done
@@ -44,70 +49,26 @@ fi
 
 dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
-
 if test -z "$KUBECONTEXT"; then
   usage
   exit 1
 fi
 
-echo "Configuring Kubernetes"
-echo -n "* Using context: "
-if test "$KUBECONTEXT" == "_"; then
-  KUBECONTEXT="$(kubectl config current-context)"
-fi
-echo "$KUBECONTEXT"
-
-echo -n "* Checking connectivity to cluster: "
-if kubectl cluster-info --context="$KUBECONTEXT" > /dev/null; then
-  echo "Connected"
-else
-  exit 2
-fi
-
-CLUSTER_NAME="$(kubectl config view --raw -o json \
-| jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.cluster')"
-
-if test -z "$HUB_DOMAIN_NAME"; then
-  SERVER_HOST="$(kubectl config view --raw -o json \
-| jq -r '.clusters[] | select(.name == "'$CLUSTER_NAME'").cluster.server' \
-| awk -F '[/:]' '{print $4}')"
-  echo "* HUB_DOMAIN_NAME not defined using from cluster.server: $SERVER_HOST"
-  HUB_DOMAIN_NAME="$SERVER_HOST"
-fi
-
-USERNAME="$(kubectl config view --raw -o json \
-| jq -r '.contexts[] | select(.name == "'$KUBECONTEXT'").context.user')"
-CLUSTER="$(kubectl config view --raw -o json \
-| jq -cM '.clusters[] | select(.name == "'$CLUSTER_NAME'") + {"name": "'$HUB_DOMAIN_NAME'"}')"
-USER="$(kubectl config view --raw -o json \
-| jq -cM '.users[] | select(.name == "'$USERNAME'")')"
-# shellcheck disable=SC2006
-TEMP=`mktemp /tmp/superhub.XXXXXX` || exit 1
+TEMP=$(mktemp || exit 1)
 trap "rm -f $TEMP" EXIT
 
-  cat <<EOF > $TEMP
-{
-  "kind": "Config",
-  "apiVersion": "v1",
-  "preferences": {},
-  "clusters": [
-    $CLUSTER
-  ],
-  "users": [
-    $USER
-  ],
-  "contexts": [
-    {
-      "name": "$HUB_DOMAIN_NAME",
-      "context": {
-        "cluster": "$HUB_DOMAIN_NAME",
-        "user": "$USERNAME"
-      }
-    }
-  ],
-  "current-context": "$HUB_DOMAIN_NAME"
-}
-EOF
+export KUBECONFIG KUBECONTEXT
+
+echo "Configuring Kubernetes"
+if test -n "$KUBECONFIG"; then
+  echo "* Using configuration from: $KUBECONFIG"
+  $(dirname $0)/configure-kubeconfig -o "$TEMP"
+elif test -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
+  # echo "* Using configuration: I am running inside of a pod"
+  $(dirname $0)/configure-local -o "$TEMP"
+else
+  $(dirname $0)/configure-kubeconfig -o "$TEMP"
+fi
 
 abspath() {
   if test -d "$1"; then
