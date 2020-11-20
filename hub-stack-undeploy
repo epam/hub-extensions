@@ -6,17 +6,17 @@ cat << EOF
 
 Deploys this stack
 
-Usage: 
+Usage:
 $ hub stack undeploy
 
 Deploys all components
 
 $ hub stack undeploy -c component1,component2
-Deploys deploys two components 
+Deploys deploys two components
 
 Parameters:
     -c --component        List of components to deploy
-    --profile             Can be: deploy-pod (default) | deploy-local | deploy-toolbox    
+    --profile             Can be: deploy-pod (default) | deploy-local | deploy-toolbox
     -o --offset           Deploy starting with the given component
     -V  --verbose         Verbose outputs for debug purpose
     --tty                 Use TTY (terminal) mode for hub deploy
@@ -36,7 +36,7 @@ while [ "$1" != "" ]; do
     case $1 in
         --profile )         shift
                             HUB_DEPLOY_PROFILE="$1"
-                            ;;   
+                            ;;
         -c | --component )  shift
                             HUB_OPTS="$HUB_OPTS -c $1"
                             ;;
@@ -57,7 +57,7 @@ while [ "$1" != "" ]; do
         -- )                shift
                             HUB_OPTS="$HUB_OPTS $@"
                             break
-                            ;;                            
+                            ;;
         * )                 usage
                             exit 1
     esac
@@ -66,7 +66,7 @@ done
 
 if ! test -f .env; then
   cat << EOF
-Error: .env file has not been found 
+Error: .env file has not been found
 Please run:
 
   $ hub configure
@@ -97,7 +97,7 @@ echo "* Using hub elaborate file: $HUB_ELABORATE_FILE"
 
 if test -f "$HUB_STATE_FILE"; then
   HUB_OPTS="$HUB_OPTS -s $HUB_STATE_FILE"
-  echo "* Using hub state file: $HUB_STATE_FILE"  
+  echo "* Using hub state file: $HUB_STATE_FILE"
 fi
 
 cat <<EOF
@@ -159,13 +159,13 @@ cat << EOF
 
 Proceeding with: undeploy
 * Using profile: $HUB_DEPLOY_PROFILE
-* Running CLI command: 
+* Running CLI command:
 
-  $ hub undeploy $HUB_ELABORATE_FILE $HUB_OPTS 
+  $ hub undeploy $HUB_ELABORATE_FILE $HUB_OPTS
 
 EOF
 
-$undeploy "$HUB_ELABORATE_FILE" $HUB_OPTS 
+$undeploy "$HUB_ELABORATE_FILE" $HUB_OPTS
 
 for i in $(echo "$AFTER" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$i/after-undeploy"; then
@@ -180,5 +180,5 @@ for i in $(echo "$AFTER" | xargs -n1); do
   $hook
 done
 
-echo 
+echo
 echo "Done!"
