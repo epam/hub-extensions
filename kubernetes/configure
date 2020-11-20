@@ -50,8 +50,9 @@ fi
 dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME" --default "undefined")
+  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME" --default "cluster.local")
 fi
+
 if test -z "$KUBECONTEXT"; then
   usage
   exit 1
@@ -64,14 +65,14 @@ echo "Configuring Kubernetes"
 if test -n "$HUB_KUBECONFIG" \
   && $(dirname $0)/configure-kubeconfig \
       --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME " \
+      --domain-name "$HUB_DOMAIN_NAME" \
       --save-to "$TEMP" \
       --kubeconfig "$HUB_KUBECONFIG"; then
   : # pass
 elif test -n "$KUBECONFIG" \
   && $(dirname $0)/configure-kubeconfig \
       --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME " \
+      --domain-name "$HUB_DOMAIN_NAME" \
       --save-to "$TEMP" \
       --kubeconfig "$KUBECONFIG"; then
   : # pass
@@ -79,13 +80,13 @@ elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then
   : # pass  
 elif $(dirname $0)/configure-kubeconfig \
       --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME " \
+      --domain-name "$HUB_DOMAIN_NAME" \
       --save-to "$TEMP" \
       --kubeconfig "$HOME/.kube/config"; then
   : # pass
 elif $(dirname $0)/configure-kubeconfig \
       --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME " \
+      --domain-name "$HUB_DOMAIN_NAME" \
       --save-to "$TEMP" \
       --kubeconfig "$HOME/.kubeconfig"; then
   : # pass
