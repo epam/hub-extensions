@@ -70,6 +70,8 @@ elif test -n "$KUBECONFIG" \
   : # pass
 elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then
   : # pass  
+elif $(dirname $0)/configure-kubeconfig $args --kubeconfig "$HOME/.kube/config"; then
+  : # pass
 elif $(dirname $0)/configure-kubeconfig $args --kubeconfig "$HOME/.kubeconfig"; then
   : # pass
 else
