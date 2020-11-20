@@ -88,14 +88,18 @@ if (!isEmpty(splits)) {
     cmds.push('\n# need a worktree for subtree split');
     if (worktree) {
         cmds.push(`if ! git worktree list | grep -E '^${worktree} '; then`);
-        cmds.push(`\tgit worktree add ${worktree} --detach; fi`);
+        cmds.push(`\tgit worktree add ${worktree} --detach`);
+        cmds.push('fi');
         cmds.push(`pushd ${worktree}`);
     } else {
-        cmds.push(`if ! git worktree list | grep -F '/${worktreePrefix}'; then`);
+        cmds.push(`if git worktree list | grep -F '/${worktreePrefix}'; then`);
+        cmds.push(`\tworktree=$(git worktree list | grep -F '/${worktreePrefix}' | head -1 | cut -d' ' -f1)`);
+        cmds.push('\tif ! test -d "$worktree"; then unset worktree; fi');
+        cmds.push('fi');
+        cmds.push('if ! test -n "$worktree"; then');
         cmds.push(`\tworktree=$(mktemp -d ${worktreeTemplate})`);
         cmds.push('\tgit worktree add $worktree --detach');
-        cmds.push('else');
-        cmds.push(`\tworktree=$(git worktree list | grep -F '/${worktreePrefix}' | head -1 | cut -d' ' -f1); fi`);
+        cmds.push('fi');
         cmds.push('pushd $worktree');
     }
     cmds.push('\n# extract components sources from subdirectories into `split` branches');
