@@ -1,10 +1,51 @@
 const fs = require('fs');
 const url = require('url');
 const yaml = require('js-yaml');
-const {get, isEmpty, kebabCase, partition, trimEnd, uniq, uniqBy} = require('lodash');
+const {difference, get, isEmpty, kebabCase, partition, trimEnd, uniq, uniqBy} = require('lodash');
 
-const manifestFilename = process.argv[2] || 'hub.yaml';
-const worktree = process.argv[3];
+function usage(code = 1) {
+    console.log('`hub pull -h` for help');
+    process.exit(code);
+}
+
+function parseArgs() {
+    const known = ['components', 'show', 'debug', 'trace', 'force'];
+    const argv = [];
+    const opts = {};
+    let skip = false;
+    process.argv.slice(2).forEach((arg, i, args) => {
+        if (arg.startsWith('--')) {
+            const [k, v = true] = arg.substr(2).split('=');
+            opts[k] = v;
+        } else if (arg.startsWith('-')) {
+            let k = arg.substr(1);
+            k = known.find((w) => w.startsWith(k)) || k;
+            let v = args[i + 1];
+            skip = true;
+            if (!v || (v && v.startsWith('-'))) v = true;
+            opts[k] = v;
+        } else {
+            if (!skip) argv.push(arg);
+            skip = false;
+        }
+    });
+    const extra = difference(Object.keys(opts), known);
+    if (extra.length) {
+        console.log(`error: unknown command-line argument: ${extra.join(' ')}`);
+        usage();
+    }
+    if (opts.trace) opts.debug = true;
+    if (opts.components) opts.components = opts.components.split(',');
+    return {argv, opts};
+}
+
+const {argv, opts} = parseArgs();
+if (opts.trace) {
+    console.log(argv);
+    console.log(opts);
+}
+const manifestFilename = argv[0] || 'hub.yaml';
+const worktree = argv[1];
 const tmpDir = process.env.TMPDIR;
 const worktreePrefix = 'hub-pull';
 const worktreeDirPrefix = `${trimEnd(tmpDir, '/') || '/var/tmp'}/${worktreePrefix}`;
@@ -20,7 +61,8 @@ const remoteBranchName = (remote, ref) => `${remoteName(remote)}/${ref}`;
 const localBranchName = (remote, ref) => `upstream/${remoteName(remote)}-${ref}`;
 const splitBranchName = (componentName) => `split/${kebabCase(componentName)}`;
 
-const sources = (manifest.components || [])
+const {components = []} = manifest;
+const sources = (opts.components ? components.filter(({name}) => opts.components.includes(name)) : components)
     .map(({name, source}) => ({...source, name}))
     .filter(({name, dir, git}) => name && dir && get(git, 'remote'));
 
@@ -32,7 +74,7 @@ const [splits, singles] = partition(sources, ({git: {subDir}}) => subDir);
 
 let cmds = ['set -xe'];
 
-cmds.push('\nif ! test -t 1; then subtree_flags=-q; fi')
+if (!opts.debug) cmds.push('\nif ! test -t 1; then subtree_flags=-q; fi');
 
 cmds.push('\n# add upstream remotes');
 cmds = cmds.concat(remotes.map((remote) =>

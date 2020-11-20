@@ -20,11 +20,6 @@ case $arg in
         else
             pipe_to=cat
         fi
-        shift
-        ;;
-
-    --debug|-d|--trace|-t|--force|-f) # compat
-        shift
         ;;
 esac
 done

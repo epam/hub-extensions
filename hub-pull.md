@@ -2,7 +2,7 @@
 
 Usage:
 
-    $ hub-pull [--help / -h] [--show / -s] [hub.yaml] [worktree]
+    $ hub-pull [--help / -h] [--show / -s] [--components= / -c component,...] [hub.yaml] [worktree]
 
 `--show` is to show commands to be executed without running them.
 
