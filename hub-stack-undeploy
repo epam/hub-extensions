@@ -78,7 +78,7 @@ fi
 HUB_FILES=$($dotenv get "HUB_FILES")
 HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
 HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
-HUB_OPTS="--force --clouds=aws $HUB_OPTS"
+HUB_OPTS="--clouds=aws $HUB_OPTS"
 
 cat << EOF
 Undeploying: $HUB_DOMAIN_NAME"
