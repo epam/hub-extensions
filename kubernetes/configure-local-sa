@@ -1,0 +1,98 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086,SC2064,SC2046
+
+DOT_ENV=${DOT_ENV:-".env"}
+while [ "$1" != "" ]; do
+  case "$1" in
+    --save-to )
+      shift
+      SAVETO="$1"
+    ;;
+  esac
+  shift
+done
+
+VERBOSE=${VERBOSE:-false}
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
+http_ping() {
+  local http_code rv
+  echo -n "* Trying to reach host \"$1\"... "
+  set +e
+  http_code=$(curl -sLko  /dev/null -w '%{http_code}' "$1")
+  rv=$?
+  set -e
+  if test "$rv" = "0" && test "$http_code" != "000"; then
+    echo "ok"
+  else
+    echo "not found"
+    return 1
+  fi
+}
+
+dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"s
+HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
+SERVICEACCOUNT="/var/run/secrets/kubernetes.io/serviceaccount"
+CLUSTER="this-cluster"
+USER="${USER:-this-user}"
+echo -n "* Using service account: $SERVICEACCOUNT"
+if test -d $SERVICEACCOUNT; then
+  echo
+else
+  echo " (not found)"
+  exit 1
+fi
+
+APISERVER=${APISERVER:-"https://kubernetes.default.svc"}
+if ! http_ping "$APISERVER"; then
+  KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST:-"localhost"}
+  KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT:-"8080"}
+  KUBERNETES_SERVICE_PORT_HTTPS=${KUBERNETES_SERVICE_PORT_HTTPS:-"443"}
+  if test -n "$KUBERNETES_SERVICE_PORT_HTTPS"; then
+    APISERVER="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT_HTTPS"
+  else
+    APISERVER="http://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT"
+  fi
+  if ! http_ping "$APISERVER"; then
+    echo "Error: canot find API server I can reach"
+    exit 1
+  fi
+fi
+
+cat <<EOF > $SAVETO
+{
+  "apiVersion": "v1",
+  "kind": "Config",
+  "preferences": {},  
+  "clusters": [
+    {
+      "name": "$CLUSTER"
+    }
+  ],
+  "contexts": [
+    {
+      "context": {
+        "cluster": "$CLUSTER",
+        "user": "$USER"
+      },
+      "name": "$HUB_DOMAIN_NAME"
+    }
+  ],
+  "current-context": "$HUB_DOMAIN_NAME",
+  "users": [
+    {
+      "name": "$USER"
+    }
+  ]
+}
+EOF
+
+export KUBECONFIG="$SAVETO"
+echo -n "* Connecting to API server: "
+if kubectl cluster-info > /dev/null; then
+  echo "Connected"
+else
+  exit 2
+fi

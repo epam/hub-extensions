@@ -48,7 +48,10 @@ if test "$VERBOSE" = "true"; then
 fi
 
 dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"
-HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
+fi
 if test -z "$KUBECONTEXT"; then
   usage
   exit 1
@@ -57,17 +60,24 @@ fi
 TEMP=$(mktemp || exit 1)
 trap "rm -f $TEMP" EXIT
 
-export KUBECONFIG KUBECONTEXT
-
 echo "Configuring Kubernetes"
-if test -n "$KUBECONFIG"; then
-  echo "* Using configuration from: $KUBECONFIG"
-  $(dirname $0)/configure-kubeconfig -o "$TEMP"
-elif test -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
-  # echo "* Using configuration: I am running inside of a pod"
-  $(dirname $0)/configure-local -o "$TEMP"
+args="--kubecontext $KUBECONTEXT --domain-name $HUB_DOMAIN_NAME --save-to $TEMP"
+if test -n "$HUB_KUBECONFIG" \
+  && $(dirname $0)/configure-kubeconfig $args --kubeconfig "$HUB_KUBECONFIG"; then
+  : # pass
+elif test -n "$KUBECONFIG" \
+  && $(dirname $0)/configure-kubeconfig $args --kubeconfig "$KUBECONFIG"; then
+  : # pass
+elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then
+  : # pass  
+elif $(dirname $0)/configure-kubeconfig $args --kubeconfig "$HOME/.kubeconfig"; then
+  : # pass
 else
-  $(dirname $0)/configure-kubeconfig -o "$TEMP"
+  cat << EOF
+  
+Error: cannot find kubeconfig!
+EOF
+  exit 3
 fi
 
 abspath() {
@@ -81,9 +91,8 @@ abspath() {
 WORKDIR=${WORKDIR:-$(pwd)}
 echo -n "* Saving kubeconfig to .hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
 $(dirname $(dirname $0))/env/copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
-ABSPATH="$(abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"
 DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
 cat << EOF >> $DOT_ENV
 # Location of sand boxed kubeconfig
-KUBECONFIG="$ABSPATH"
+HUB_KUBECONFIG="$(abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"
 EOF

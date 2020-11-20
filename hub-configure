@@ -242,10 +242,26 @@ fi
 $HELP || echo "Checking hub files:"
 expand_hub_files $HUB_FILES
 HUB_FILES="$EXPANDED"
+if test -z "$HUB_FILES"; then
+  cat << EOF
+Cannot find hub files! Please same command with -f option
+
+Example:
+  hub configure -f hub.yaml
+or
+  hub configure -f https://raw.githubusercontent.com/agilestacks/stack-ml-eks/master/hub.yaml
+
+EOF
+  usage
+fi
+
 mkdir -p "$WORKDIR/.hub/env"
+
+
+
 # common environment variables that 
 # will be used by exact extensions
-export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME
+export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG
 if test -z "$REQS"; then
   for f in $HUB_FILES; do
     test -f $f || continue;
@@ -254,7 +270,7 @@ if test -z "$REQS"; then
   REQS=$(echo "$REQS" | xargs -n1)
 fi
 
-if test -z "$ARGS" || $HELP; then
+if $HELP; then
   usage "$REQS"
   exit
 fi
