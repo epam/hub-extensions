@@ -50,7 +50,7 @@ fi
 dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
+  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME" --default "undefined")
 fi
 if test -z "$KUBECONTEXT"; then
   usage
@@ -61,18 +61,33 @@ TEMP=$(mktemp || exit 1)
 trap "rm -f $TEMP" EXIT
 
 echo "Configuring Kubernetes"
-args="--kubecontext $KUBECONTEXT --domain-name $HUB_DOMAIN_NAME --save-to $TEMP"
 if test -n "$HUB_KUBECONFIG" \
-  && $(dirname $0)/configure-kubeconfig $args --kubeconfig "$HUB_KUBECONFIG"; then
+  && $(dirname $0)/configure-kubeconfig \
+      --kubecontext "$KUBECONTEXT" \
+      --domain-name "$HUB_DOMAIN_NAME " \
+      --save-to "$TEMP" \
+      --kubeconfig "$HUB_KUBECONFIG"; then
   : # pass
 elif test -n "$KUBECONFIG" \
-  && $(dirname $0)/configure-kubeconfig $args --kubeconfig "$KUBECONFIG"; then
+  && $(dirname $0)/configure-kubeconfig \
+      --kubecontext "$KUBECONTEXT" \
+      --domain-name "$HUB_DOMAIN_NAME " \
+      --save-to "$TEMP" \
+      --kubeconfig "$KUBECONFIG"; then
   : # pass
 elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then
   : # pass  
-elif $(dirname $0)/configure-kubeconfig $args --kubeconfig "$HOME/.kube/config"; then
+elif $(dirname $0)/configure-kubeconfig \
+      --kubecontext "$KUBECONTEXT" \
+      --domain-name "$HUB_DOMAIN_NAME " \
+      --save-to "$TEMP" \
+      --kubeconfig "$HOME/.kube/config"; then
   : # pass
-elif $(dirname $0)/configure-kubeconfig $args --kubeconfig "$HOME/.kubeconfig"; then
+elif $(dirname $0)/configure-kubeconfig \
+      --kubecontext "$KUBECONTEXT" \
+      --domain-name "$HUB_DOMAIN_NAME " \
+      --save-to "$TEMP" \
+      --kubeconfig "$HOME/.kubeconfig"; then
   : # pass
 else
   cat << EOF
