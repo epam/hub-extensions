@@ -67,6 +67,15 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   HUB_DEPLOY_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_DEPLOY_OPTS"
 fi
 
-# shellcheck disable=SC2086
+
+cat << EOF
+
+Proceeding with: elaborate
+* Result will be saved saved to: $HUB_ELABORATE_FILE
+* Running CLI command: 
+
+  $ hub elaborate $HUB_FILES -o $HUB_ELABORATE_FILE $HUB_ELABORATE_OPTS 
+
+EOF
+
 hub elaborate $HUB_FILES -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS 
-echo "* Result saved to to: $HUB_ELABORATE_FILE"

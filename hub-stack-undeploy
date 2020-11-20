@@ -152,7 +152,19 @@ EOF
   exit 5
 fi
 
-echo "* Using deployment profile: $HUB_DEPLOY_PROFILE"
+KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
+export KUBECONFIG
+
+cat << EOF
+
+Proceeding with: undeploy
+* Using profile: $HUB_DEPLOY_PROFILE
+* Running CLI command: 
+
+  $ hub undeploy $HUB_ELABORATE_FILE $HUB_OPTS 
+
+EOF
+
 $undeploy "$HUB_ELABORATE_FILE" $HUB_OPTS 
 
 for i in $(echo "$AFTER" | xargs -n1); do

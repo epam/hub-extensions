@@ -81,7 +81,6 @@ EOF
   exit 1
 fi
 
-
 if test -z "$HUB_FILES"; then
   cat << EOF 
 Error: cannot find hub definition files (HUB_FILES) in .env"
@@ -180,8 +179,19 @@ EOF
   exit 5
 fi
 
-echo "Using deployment profile: $HUB_DEPLOY_PROFILE"
-echo "* Executing CLI command: hub $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS"
+KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
+export KUBECONFIG
+
+cat << EOF
+
+Proceeding with: deploy
+* Using profile: $HUB_DEPLOY_PROFILE
+* Running CLI command: 
+
+  $ hub deploy $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS
+
+EOF
+
 # shellcheck disable=SC2086,SC2046
 $deploy  "$HUB_ELABORATE_FILE" -s "$HUB_STATE_FILE" $HUB_DEPLOY_OPTS
 for i in $(echo "$AFTER" | xargs -n1); do
