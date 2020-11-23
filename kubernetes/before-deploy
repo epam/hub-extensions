@@ -7,14 +7,22 @@ Check if kubernetes cluster has been reachable
 EOF
 }
 
-dotenv=$(dirname $(dirname "$0"))/env/dotenv
 if test ! -f ".env"; then
   echo "Error: cannot find .env file. Please run 'hub configure'"
   exit 1
 fi
+
+dotenv="$(dirname "$(dirname "$0")")/env/dotenv -f .env"
 set +a
-eval "$($dotenv export -f ".env" )"
+eval "$($dotenv "export")"
 set -a
+
+hub_kubeconfig=$($dotenv get "HUB_KUBECONFIG")
+if test -n "$hub_kubeconfig"; then
+  KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
+  export KUBECONFIG
+  echo "* Using kubeconfig: $KUBECONFIG"
+fi
 
 echo -n "* Checking connectivity to cluster: "
 if kubectl cluster-info > /dev/null; then
