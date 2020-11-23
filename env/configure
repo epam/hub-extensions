@@ -106,13 +106,13 @@ touch $DOT_ENV
 for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   VALUE=$(printenv "$ENV" || echo "")
   PARAM=$(getParamNameByEnvVar "$ENV")
+  BRIEF=$(getByEnvVar "brief" "$ENV")
   if test -z "$VALUE"; then
     if test -n "$BRIEF"; then
       echo "* Parameter $PARAM ($BRIEF)"
     else
       echo "* Parameter $PARAM"
     fi
-    BRIEF=$(getByEnvVar "brief" "$ENV")
     VAL_default=$(getByEnvVar "default" "$ENV" "")
     VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
     VAL_history=$($dotenv get $ENV)
