@@ -93,6 +93,13 @@ if ! test -f "$HUB_ELABORATE_FILE"; then
   exit 2
 fi
 
+hub_kubeconfig=$($dotenv get "HUB_KUBECONFIG")
+if test -n "$hub_kubeconfig"; then
+  KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
+  export KUBECONFIG
+  echo "* Using kubeconfig: $KUBECONFIG"
+fi
+
 echo "* Using hub elaborate file: $HUB_ELABORATE_FILE"
 
 if test -f "$HUB_STATE_FILE"; then
@@ -151,9 +158,6 @@ Completed with errors!
 EOF
   exit 5
 fi
-
-KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
-export KUBECONFIG
 
 cat << EOF
 
