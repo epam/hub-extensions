@@ -48,7 +48,7 @@ for v in values.yaml values-*.yaml; do
 done
 
 $helm upgrade $COMPONENT_NAME $charts/$(basename $HELM_CHART) \
-    --install --wait $chart_version $values
+    --install --create-namespace --wait $chart_version $values
 
 if test -x post-deploy; then
     ./post-deploy
