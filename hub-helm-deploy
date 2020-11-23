@@ -43,9 +43,11 @@ if test -x pre-deploy; then
     ./pre-deploy
 fi
 
+set +x
 for v in values.yaml values-*.yaml; do
     if test -f $v; then values="$values --values $v"; fi
 done
+set -x
 
 $helm upgrade $COMPONENT_NAME $charts/$(basename $HELM_CHART) \
     --install --create-namespace --wait $chart_version $values
