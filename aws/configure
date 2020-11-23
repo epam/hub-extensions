@@ -158,7 +158,7 @@ else
   echo "exist"
 fi
 
-$dotenv set "HUB_CLOUD_PROVIDER=\"AWS\""
+$dotenv set 'HUB_CLOUD_PROVIDER="aws"'
 test -z "$AWS_PROFILE"      || $dotenv set "AWS_PROFILE=\"$AWS_PROFILE\""
 test -z "$AWS_REGION"       || $dotenv set "AWS_REGION=\"$AWS_REGION\""
 test -z "$HUB_STATE_BUCKET" || $dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
