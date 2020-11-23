@@ -9,7 +9,7 @@ helm3=helm
 if which helm3 >/dev/null; then helm3=helm3; fi
 
 export kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
-export helm="$helm3 --kube-context=$DOMAIN_NAME --namespace $NAMESPACE"
+export helm="$helm3 --kube-context=$DOMAIN_NAME --namespace=$NAMESPACE"
 
 set -xe
 
