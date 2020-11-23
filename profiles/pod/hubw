@@ -50,7 +50,13 @@ finalize() {
 echo "Starting toolbox pod: toolbox-$ID"
 temp=$(mktemp)
 trap "finalize $temp" EXIT
-"$(dirname "$0")/template" --exec-id "$ID" --namespace="$TOOLBOX_NAMESPACE" > "$temp"
+
+echo "* Using kubeconfig: $hub_kubeconfig"
+hub_kubeconfig=$($dotenv get HUB_KUBECONFIG --default "$KUBECONFIG")
+"$(dirname "$0")/template" \
+  --exec-id "$ID" \
+  --kubeconfig "$hub_kubeconfig" \
+  --namespace="$TOOLBOX_NAMESPACE" > "$temp"
 
 kubectl="kubectl -n $TOOLBOX_NAMESPACE"
 echo -n "* Checking presence of $TOOLBOX_NAMESPACE: "

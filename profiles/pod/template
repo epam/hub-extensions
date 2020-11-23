@@ -18,7 +18,6 @@ EOF
 }
 
 IMAGE=${IMAGE:-agilestacks/toolbox}
-
 NAMESPACE="automation-tasks"
 while [ "$1" != "" ]; do
     case $1 in
@@ -38,6 +37,11 @@ while [ "$1" != "" ]; do
           shift
           ID="$1"
         ;;
+        --kubeconfig )
+          shift
+          KUBECONFIG="$1"
+          export KUBECONFIG
+        ;;        
         -V | --verbose )
           set -x
         ;;
@@ -119,7 +123,7 @@ spec:
     - {name: "UID", value: "$(id -u)"}
     - {name: "GID", value: "$(id -g)"}
     - {name: "HOME", value: "$HOME"}
-$(env | grep -E '^(GOOGLE_|AZURE_|TF_|TERM=|LANG=|LC_)' | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')  
+$(env | grep -E '^(KUBECONFIG=|GOOGLE_|AZURE_|TF_|TERM=|LANG=|LC_)' | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')  
 $($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
     volumeMounts:
     - name: work-dir
