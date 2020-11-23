@@ -17,7 +17,7 @@ if test -x pre-undeploy; then
     ./pre-undeploy
 fi
 
-if $helm list -q | grep -E "^$COMPONENT_NAME\$"; then
+if $helm list --deployed --failed --pending -q | grep -E "^$COMPONENT_NAME\$"; then
 	  $helm uninstall $COMPONENT_NAME
 fi
 
