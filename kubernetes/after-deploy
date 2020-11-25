@@ -1,0 +1,121 @@
+#!/bin/bash -e
+# shellcheck disable=SC2068,SC2086,SC2155
+
+usage() {
+  echo "Check if kubernetes cluster has been reachable"
+}
+
+checkCluster() {
+  local KUBECONTEXT
+  if test -n "$1";then
+    KUBECONFIG="$1"
+    export KUBECONFIG
+    echo "* Trying kubeconfig: $KUBECONFIG" 
+  fi
+  KUBECONTEXT="$2"
+  
+  if test -z "$KUBECONTEXT"; then
+    KUBECONTEXT="$(kubectl config current-context)"
+  fi 
+  echo -n "* Sanity check to $KUBECONTEXT: "
+  if kubectl cluster-info --context="$KUBECONTEXT"> /dev/null; then
+    echo "Connected"
+  else
+    return $?
+  fi
+}
+
+checkClusterAndSave() {
+  if checkCluster "$1" "$HUB_DOMAIN_NAME"; then
+    "$(dirname "$0")/configure-kubeconfig" \
+      --kubeconfig "$1" \
+      --kubecontext "$HUB_DOMAIN_NAME" \
+      --domain-name "$HUB_DOMAIN_NAME" \
+      --save-to "$SAVETO"
+    echo "* Saving HUB_KUBECONFIG configuration: $SAVETO"
+    $dotenv set "HUB_KUBECONFIG=\"$SAVETO\""
+  else
+    return $?
+  fi
+}
+
+dotenv="$(dirname "$(dirname "$0")")/env/dotenv -f .env"
+if test -f ".env"; then
+  set +a
+  eval "$($dotenv "export")"
+  set -a
+fi
+
+echo "Finalizing kubernetes deployment"
+
+HUB_KUBECONFIG=$($dotenv get "HUB_KUBECONFIG")
+HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
+if test -n "$HUB_KUBECONFIG"; then
+  echo "* .env already provides HUB_KUBECONFIG: $HUB_KUBECONFIG"
+  if checkCluster "$HUB_KUBECONFIG" "$HUB_DOMAIN_NAME"; then
+    exit 0
+  fi
+else 
+  echo "* .env does not provides HUB_KUBECONFIG"
+fi
+
+SAVETO="$(pwd)/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
+if test -f "$SAVETO"; then
+  if checkClusterAndSave "$SAVETO"; then
+    exit 0
+  fi
+else
+  echo "* Kubeconfig $SAVETO: not found"
+fi
+
+if test -f "$(pwd)/.hub/$HUB_DOMAIN_NAME.state"; then
+  STATEFILE="$(pwd)/.hub/$HUB_DOMAIN_NAME.state"
+  cat << EOF
+* Trying kubeconfig from state: $STATEFILE
+* Running CLI command: 
+
+  $ hub kubeconfig -k $STATEFILE -c $HUB_DOMAIN_NAME
+
+EOF
+  { 
+    _kubeconfig="$KUBECONFIG"
+    _temp=$(mktemp)
+    export KUBECONFIG="$_temp"
+    # shellcheck disable=SC2064
+    trap "rm -f $_temp" EXIT
+    if hub kubeconfig -k "$STATEFILE" -c "$HUB_DOMAIN_NAME"; then
+      if checkClusterAndSave "$KUBECONFIG" ; then
+        exit 0
+      fi
+    fi
+    export KUBECONFIG="$_kubeconfig"
+  }
+else
+  echo "* State file $(pwd)/.hub/$HUB_DOMAIN_NAME.state: not found"
+fi
+
+if test -n "$KUBECONFIG" && checkClusterAndSave "$KUBECONFIG" ; then
+  exit 0
+fi
+
+if test -f "$HOME/.kube/config"; then
+  if checkClusterAndSave "$HOME/.kube/config" ; then
+    exit 0
+  fi
+else
+  echo "Kubeconfig $HOME/.kube/config: not found"
+fi
+
+if test -d "/var/run/secrets/kubernetes.io/serviceaccount"; then
+  echo "Trying from: /var/run/secrets/kubernetes.io/serviceaccount"
+  _temp=$(mktemp)
+  # shellcheck disable=SC2064
+  trap "rm -f $_temp" EXIT
+  "$(dirname "$0")/configure-local-sa" --domain-name "$HUB_DOMAIN_NAME" --save-to "$_temp"
+  if checkClusterAndSave "$_temp"; then
+    exit 0
+  fi
+fi
+
+echo "Error: unable to configure kubconfig!"
+exit 1
