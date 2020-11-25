@@ -16,7 +16,7 @@ else
 fi
 
 CACHE_FILE=${CACHE_FILE:-$(dirname "$0")/.history}
-dotenv="$(dirname "$0")/dotenv -f $CACHE_FILE"
+history="$(dirname "$0")/dotenv -f $CACHE_FILE"
 while [ "$1" != "" ]; do
   case $1 in
     --defaults ) 
@@ -69,7 +69,7 @@ getByEnvVar() {
     test -f $f || continue;
     result=$(
       yq r $f -j | jq -cr \
-        ".. | objects | select(.fromEnv == \"$2\" ).$1 | select(.)"
+        "[ .. | objects | select(.fromEnv==\"$2\").$1 | select(.) ] | first | select(.)"
     )
     if test -n "$result"; then
       echo "$result"
@@ -89,11 +89,13 @@ getParamNameByEnvVar() {
     result=$(
       yq r $f -j \
         | jq -r \
-          ".parameters | walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \
+          "[ \
+            .parameters | walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \
             | walk(if type==\"object\" and .name then {(.name):.} else . end) \
             | path(..)|[.[]|tostring] | select(.[] | contains(\"fromEnv\")) \
             | [ .[] | select(.!=\"fromEnv\" and .!=\"parameters\") | tonumber? //. \
-            | select(type==\"string\")] | join(\".\")"
+            | select(type==\"string\")] | join(\".\") \
+          ] | first | select(.)"
     )
     if test -n "$result"; then
       echo "$result"
@@ -110,33 +112,31 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   if test -z "$VALUE"; then
     echo "* Parameter $PARAM"
     if test -n "$BRIEF"; then
-      echo "  $BRIEF"
+      echo " $BRIEF"
     fi
     VAL_default=$(getByEnvVar "default" "$ENV" "")
     VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
-    VAL_history=$($dotenv get $ENV)
+    VAL_history=$($history get $ENV)
     VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
     HASHTAGS="hubstate history default random"
     for t in $HASHTAGS; do
       val=$(eval echo "\$VAL_$t")
-      if test -z "$val"; then continue; fi
-
-      if ! $INTERACTIVE; then
-        VALUE="$val"
-      elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-31)"; then
-        read -rp "  Enter value ($val #$t): " VALUE
-      else
-        read -rp "  Enter value ($(echo $val | cut -c1-31)... #$t): " VALUE
+      if test -n "$val"; then
+        hashtag="$t"
+        break; 
       fi
-      if test -z "$VALUE"; then
-        VALUE="$val"
-      fi
-      break;
     done
-    if test -n "$VALUE"; then
-      $dotenv set "$ENV=\"$VALUE\""
+    if ! $INTERACTIVE; then
+      VALUE="$val"
+    elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-31)"; then
+      read -rp "  Enter value ($val #$hashtag): " VALUE
     else
-      VALUE="$DEFAULT"
+      read -rp "  Enter value ($(echo $val | cut -c1-31)... #$hashtag): " VALUE
+    fi
+    if test -n "$VALUE"; then
+      $history set "$ENV=\"$VALUE\""
+    else
+      VALUE="$val"
     fi
   else    
     echo "* Parameter $PARAM: already configured"
