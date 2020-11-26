@@ -65,7 +65,7 @@ while test "$1" != ""; do
         -- )                shift
                             HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS $@"
                             break
-                            ;;                            
+                            ;;
         * )                 usage
                             exit 1
     esac
@@ -87,7 +87,7 @@ EOF
 fi
 
 if test -z "$HUB_FILES"; then
-  cat << EOF 
+  cat << EOF
 Error: cannot find hub definition files (HUB_FILES) in .env"
 
 Probably because stack has not been configured for deployment yet!
@@ -193,7 +193,7 @@ cat << EOF
 
 Proceeding with: deploy
 * Using profile: $HUB_DEPLOY_PROFILE
-* Running CLI command: 
+* Running CLI command:
 
   $ hub deploy $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS
 
@@ -214,5 +214,5 @@ for i in $(echo "$AFTER" | xargs -n1); do
   $hook
 done
 
-echo 
+echo
 echo "Done!"
