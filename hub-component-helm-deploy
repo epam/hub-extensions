@@ -39,8 +39,10 @@ $helm repo add $COMPONENT_NAME $HELM_REPO
 $helm repo update
 $helm fetch $COMPONENT_NAME/$HELM_CHART --destination $charts --untar $chart_version
 
+# TODO fail on hook error
 if test -x pre-deploy; then
-    ./pre-deploy
+    helmvars=$(./pre-deploy | grep -E '^export ' || exit 0)
+    if test -n "$helmvars"; then eval "$helmvars"; fi
 fi
 
 set +x
@@ -50,7 +52,7 @@ done
 set -x
 
 $helm upgrade $COMPONENT_NAME $charts/$(basename $HELM_CHART) \
-    --install --create-namespace --wait $chart_version $values
+    --install --create-namespace --wait $chart_version $values $HELM_OPTS
 
 if test -x post-deploy; then
     ./post-deploy
