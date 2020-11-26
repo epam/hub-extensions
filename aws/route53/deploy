@@ -41,12 +41,6 @@ fi
 
 export AWS_DEFAULT_OUTPUT=text
 
-hosted_zone_id() {
-  aws $AWS_OPTS route53 list-hosted-zones \
-    --query 'HostedZones[?Name==`'$1'.`].Id' \
-    | xargs | cut -d " " -f1 | cut -d'/' -f3
-}
-
 hosted_zone_ns() {
   aws $AWS_OPTS \
     route53 \
@@ -63,7 +57,7 @@ tag_hosted_zone() {
     --add-tags "Key=superhub.io/stack/$HUB_DOMAIN_NAME,Value=owned" 
 }
 
-ZONE_ID=$(hosted_zone_id "$HUB_DOMAIN_NAME") 
+ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME") 
 if test -n "$ZONE_ID"; then
   tag_hosted_zone "$ZONE_ID"
   hosted_zone_ns "$ZONE_ID"
@@ -79,7 +73,7 @@ CHANGE=$(aws $AWS_OPTS route53 create-hosted-zone \
 sleep 3
 
 aws $AWS_OPTS route53 wait resource-record-sets-changed --id "$CHANGE"
-ZONE_ID=$(hosted_zone_id "$HUB_DOMAIN_NAME") 
+ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME") 
 if test -z "$ZONE_ID"; then
   echo "Error during hosted zone $HUB_DOMAIN_NAME creation"
   exit 2

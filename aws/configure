@@ -7,17 +7,20 @@ AWS parameters:
   --aws-region            AWS Region (defaults to value from: AWS_REGION)
   --aws-profile           AWS Profile (defaults to value from: AWS_PROFILE)
   --dry-run               Do not deploy cloud resources
+  --domain-name           Previously issued DNS name
+  --bubbles-secret-key    Secret key issued with new DNS name
+  --prefer-local          Deploy state locally only
 
 Bubble DNS parameters:
   --dns-new     Request new DNS domain
   --dns-update  Request to update DNS registration
 
   New DNS record request:
-    --parent-domain         Parent domain for stack (defaults to: bubble.superhub.io)
+    --parent-domain       Parent domain for stack (defaults to: bubble.superhub.io)
 
   Request to update DNS record:
-    -n  --domain-name       Previously issued DNS name
-    -k  --secret-key        Secret key passed during domain name creation
+    --domain-name         Previously issued DNS name
+    --bubbles-secret-key  Secret key passed during domain name creation
 
   Use: hub configure -f hub.yaml -f params.yaml -r dns --dns-update
 
@@ -27,6 +30,8 @@ EOF
 HUB_PARENT_DOMAIN=${HUB_PARENT_DOMAIN:-"bubble.superhub.io"}
 FLAGS=$*
 DRY_RUN=false
+STATE="s3"
+DNS_MANAGER="bubbles"
 while [ "$1" != "" ]; do
   case $1 in
     --aws-region )      shift
@@ -35,9 +40,14 @@ while [ "$1" != "" ]; do
     --aws-profile )     shift
                         AWS_PROFILE="$1"
                         ;;
-    --dns-new )         HUB_DOMAIN_NAME=""
-                        HUB_DOMAIN_SECRET=""
-                        ;;
+    --domain-name ) 
+      shift
+      HUB_DOMAIN_NAME="$1"
+      ;;
+    --bubbles-secret-key ) 
+      shift
+      HUB_DOMAIN_SECRET="$1"
+      ;;      
     --dns-update )      DNS_ACTION="update"
                         ;;
     --dry-run )         DRY_RUN=true
@@ -96,6 +106,9 @@ if test -z "$HUB_DOMAIN_NAME"; then
     echo "Error: cannot find domain name: [$HUB_DOMAIN_NAME]"
     exit 1
   fi
+elif test -z "$HUB_DOMAIN_SECRET"; then
+  DNS_MANAGER="user"
+  echo "* Using domain name provided by user: $HUB_DOMAIN_NAME"
 fi
 
 echo "Configuring AWS"
@@ -118,7 +131,7 @@ fi
 
 echo "* Using AWS region: $AWS_REGION"
 
-export AWS_PROFILE AWS_REGION
+export AWS_PROFILE AWS_RsEGION
 
 AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
 HUB_STATE_BUCKET="$AWS_ACCOUNT.$HUB_PARENT_DOMAIN"
@@ -145,14 +158,45 @@ else
   fi
 fi
 
-echo -n "* Checking presence of Route 53 hosted zone $HUB_DOMAIN_NAME: "
+echo -n "* Checking presence of hosted zone $HUB_DOMAIN_NAME: "
 if test -z "$($(dirname $0)/route53/nameservers --domain-name $HUB_DOMAIN_NAME)"; then
   if $DRY_RUN; then
     echo "will be deployed"
-  else
+  elif test "$DNS_MANAGER" = "bubbles"; then
     echo "not found"
-    echo -n "* Deploying Route53 zone $HUB_DOMAIN_NAME (takes a minute)... "
+    echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
     $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
+  elif test "$DNS_MANAGER" = "user"; then
+    echo " not found"
+    PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
+    echo -n "* Checking presence of parent Route 53 hosted zone $PARENT_DOMAIN: "
+    ZONE_ID="$($(dirname "$0")/route53/zone-id --domain-name "$PARENT_DOMAIN")"
+    if test -n "$ZONE_ID"; then
+      echo "$ZONE_ID"
+      echo "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
+      $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
+      echo "* Deploying NS records delegation set to parent zone $ZONE_ID (takes a minute)... "
+      $(dirname "$0")/route53/propagate-ns \
+        --dest-zone-id "$ZONE_ID" \
+        --ns-record-name "$HUB_DOMAIN_NAME"
+    else
+      echo "not found"
+      cat << EOF
+
+Error!
+Route 53 hosted zone $HUB_DOMAIN_NAME has not been found. 
+
+You can resolve this error by logging in https://console.aws.amazon.com/route53/ 
+and create a hosted zone "$HUB_DOMAIN_NAME."
+
+Then run again:
+
+$ hub configure -r aws --domain-name $HUB_DOMAIN_NAME
+
+Abort!
+EOF
+      exit 5
+    fi
   fi
 else
   echo "exist"
@@ -164,7 +208,7 @@ test -z "$AWS_REGION"       || $dotenv set "AWS_REGION=\"$AWS_REGION\""
 test -z "$HUB_STATE_BUCKET" || $dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
 test -z "$HUB_STATE_REGION" || $dotenv set "HUB_STATE_REGION=\"$HUB_STATE_REGION\""
 
-if ! $DRY_RUN; then
+if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
   cat << EOF
 * DNS record has time to live: 72 hours (use hub configure to refresh)

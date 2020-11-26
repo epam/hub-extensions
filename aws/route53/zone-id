@@ -1,0 +1,24 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+# Creates a hosted zone by domain name and returns delegation set NS records
+
+while [ "$1" != "" ]; do
+    case $1 in
+        --domain-name )   shift
+                          HUB_DOMAIN_NAME="$1"
+                          ;;
+        --verbose )       set -x
+                          ;;
+    esac
+    shift
+done
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: --domain-name FQDN has not been defined"
+  exit 1
+fi
+
+aws $AWS_OPTS route53 list-hosted-zones \
+    --output=text \
+    --query 'HostedZones[?Name==`'$HUB_DOMAIN_NAME'.`].Id' \
+    | xargs | cut -d " " -f1 | cut -d'/' -f3

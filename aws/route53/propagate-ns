@@ -1,0 +1,80 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+usage() {
+  cat << EOF
+Creates a hosted zone by domain name and returns delegation set NS records
+
+Usage: $(basename "$0")
+
+Parameters:
+    --zone-id             Domain name of the hosted zone
+    --record-name         Name of DNS record to create
+    --record-type         Default NS
+    --record-value        Value for DNS record
+    --record-ttl          Default 1800
+    --aws-region          AWS Region
+    --aws-profile         AWS Profile
+EOF
+}
+
+REC_TYPE="NS"
+REC_TTL="1800"
+while [ "$1" != "" ]; do
+    case $1 in
+        --aws-region )    shift
+                          export AWS_REGION="$1"
+                          ;;
+        --aws-profile )   shift
+                          export AWS_PROFILE="$1"
+                          ;;
+        --dest-zone-id ) shift
+                          ZONE_ID="$1"
+                          ;;
+        --ns-record-name ) shift
+                          REC_NAME="$1"
+                          ;;                          
+        --ns-record-type ) shift
+                          REC_TYPE="$1"
+                          ;;                          
+        --record-ttl )    shift
+                          REC_TTL="$1"
+                          ;;
+        -h | --help )     usage
+                          exit
+                          ;;
+    esac
+    shift
+done
+
+if  test -z "$ZONE_ID" \
+ || test -z "$REC_NAME"; then
+  usage
+  exit 1
+fi
+
+export AWS_DEFAULT_OUTPUT=text
+temp="$(mktemp)"
+trap "rm -f $temp" EXIT
+cat <<EOF > $temp
+{
+  "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+      "Name": "$REC_NAME",
+      "Type": "$REC_TYPE",
+      "TTL": $REC_TTL,
+      "ResourceRecords": $("$(dirname "$0")"/nameservers --domain-name $REC_NAME --json | jq '[.[]| {"Value":.}]')
+  }}]
+}
+EOF
+
+CHANGE=$( \
+  aws $AWS_OPTS route53 change-resource-record-sets \
+    --hosted-zone-id "$ZONE_ID" \
+    --change-batch "file://$temp" \
+    --output "json" \
+  | jq  -Mr '.ChangeInfo.Id' )
+sleep 3
+aws $AWS_OPTS route53 wait resource-record-sets-changed --id "$CHANGE"
+echo "Done"
