@@ -20,6 +20,7 @@ Parameters:
     -c --component        List of components to deploy
     --profile             Can be: pod | local
     -o --offset           Deploy starting with the given component
+    -l --limit            Component to stop deploy at
     -V  --verbose         Verbose outputs for debug purpose
     --tty                 Use TTY (terminal) mode for hub deploy
     --no-tty              Do not use TTY (terminal) mode for hub deploy
@@ -43,6 +44,10 @@ while test "$1" != ""; do
                             ;;
         -o | --offset )     shift
                             HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -o $1"
+                            FULL_STACK=false
+                            ;;
+        -l | --limit )      shift
+                            HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -l $1"
                             FULL_STACK=false
                             ;;
         --tty )             HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS --tty true"
