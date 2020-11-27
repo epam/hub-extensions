@@ -1,0 +1,20 @@
+#!/bin/bash -e
+
+CURRENT=""
+if test -f ".env"; then
+  CURRENT=$(basename "$(readlink .env)" .env)
+fi
+
+if test ! -d .hub/env; then
+  echo "Error: no stacks available"
+  exit 1
+fi
+
+for f in .hub/env/*.env; do
+  STACK=$(basename $f .env)
+  if test "$CURRENT" = "$STACK"; then
+    echo "* $STACK"
+  else
+    echo "  $STACK"
+  fi
+done

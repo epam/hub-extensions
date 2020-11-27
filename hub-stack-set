@@ -1,0 +1,56 @@
+#!/bin/bash -e
+
+usage() {
+  cat << EOF
+Set or change currently active stack
+
+Usage: hub stack set STACK
+  
+  where STACK is the name of the stack to set as an active
+
+Note: to see list of available stacks run
+
+  $ hub stack ls
+
+EOF
+}
+
+if test -z "$1"; then
+  usage
+  exit 1
+fi
+
+echo "Setting $1 as current"
+
+if test ! -d .hub/env; then
+  echo "Error: no stacks available"
+  exit 2
+fi
+
+if test ! -f ".hub/env/$1.env"; then
+  cat << EOF
+Error: cannot find $1 stack
+
+To see list of available stacks run
+
+  $ hub stack ls
+
+EOF
+  exit 3
+fi
+
+
+if test -L ".env"; then
+  echo "* Unlinking .env"
+  unlink ".env"
+elif test -f ".env"; then
+  echo "* Backing up .env as .env.bak"
+  mv ".env" ".env.bak"
+fi
+
+if test ! -f ".env"; then
+  echo "* Setting .env link to .hub/env/$1.env"
+  ln -sf ".hub/env/$1.env" ".env"
+fi
+
+echo "* Your current stack is $1"

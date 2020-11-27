@@ -9,6 +9,8 @@ Parameters:
     deploy          Deploy current stack
     undeploy        Undeploy current stack
     elaborate       Reconcile deployment plan for this stack
+    ls              List of available stacks
+    set             Setting active stack
 
 EOF
 }
