@@ -70,19 +70,12 @@ while [ "$1" != "" ]; do
     shift
 done
 
-dotenv="$(dirname "$0")/env/dotenv -f .env"
-HUB_KUBECONFIG=$($dotenv get "HUB_KUBECONFIG")
-if test -n "$HUB_KUBECONFIG" && test -f "$HUB_KUBECONFIG"; then
-  KUBECONFIG="$HUB_KUBECONFIG"
-  export KUBECONFIG
-fi
-
 if test -z "$HUB_TOKEN"; then
   STATEFILE=".hub/$HUB_DOMAIN_NAME.state";
   if test -f "$STATEFILE"; then
     RESP=$(hub explain "$STATEFILE" --json)
   else
-    if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG"; then
+    if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -e "$HUB_KUBECONFIG"; then
       export KUBECONFIG=$HUB_KUBECONFIG
     fi
     kubectl="kubectl -n kube-system -o json"
