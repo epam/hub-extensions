@@ -44,7 +44,7 @@ fi
 # direnv hook is strictly for interactive shell
 # ask direnv to set environment explicitly to allow
 #   $ hub toolbox make deploy
-if test $# -gt 0; then
+if test $# -gt 0 -a -n "$TOOLBOX_DIRENV"; then
     args="direnv exec . $*"
 fi
 
