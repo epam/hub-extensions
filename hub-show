@@ -17,7 +17,7 @@ Parameters:
     -h --help       print current message
     --              separator for JQ style arguments see more here: https://stedolan.github.io/jq
 EOF
-} 
+}
 
 FORMAT="${FORMAT:-json}"
 JQ_ARGS="${JQ_ARGS:- -S}"
@@ -57,7 +57,7 @@ while [ "$1" != "" ]; do
                             ;;
         - )                 HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1)
                             ;;
-        -- )                shift 
+        -- )                shift
                             JQ_ARGS="$JQ_ARGS $*"
                             break
                             ;;
@@ -162,7 +162,7 @@ PARAMETERS=$(
 OUTPUTS=$( \
   echo "$OUTPUTS" \
   | jq -cMs 'reduce .[] as $item ({}; . * $item) | to_entries | [ .[] | {"key": .key | split("|")[0], "value": .value}] | from_entries'
-)  
+)
 if test ! -z "$SPLIT_OUTPUTS"; then
     DOCEXT="$(echo "$PARAMETERS" | jq -cM '{"parameters": .}')"
     DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"outputs": .}')"
@@ -181,7 +181,7 @@ if test -z "$HUB_TOKEN"; then
     DOCBASE=$(echo $RESP | jq -crM '{
       "components" : [.provides|to_entries[].value|select(.)[]] | unique,
       "provides" : [select(.provides != null).provides|to_entries[]|.key]
-    }')  
+    }')
   fi
 else
   DOCBASE=$(echo $RESP | jq -crM '{
@@ -197,5 +197,5 @@ fi
 if test "$FORMAT" = "yaml"; then
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) '"$JQ_QUERY" | yq r -
 else
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)" 
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)"
 fi
