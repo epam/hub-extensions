@@ -108,6 +108,7 @@ if (!isEmpty(splits)) {
         `git checkout -B ${localBranchName(remote, ref)} ${remoteBranchName(remote, ref)}\n`
         + `git subtree $subtree_flags split --prefix=${subDir} -b ${splitBranchName(name)}`));
     cmds.push('popd');
+    if (!worktree) cmds.push('git worktree remove -f $worktree');
 }
 
 cmds.push('\n# stash worktree before subtree merge');
