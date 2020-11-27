@@ -24,7 +24,7 @@ JQ_ARGS="${JQ_ARGS:- -S}"
 
 dotenv="$(dirname "$0")/env/dotenv -f .env"
 set +a
-eval "$($dotenv "export")"
+eval $($dotenv export)
 set -a
 
 if ! test -t 0; then
@@ -75,6 +75,9 @@ if test -z "$HUB_TOKEN"; then
   if test -f "$STATEFILE"; then
     RESP=$(hub explain "$STATEFILE" --json)
   else
+    if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG"; then
+      export KUBECONFIG=$HUB_KUBECONFIG
+    fi
     kubectl="kubectl -n kube-system -o json"
     if ! $kubectl get configmap "superhub" > /dev/null 2>&1; then
       echo "Error: no stack deployed" 1>&2
