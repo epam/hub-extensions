@@ -109,6 +109,7 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   VALUE=$(printenv "$ENV" || echo "")
   PARAM=$(getParamNameByEnvVar "$ENV")
   BRIEF=$(getByEnvVar "brief" "$ENV")
+  EMPTY="$(getByEnvVar "empty" "$ENV")"
   if test -z "$VALUE"; then
     echo "* Parameter $PARAM"
     if test -n "$BRIEF"; then
@@ -118,17 +119,23 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
     VAL_history=$($history get $ENV)
     VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
-    HASHTAGS="hubstate history default random"
+    VAL_empty=""
+    if test "$EMPTY" = "allow"; then
+      HASHTAGS="hubstate default empty"
+    else 
+      HASHTAGS="hubstate history default random"
+    fi
     for t in $HASHTAGS; do
       val=$(eval echo "\$VAL_$t")
-      if test -n "$val"; then
+      if test -n "$val" || test "$t" = "empty"; then
         hashtag="$t"
         break; 
       fi
     done
+
     if ! $INTERACTIVE; then
       VALUE="$val"
-    elif test "$DEFAULT" = "$(echo $DEFAULT | cut -c1-31)"; then
+    elif test "$val" = "$(echo $val | cut -c1-31)"; then
       read -rp "  Enter value ($val #$hashtag): " VALUE
     else
       read -rp "  Enter value ($(echo $val | cut -c1-31)... #$hashtag): " VALUE
