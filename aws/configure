@@ -31,6 +31,7 @@ HUB_PARENT_DOMAIN=${HUB_PARENT_DOMAIN:-"bubble.superhub.io"}
 FLAGS=$*
 DRY_RUN=false
 DNS_MANAGER="bubbles"
+PREFER_LOCAL_STATE=false
 while [ "$1" != "" ]; do
   case $1 in
     --aws-region )      shift
@@ -46,7 +47,10 @@ while [ "$1" != "" ]; do
     --bubbles-secret-key ) 
       shift
       HUB_DOMAIN_SECRET="$1"
-      ;;      
+      ;;
+    --prefer-local )
+      PREFER_LOCAL_STATE=true
+    ;;
     --dns-update )      DNS_ACTION="update"
                         ;;
     --dry-run )         DRY_RUN=true
@@ -138,8 +142,6 @@ if test -z "$HUB_STATE_BUCKET"; then
 fi
 
 echo -n "* Checking presence of bucket $HUB_STATE_BUCKET: "
-
-exit 1
 if aws $AWS_OPTS s3api head-bucket --bucket=$HUB_STATE_BUCKET > /dev/null 2>&1; then
   HUB_STATE_REGION="$(
     aws $AWS_OPTS s3api get-bucket-location \
@@ -242,14 +244,22 @@ if test -z "$HUB_STATE"; then
   echo "* Setting default location for hub state file"
   STACK=${STACK:-$(basename "$(pwd)")}
   HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
-  HUB_STATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
-  $dotenv set "HUB_STATE=\"$HUB_STATE_FILE,$HUB_STATE_S3\""
+  if PREFER_LOCAL_STATE; then
+    $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
+  else
+    HUB_STATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
+    $dotenv set "HUB_STATE=\"$HUB_STATE_FILE,$HUB_STATE_S3\""
+  fi
 fi
 
 if test -z "$HUB_ELABORATE"; then
   echo "* Setting default location for hub elaborate file"
   STACK=${STACK:-$(basename "$(pwd)")}
   HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
-  HUB_ELABORATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
-  $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE,$HUB_ELABORATE_S3\""
+  if PREFER_LOCAL_STATE; then
+    $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""
+  else
+    HUB_ELABORATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
+    $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE,$HUB_ELABORATE_S3\""
+  fi
 fi
