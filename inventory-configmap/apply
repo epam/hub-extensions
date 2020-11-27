@@ -40,6 +40,12 @@ set +a
 eval "$($dotenv export -f ".env" )"
 set -a
 
+if test -n "$HUB_KUBECONTEXT"; then
+  echo "* Setting kubecontext to: $HUB_KUBECONTEXT"
+  KUBECONTEXT="$HUB_KUBECONTEXT"
+  export KUBECONTEXT
+fi
+
 if test -f "$HUB_DOMAIN_NAME"; then
   echo "Error: cannot find HUB_DOMAIN_NAME"
   exit 1
