@@ -77,4 +77,3 @@ CHANGE=$( \
   | jq  -Mr '.ChangeInfo.Id' )
 sleep 3
 aws $AWS_OPTS route53 wait resource-record-sets-changed --id "$CHANGE"
-echo "Done"

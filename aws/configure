@@ -111,7 +111,7 @@ elif test -z "$HUB_DOMAIN_SECRET"; then
   echo "* Using domain name provided by user: $HUB_DOMAIN_NAME"
 fi
 
-echo "Configuring AWS"
+echo "Configuring AWS S3"
 AWS_PROFILE=${AWS_PROFILE:-$(echo "$AWS_DEFAULT_PROFILE default" | awk '{print $1;}')}
 if aws --profile $AWS_PROFILE configure list > /dev/null 2>&1; then
   AWS_OPTS="$AWS_OPTS --profile $AWS_PROFILE"
@@ -136,7 +136,7 @@ export AWS_PROFILE AWS_RsEGION
 AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
 HUB_STATE_BUCKET="$AWS_ACCOUNT.$HUB_PARENT_DOMAIN"
 
-echo -n "* Checking presence of S3 bucket $HUB_STATE_BUCKET: "
+echo -n "* Checking presence of bucket $HUB_STATE_BUCKET: "
 if aws $AWS_OPTS s3api head-bucket --bucket=$HUB_STATE_BUCKET > /dev/null 2>&1; then
   HUB_STATE_REGION="$(
     aws $AWS_OPTS s3api get-bucket-location \
@@ -158,28 +158,28 @@ else
   fi
 fi
 
+echo "Configuring AWS Route53"
 echo -n "* Checking presence of hosted zone $HUB_DOMAIN_NAME: "
-if test -z "$($(dirname $0)/route53/nameservers --domain-name $HUB_DOMAIN_NAME)"; then
-  if $DRY_RUN; then
-    echo "will be deployed"
-  elif test "$DNS_MANAGER" = "bubbles"; then
-    echo "not found"
+ZONE_ID=$($(dirname $0)/route53/zone-id --domain-name $HUB_DOMAIN_NAME)
+if test -z "$ZONE_ID"; then
+  echo "not found"
+else
+  echo "$ZONE_ID"
+fi
+
+if $DRY_RUN; then
+  echo "* Dry run mode detected: skipping route53 modification"
+elif test "$DNS_MANAGER" = "bubbles"; then
+  if test -z "$ZONE_ID"; then
     echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
     $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
-  elif test "$DNS_MANAGER" = "user"; then
-    echo " not found"
-    PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
-    echo -n "* Checking presence of parent Route 53 hosted zone $PARENT_DOMAIN: "
-    ZONE_ID="$($(dirname "$0")/route53/zone-id --domain-name "$PARENT_DOMAIN")"
-    if test -n "$ZONE_ID"; then
-      echo "$ZONE_ID"
-      echo "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
-      $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
-      echo "* Deploying NS records delegation set to parent zone $ZONE_ID (takes a minute)... "
-      $(dirname "$0")/route53/propagate-ns \
-        --dest-zone-id "$ZONE_ID" \
-        --ns-record-name "$HUB_DOMAIN_NAME"
-    else
+  fi
+elif test "$DNS_MANAGER" = "user"; then
+  PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
+  echo -n "* Checking presence of parent hosted zone $PARENT_DOMAIN: "
+  PARENT_ZONE_ID="$($(dirname "$0")/route53/zone-id --domain-name "$PARENT_DOMAIN")"
+  if test -z "$ZONE_ID"; then
+    if test -z "$PARENT_ZONE_ID"; then
       echo "not found"
       cat << EOF
 
@@ -197,9 +197,24 @@ Abort!
 EOF
       exit 5
     fi
+    echo "$PARENT_ZONE_ID"
+    echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
+    $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
+    echo "Done"
   fi
+  echo "$PARENT_ZONE_ID"
+  echo -n "* Updating $HUB_DOMAIN_NAME NS record to zone $PARENT_ZONE_ID (takes a minute)... "
+  $(dirname "$0")/route53/upsert-ns \
+    --dest-zone-id "$PARENT_ZONE_ID" \
+    --ns-record-name "$HUB_DOMAIN_NAME"  \
+    --ns-record-tty "300"
+  echo "Done"
+  # make sure .env file is up-to-date
+  $dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
+  $dotenv set "HUB_STACK_NAME=\"$(echo "$HUB_DOMAIN_NAME" | cut -f1 -d.)\""
 else
-  echo "exist"
+  echo "Error: unsupported DNS operation"
+  exit 6
 fi
 
 $dotenv set 'HUB_CLOUD_PROVIDER="aws"'
