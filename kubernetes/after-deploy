@@ -13,11 +13,18 @@ checkCluster() {
     echo "* Trying kubeconfig: $KUBECONFIG" 
   fi
   KUBECONTEXT="$2"
-  
+
   if test -z "$KUBECONTEXT"; then
     KUBECONTEXT="$(kubectl config current-context)"
-  fi 
-  echo -n "* Sanity check to $KUBECONTEXT: "
+  fi
+
+  if test -z "$(kubectl config view -o json | jq ".contexts[] | select(.name==\"$KUBECONTEXT\").name")"; then
+    echo "* Context $KUBECONTEXT: not found"
+    return 1
+  fi
+  echo "* Context $KUBECONTEXT: found"
+
+  echo -n "* Checking connectivty to $KUBECONTEXT: "
   if kubectl cluster-info --context="$KUBECONTEXT"> /dev/null; then
     echo "Connected"
   else
@@ -27,6 +34,7 @@ checkCluster() {
 
 checkClusterAndSave() {
   if checkCluster "$1" "$HUB_DOMAIN_NAME"; then
+    mkdir -p "$(dirname "$SAVETO")"
     "$(dirname "$0")/configure-kubeconfig" \
       --kubeconfig "$1" \
       --kubecontext "$HUB_DOMAIN_NAME" \
@@ -51,12 +59,12 @@ echo "Finalizing kubernetes deployment"
 HUB_KUBECONFIG=$($dotenv get "HUB_KUBECONFIG")
 HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
 if test -n "$HUB_KUBECONFIG"; then
-  echo "* .env already provides HUB_KUBECONFIG: $HUB_KUBECONFIG"
+  echo "* File .env already provides HUB_KUBECONFIG: $HUB_KUBECONFIG"
   if checkCluster "$HUB_KUBECONFIG" "$HUB_DOMAIN_NAME"; then
     exit 0
   fi
 else 
-  echo "* .env does not provides HUB_KUBECONFIG"
+  echo "* File .env does not provide HUB_KUBECONFIG"
 fi
 
 SAVETO="$(pwd)/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"

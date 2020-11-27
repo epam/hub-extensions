@@ -112,7 +112,7 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   if test -z "$VALUE"; then
     echo "* Parameter $PARAM"
     if test -n "$BRIEF"; then
-      echo " $BRIEF"
+      echo "  $BRIEF"
     fi
     VAL_default=$(getByEnvVar "default" "$ENV" "")
     VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
