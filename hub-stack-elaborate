@@ -6,7 +6,7 @@ cat << EOF
 Runs reconciliation for all parameters of this stack components
 and this stack prerequisites
 
-Usage: 
+Usage:
 $ hub stack deploy
 
 Parameters:
@@ -33,7 +33,7 @@ done
 echo "Reconciling deployment plan for $HUB_DOMAIN_NAME"
 
 if [[ ! -f .env ]]; then
-  echo "* Error: configuration '.env' has not been found" 
+  echo "* Error: configuration '.env' has not been found"
   exit 1
 fi
 dotenv=$(dirname "$0")/env/dotenv
@@ -43,7 +43,7 @@ set -a
 echo "* Using domain name: $HUB_DOMAIN_NAME"
 
 if test -z "$HUB_FILES"; then
-  cat << EOF 
+  cat << EOF
 Error: cannot find hub definition files (HUB_FILES)"
 
 Probably because stack has not been configured for deployment yet!
@@ -77,9 +77,9 @@ Proceeding with: elaborate
 * Result will be saved saved to: $HUB_ELABORATE
 * Running CLI command:
 
-  $ hub elaborate $HUB_FILES -o $HUB_ELABORATE $HUB_OPTS 
+  $ hub elaborate $HUB_FILES -o $HUB_ELABORATE $HUB_OPTS
 
 EOF
 
 # shellcheck disable=SC2086
-hub elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS 
+hub elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS
