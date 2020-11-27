@@ -36,23 +36,24 @@ set +a
 eval "$($dotenv "export")"
 set -a
 
+HUB_OPTS=
 while test "$1" != ""; do
     case $1 in
         -c | --component )  shift
-                            HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -c $1"
+                            HUB_OPTS="$HUB_OPTS -c $1"
                             FULL_STACK=false
                             ;;
         -o | --offset )     shift
-                            HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -o $1"
+                            HUB_OPTS="$HUB_OPTS -o $1"
                             FULL_STACK=false
                             ;;
         -l | --limit )      shift
-                            HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS -l $1"
+                            HUB_OPTS="$HUB_OPTS -l $1"
                             FULL_STACK=false
                             ;;
-        --tty )             HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS --tty true"
+        --tty )             HUB_OPTS="$HUB_OPTS --tty true"
                             ;;
-        --no-tty )          HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS --tty false"
+        --no-tty )          HUB_OPTS="$HUB_OPTS --tty false"
                             ;;
         --profile )         shift
                             HUB_DEPLOY_PROFILE="$1"
@@ -63,7 +64,7 @@ while test "$1" != ""; do
                             exit
                             ;;
         -- )                shift
-                            HUB_DEPLOY_OPTS="$HUB_DEPLOY_OPTS $@"
+                            HUB_OPTS="$HUB_OPTS $@"
                             break
                             ;;
         * )                 usage
@@ -121,18 +122,30 @@ if test -n "$hub_kubeconfig"; then
 fi
 
 HUB=${HUB:-hub}
-HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
-HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
 
-if test -f "$HUB_STATE_FILE"; then
-  HUB_ELABORATE_OPTS="$HUB_ELABORATE_OPTS -s $HUB_STATE_FILE"
+if test -z "$HUB_STATE"; then
+  HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
 fi
+echo "* Using hub state:"
+# shellcheck disable=SC2001
+for i in $(echo "$HUB_STATE" | sed "s/,/ /g"); do
+  echo "  - $i"
+done
+
+if test -z "$HUB_ELABORATE"; then
+  HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
+fi
+echo "* Using hub elaborate:"
+# shellcheck disable=SC2001
+for i in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
+  echo "  - $i"
+done
 
 if test -z "$HUB_CLOUD_PROVIDER"; then
   HUB_DEPLOY_PROFILE=$($dotenv get "HUB_CLOUD_PROVIDER")
 fi
 if test -n "$HUB_CLOUD_PROVIDER"; then
-  HUB_DEPLOY_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_DEPLOY_OPTS"
+  HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
 # shellcheck disable=SC2086
@@ -195,12 +208,12 @@ Proceeding with: deploy
 * Using profile: $HUB_DEPLOY_PROFILE
 * Running CLI command:
 
-  $ hub deploy $HUB_ELABORATE_FILE -s $HUB_STATE_FILE $HUB_DEPLOY_OPTS
+  $ hub deploy $HUB_ELABORATE -s $HUB_STATE $HUB_OPTS
 
 EOF
 
 # shellcheck disable=SC2086,SC2046
-$deploy  "$HUB_ELABORATE_FILE" -s "$HUB_STATE_FILE" $HUB_DEPLOY_OPTS
+$deploy "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
 for i in $(echo "$AFTER" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$i/after-deploy"; then
     hook="$WORKDIR/.hub/$i/after-deploy"

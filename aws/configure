@@ -30,7 +30,6 @@ EOF
 HUB_PARENT_DOMAIN=${HUB_PARENT_DOMAIN:-"bubble.superhub.io"}
 FLAGS=$*
 DRY_RUN=false
-STATE="s3"
 DNS_MANAGER="bubbles"
 while [ "$1" != "" ]; do
   case $1 in
@@ -231,4 +230,20 @@ if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
 # Hint! To refresh DNS: hub configure -r aws --dns-update
 
 EOF
+fi
+
+if test -z "$HUB_STATE"; then
+  echo "* Setting default location for hub state file"
+  STACK=${STACK:-$(basename "$(pwd)")}
+  HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
+  HUB_STATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
+  $dotenv set "HUB_STATE=$HUB_STATE_FILE,$HUB_STATE_S3"
+fi
+
+if test -z "$HUB_ELABORATE"; then
+  echo "* Setting default location for hub elaborate file"
+  STACK=${STACK:-$(basename "$(pwd)")}
+  HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
+  HUB_ELABORATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
+  $dotenv set "HUB_ELABORATE=$HUB_ELABORATE_FILE,$HUB_ELABORATE_S3"
 fi

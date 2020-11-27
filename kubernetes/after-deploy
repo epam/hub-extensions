@@ -22,11 +22,11 @@ checkCluster() {
     echo "* Context $KUBECONTEXT: not found"
     return 1
   fi
-  echo "* Context $KUBECONTEXT: found"
+  echo "* Context $KUBECONTEXT: exist"
 
   echo -n "* Checking connectivty to $KUBECONTEXT: "
   if kubectl cluster-info --context="$KUBECONTEXT"> /dev/null; then
-    echo "Connected"
+    echo "connected"
   else
     return $?
   fi
@@ -76,31 +76,30 @@ else
   echo "* Kubeconfig $SAVETO: not found"
 fi
 
-if test -f "$(pwd)/.hub/$HUB_DOMAIN_NAME.state"; then
-  STATEFILE="$(pwd)/.hub/$HUB_DOMAIN_NAME.state"
-  cat << EOF
+if test -z "$HUB_STATE"; then
+  HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+fi
+
+cat << EOF
 * Trying kubeconfig from state: $STATEFILE
 * Running CLI command: 
 
-  $ hub kubeconfig -k $STATEFILE -c $HUB_DOMAIN_NAME
+  $ hub kubeconfig -k $HUB_STATE -c $HUB_DOMAIN_NAME
 
 EOF
-  { 
-    _kubeconfig="$KUBECONFIG"
-    _temp=$(mktemp)
-    export KUBECONFIG="$_temp"
-    # shellcheck disable=SC2064
-    trap "rm -f $_temp" EXIT
-    if hub kubeconfig -k "$STATEFILE" -c "$HUB_DOMAIN_NAME"; then
-      if checkClusterAndSave "$KUBECONFIG" ; then
-        exit 0
-      fi
+{ 
+  _kubeconfig="$KUBECONFIG"
+  _temp=$(mktemp)
+  export KUBECONFIG="$_temp"
+  # shellcheck disable=SC2064
+  trap "rm -f $_temp" EXIT
+  if hub kubeconfig -k "$HUB_STATE" -c "$HUB_DOMAIN_NAME"; then
+    if checkClusterAndSave "$KUBECONFIG" ; then
+      exit 0
     fi
-    export KUBECONFIG="$_kubeconfig"
-  }
-else
-  echo "* State file $(pwd)/.hub/$HUB_DOMAIN_NAME.state: not found"
-fi
+  fi
+  export KUBECONFIG="$_kubeconfig"
+}
 
 if test -n "$KUBECONFIG" && checkClusterAndSave "$KUBECONFIG" ; then
   exit 0

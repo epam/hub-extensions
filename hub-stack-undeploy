@@ -28,6 +28,8 @@ Parameters:
 EOF
 }
 
+HUB_OPTS=""
+
 dotenv=$(dirname "$0")/env/dotenv
 set +a
 eval "$($dotenv export -f ".env" )"
@@ -79,42 +81,44 @@ EOF
   exit 1
 fi
 
-HUB_FILES=$($dotenv get "HUB_FILES")
-HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
-HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
-HUB_OPTS="--clouds=aws $HUB_OPTS"
-
 cat << EOF
 Undeploying: $HUB_DOMAIN_NAME"
 
 Warning: this operation cannot be reverted! It may lead to data loss!
 
 EOF
-
-echo "* Using cluster: $HUB_DOMAIN_NAME"
-if ! test -f "$HUB_ELABORATE_FILE"; then
-  echo "Error: cannot find hub elaborate file: $HUB_ELABORATE_FILE"
-  exit 2
+if test -z "$HUB_CLOUD_PROVIDER"; then
+  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_CLOUD_PROVIDER")
 fi
+if test -n "$HUB_CLOUD_PROVIDER"; then
+  echo "* Using cloud: $HUB_CLOUD_PROVIDER"
+  HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
+fi
+echo "* Using cluster: $HUB_DOMAIN_NAME"
 
-hub_kubeconfig=$($dotenv get "HUB_KUBECONFIG")
-if test -n "$hub_kubeconfig"; then
+if test -z "$HUB_STATE"; then
+  HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+fi
+HUB_OPTS="$HUB_OPTS -s $HUB_STATE"
+echo "* Using hub state:"
+for i in $(echo $HUB_STATE | sed "s/,/ /g"); do
+  echo "  - $i"
+done
+
+if test -z "$HUB_ELABORATE"; then
+  HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
+fi
+echo "* Using hub elaborate"
+for i in $(echo $HUB_ELABORATE | sed "s/,/ /g"); do
+  echo "  - $i"
+done
+
+HUB_KUBECONFIG=$($dotenv get "HUB_KUBECONFIG")
+if test -n "$HUB_KUBECONFIG" && test -f "$HUB_KUBECONFIG"; then
   KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
   export KUBECONFIG
   echo "* Using kubeconfig: $KUBECONFIG"
 fi
-
-echo "* Using hub elaborate file: $HUB_ELABORATE_FILE"
-
-if test -f "$HUB_STATE_FILE"; then
-  HUB_OPTS="$HUB_OPTS -s $HUB_STATE_FILE"
-  echo "* Using hub state file: $HUB_STATE_FILE"
-fi
-
-cat <<EOF
-
-Proceeding with undeploy "$HUB_DOMAIN_NAME"
-EOF
 
 for f in $HUB_FILES; do
   test -f $f || continue;
@@ -169,11 +173,11 @@ Proceeding with: undeploy
 * Using profile: $HUB_DEPLOY_PROFILE
 * Running CLI command:
 
-  $ hub undeploy $HUB_ELABORATE_FILE $HUB_OPTS
+  $ hub undeploy $HUB_ELABORATE $HUB_OPTS
 
 EOF
 
-$undeploy "$HUB_ELABORATE_FILE" $HUB_OPTS
+$undeploy "$HUB_ELABORATE" $HUB_OPTS
 
 for i in $(echo "$AFTER" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$i/after-undeploy"; then

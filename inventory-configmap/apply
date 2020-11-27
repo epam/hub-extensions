@@ -51,8 +51,16 @@ if test -f "$HUB_DOMAIN_NAME"; then
   exit 1
 fi
 
-if test ! -f "$HUB_STATE_FILE"; then
-  echo "Error: cannot find state file '$HUB_STATE_FILE'"
+HUB_STATE_FILE=
+for i in $(echo $HUB_STATE | sed "s/,/ /g"); do
+  if test -f "$i"; then
+    HUB_STATE_FILE=$i
+    break
+  fi
+done
+
+if test -z "$HUB_STATE_FILE"; then
+  echo "Error: cannot find state file: '$HUB_STATE'"
   exit 2
 fi
 

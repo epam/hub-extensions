@@ -16,6 +16,7 @@ Parameters:
 EOF
 }
 
+HUB_OPTS=
 while [ "$1" != "" ]; do
     case $1 in
     -V | --verbose )    set -x
@@ -48,25 +49,27 @@ Error: cannot find hub definition files (HUB_FILES)"
 Probably because stack has not been configured for deployment yet!
 
 Example:
-  $ hub configure -f hub.yaml -f params.yaml
+  $ hub configure -f hub.yaml
 
 EOF
 
   exit 2
 fi
 
-HUB_ELABORATE_FILE="${HUB_ELABORATE_FILE:-".hub/$HUB_DOMAIN_NAME.elaborate"}"
-HUB_STATE_FILE="${HUB_STATE_FILE:-".hub/$HUB_DOMAIN_NAME.state"}"
-
-if test -f "$HUB_STATE_FILE"; then
-  echo "* Using hub state file: $HUB_STATE_FILE"
-  HUB_ELABORATE_OPTS="$HUB_ELABORATE_OPTS -s $HUB_STATE_FILE"
+if test -z "$HUB_STATE"; then
+  if test -f ".hub/$HUB_DOMAIN_NAME.state"; then
+    HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+  fi
 fi
 
-if test -n "$HUB_CLOUD_PROVIDER"; then
-  HUB_DEPLOY_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_DEPLOY_OPTS"
+if test -n "$HUB_STATE"; then
+  echo "* Using hub state: $HUB_STATE"
+  HUB_OPTS="$HUB_OPTS -s $HUB_STATE"
 fi
 
+if test -z "$HUB_ELABORATE"; then
+  HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
+fi
 
 cat << EOF
 
@@ -74,8 +77,9 @@ Proceeding with: elaborate
 * Result will be saved saved to: $HUB_ELABORATE_FILE
 * Running CLI command: 
 
-  $ hub elaborate $HUB_FILES -o $HUB_ELABORATE_FILE $HUB_ELABORATE_OPTS 
+  $ hub elaborate $HUB_FILES -o $HUB_ELABORATE $HUB_OPTS 
 
 EOF
 
-hub elaborate $HUB_FILES -o "$HUB_ELABORATE_FILE" $HUB_ELABORATE_OPTS 
+# shellcheck disable=SC2086
+hub elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS 
