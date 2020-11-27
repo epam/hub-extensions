@@ -62,10 +62,10 @@ if test -z "$HUB_STATE"; then
   fi
 fi
 
-if test -n "$HUB_STATE"; then
-  echo "* Using hub state: $HUB_STATE"
-  HUB_OPTS="$HUB_OPTS -s $HUB_STATE"
-fi
+# if test -n "$HUB_STATE"; then
+#   echo "* Using hub state: $HUB_STATE"
+#   HUB_OPTS="$HUB_OPTS -s $HUB_STATE"
+# fi
 
 if test -z "$HUB_ELABORATE"; then
   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
