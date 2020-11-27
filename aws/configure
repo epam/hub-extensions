@@ -132,10 +132,14 @@ echo "* Using AWS region: $AWS_REGION"
 
 export AWS_PROFILE AWS_RsEGION
 
-AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
-HUB_STATE_BUCKET="$AWS_ACCOUNT.$HUB_PARENT_DOMAIN"
+if test -z "$HUB_STATE_BUCKET"; then
+  AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
+  HUB_STATE_BUCKET="$AWS_ACCOUNT.superhub.io"
+fi
 
 echo -n "* Checking presence of bucket $HUB_STATE_BUCKET: "
+
+exit 1
 if aws $AWS_OPTS s3api head-bucket --bucket=$HUB_STATE_BUCKET > /dev/null 2>&1; then
   HUB_STATE_REGION="$(
     aws $AWS_OPTS s3api get-bucket-location \
@@ -144,7 +148,9 @@ if aws $AWS_OPTS s3api head-bucket --bucket=$HUB_STATE_BUCKET > /dev/null 2>&1; 
       | sed -e 's/None/us-east-1/g')"
   echo "exist"
 else
-  HUB_STATE_REGION="$AWS_REGION"
+  if test -z "$HUB_STATE_REGION"; then
+    HUB_STATE_REGION="$AWS_REGION"
+  fi
   if $DRY_RUN; then
     echo "will be deployed"
   else
@@ -237,7 +243,7 @@ if test -z "$HUB_STATE"; then
   STACK=${STACK:-$(basename "$(pwd)")}
   HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
   HUB_STATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
-  $dotenv set "HUB_STATE=$HUB_STATE_FILE,$HUB_STATE_S3"
+  $dotenv set "HUB_STATE=\"$HUB_STATE_FILE,$HUB_STATE_S3\""
 fi
 
 if test -z "$HUB_ELABORATE"; then
@@ -245,5 +251,5 @@ if test -z "$HUB_ELABORATE"; then
   STACK=${STACK:-$(basename "$(pwd)")}
   HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
   HUB_ELABORATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
-  $dotenv set "HUB_ELABORATE=$HUB_ELABORATE_FILE,$HUB_ELABORATE_S3"
+  $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE,$HUB_ELABORATE_S3\""
 fi
