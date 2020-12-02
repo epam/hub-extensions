@@ -244,7 +244,7 @@ if test -z "$HUB_STATE"; then
   echo "* Setting default location for hub state file"
   STACK=${STACK:-$(basename "$(pwd)")}
   HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
-  if PREFER_LOCAL_STATE; then
+  if $PREFER_LOCAL_STATE; then
     $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
   else
     HUB_STATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
@@ -256,7 +256,7 @@ if test -z "$HUB_ELABORATE"; then
   echo "* Setting default location for hub elaborate file"
   STACK=${STACK:-$(basename "$(pwd)")}
   HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
-  if PREFER_LOCAL_STATE; then
+  if $PREFER_LOCAL_STATE; then
     $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""
   else
     HUB_ELABORATE_S3="s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
