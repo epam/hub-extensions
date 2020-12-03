@@ -7,7 +7,7 @@ usage() {
   cat << EOF
 Reads configuration information in $HUB_FILES and configures stack for deployment
 
-Use: 
+Use:
   hub configure -f hub.yaml <parameters>
 
 Common parameters:
@@ -17,7 +17,7 @@ Common parameters:
   -V  --verbose           Verbose outputs for debug purposeEOF
   -h  --help              Print this message
 
-Use: hub configure -r aws -r kubernetes   # to configure just one requirement 
+Use: hub configure -r aws -r kubernetes   # to configure just one requirement
 
 Usage for stack requirements: [$(echo "$1" | xargs)]
 
@@ -61,20 +61,20 @@ fi
 
 while [ "$1" != "" ]; do
   case $1 in
-    -f | --file ) 
+    -f | --file )
       shift
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
       ;;
-    # -C | --workdir ) 
+    # -C | --workdir )
     #   shift
     #   WORKDIR=$1
-    #   ;;        
-    --profile ) 
-      shift 
+    #   ;;
+    --profile )
+      shift
       HUB_DEPLOY_PROFILE="$1"
-      ;;     
-    -r | --requirement ) 
-      shift 
+      ;;
+    -r | --requirement )
+      shift
       REQS=$(echo "$REQS $1" | xargs)
       ;;
     -S | --silent )
@@ -83,7 +83,7 @@ while [ "$1" != "" ]; do
     -V | --verbose )
       VERBOSE=true
       ;;
-    -h | --help )        
+    -h | --help )
       HELP=true
       ARGS="--help"
       ;;
@@ -146,8 +146,8 @@ KNOWN_URLS=""
 EXPANDED=""
 expand_hub_files() {
   local f included local_file
-  for f in $@; do 
-    if grep -q "$f" <<< "$EXPANDED"; then 
+  for f in $@; do
+    if grep -q "$f" <<< "$EXPANDED"; then
       continue
     fi
     if test -f "$f"; then
@@ -217,7 +217,7 @@ EOF
   echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
   $HUB_HOME/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
   update_symlink "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
-  echo 
+  echo
   if test "$rv" = "0"; then
     echo "Done!"
   else
@@ -259,7 +259,7 @@ mkdir -p "$WORKDIR/.hub/env"
 
 
 
-# common environment variables that 
+# common environment variables that
 # will be used by exact extensions
 export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG
 if test -z "$REQS"; then
@@ -302,7 +302,7 @@ if test -f "$WORKDIR/.env"; then
   if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$WORKDIR/.env"; then
     MERGE_FILES="-f $(readlink -n "$WORKDIR/.env")"
-  else 
+  else
     MERGE_FILES="-f $WORKDIR/.env"
   fi
 else
