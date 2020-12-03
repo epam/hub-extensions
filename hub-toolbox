@@ -41,6 +41,10 @@ if test -f $docker_config && grep osxkeychain $docker_config >/dev/null; then
     maybe_docker_config="-v $pruned_docker_config:$HOME/.docker/config.json"
 fi
 
+if test -e /var/run/docker.sock; then
+    maybe_docker_socket="-v /var/run/docker.sock:/var/run/docker.sock"
+fi
+
 # direnv hook is strictly for interactive shell
 # ask direnv to set environment explicitly to allow
 #   $ hub toolbox make deploy
@@ -59,6 +63,7 @@ docker run -ti --rm \
     -e 'PS1=\u@\e[92m\h\e[0m \w $ ' \
     -v "$HOME:$HOME" \
     -v "$BASEDIR:$BASEDIR" \
+    $maybe_docker_socket \
     $maybe_docker_config \
     --privileged=true \
     --cap-add=NET_ADMIN \

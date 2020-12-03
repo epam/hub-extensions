@@ -207,7 +207,7 @@ finalize() {
 cat << EOF >> $TEMP2
   # stack definition files
   HUB_FILES="$HUB_FILES"
-  # deploy options can be: $(echo "$profiles" | xargs)
+  # deploy profiles are: $(echo "$profiles" | xargs)
   HUB_DEPLOY_PROFILE="$HUB_DEPLOY_PROFILE"
 EOF
   MERGE_FILES="$MERGE_FILES -f $TEMP2"
