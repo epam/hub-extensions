@@ -103,7 +103,7 @@ if test -n "$cloud"; then
         --profile "$($dotenv get AWS_PROFILE)" && echo "Done"
     ;;
     * )
-      echo "Warning; $cloud provider not yet supported!"
+      echo "Warning: $cloud provider not yet supported!"
     ;;
   esac
 fi
