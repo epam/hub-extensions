@@ -35,10 +35,10 @@ if test -s "$envfile"; then
 fi
 
 docker_config=$HOME/.docker/config.json
-if test -f $docker_config && grep osxkeychain $docker_config >/dev/null; then
-    pruned_docker_config=$(mktemp /tmp/docker.json.XXXXXX)
-    sed -e 's/osxkeychain//g' $docker_config > $pruned_docker_config
-    maybe_docker_config="-v $pruned_docker_config:$HOME/.docker/config.json"
+if test -f $docker_config && grep -E '(osxkeychain|desktop)"' $docker_config >/dev/null; then
+    pruned_docker_config_dir=$(mktemp -d /tmp/docker.XXXXXX)
+    sed -E -e 's/(osxkeychain|desktop)"/"/g' $docker_config > $pruned_docker_config_dir/config.json
+    maybe_docker_config="-v $pruned_docker_config_dir:$HOME/.docker"
 fi
 
 if test -e /var/run/docker.sock; then
