@@ -109,6 +109,7 @@ abspath() {
 WORKDIR=${WORKDIR:-$(pwd)}
 echo -n "* Saving kubeconfig to .hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
 $(dirname $(dirname $0))/env/copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
+chmod go-rw "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
 cat << EOF >> $DOT_ENV
 # Location of sand boxed kubeconfig

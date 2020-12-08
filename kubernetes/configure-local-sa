@@ -89,6 +89,7 @@ cat <<EOF > $SAVETO
 }
 EOF
 
+chmod go-rw $SAVETO
 export KUBECONFIG="$SAVETO"
 echo -n "* Connecting to API server: "
 if kubectl cluster-info > /dev/null; then
