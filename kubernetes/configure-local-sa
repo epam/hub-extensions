@@ -65,7 +65,7 @@ cat <<EOF > $SAVETO
 {
   "apiVersion": "v1",
   "kind": "Config",
-  "preferences": {},  
+  "preferences": {},
   "clusters": [
     {
       "name": "$CLUSTER"
