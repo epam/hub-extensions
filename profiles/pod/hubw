@@ -24,19 +24,21 @@ while (( "$#" )); do
   shift
 done
 
-if test -z "$STATE_FILE"; then
-  STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
-fi
-
 finalize() {
   rv=$?
   echo
   echo "Stand by while gracefully terminating toolbox-$ID"
-  echo  -n "* Downloading hub state to $(basename $STATE_FILE): "
   set +e
-  $kubectl cp --no-preserve=false "toolbox-$ID:$STATE_FILE" "$STATE_FILE" >/dev/null 2>&1;
+  # TODO: $kubectl exec "toolbox-$ID" -- tar cf - STATE_FILEs | tar xf - -C STATE_FILEs
+  # Will be better but harder to implement
+  for f in ${STATE_FILE//,/ }; do
+    if ! echo "$f" | grep -e ':\/\/' >/dev/null 2>&1; then
+      echo -n "* Downloading hub state to $(basename "$f"): "
+      $kubectl cp "toolbox-$ID:$f" "$f" >/dev/null 2>&1;
+      echo "Done"
+    fi
+  done
   set -e
-  echo "Done"
   echo "* Cleaning toolbox-$ID: "
   {
     kubectl delete -f "$1" --wait --timeout=300s >/dev/null
