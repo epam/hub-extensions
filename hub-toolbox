@@ -28,7 +28,7 @@ if  test -z "${AWS_PROFILE}" && \
 fi
 
 envfile=$(mktemp)
-env | grep -E '^(AWS_|GOOGLE_|AZURE_|TF_|TERM=|LANG=|LC_)' >"$envfile"
+env | grep -E '^(AWS_|GOOGLE_|AZURE_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)' >"$envfile"
 envadd=""
 if test -s "$envfile"; then
     envadd="--env-file $envfile"
