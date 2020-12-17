@@ -5,7 +5,7 @@ usage() {
 
 Helper tool that create remote toolbox environment
 
-Usage: 
+Usage:
 $ $(basename "$0") --create-toolbox
 Create remote toolbox on kuberentes cluster
 
@@ -22,11 +22,11 @@ NAMESPACE="automation-tasks"
 while [ "$1" != "" ]; do
     case $1 in
         --namespace )
-          shift 
+          shift
           NAMESPACE=$1
-        ;;    
+        ;;
         --image )
-          shift 
+          shift
           IMAGE=$1
         ;;
         -l | --label )
@@ -41,7 +41,7 @@ while [ "$1" != "" ]; do
           shift
           KUBECONFIG="$1"
           export KUBECONFIG
-        ;;        
+        ;;
         -V | --verbose )
           set -x
         ;;
@@ -99,15 +99,15 @@ spec:
   initContainers:
   - name: init-workdir
     image: $IMAGE
-    command: ["chown", "-R", "$(id -u):$(id -g)", $(pwd)]    
+    command: ["chown", "-R", "$(id -u):$(id -g)", $(pwd)]
     securityContext:
       runAsUser: 0
     volumeMounts:
     - name: work-dir
-      mountPath: $(pwd)     
+      mountPath: $(pwd)
   - name: init-home
     image: $IMAGE
-    command: ["chown", "-R", "$(id -u):$(id -g)", $HOME]    
+    command: ["chown", "-R", "$(id -u):$(id -g)", $HOME]
     securityContext:
       runAsUser: 0
     volumeMounts:
@@ -116,8 +116,8 @@ spec:
   containers:
   - name: toolbox
     image: $IMAGE
-    workingDir: "$(pwd)" 
-    command: ["sleep", "infinity"]    
+    workingDir: "$(pwd)"
+    command: ["sleep", "infinity"]
     env:
     - {name: "USER", value: "$USER"}
     - {name: "UID", value: "$(id -u)"}
@@ -129,7 +129,7 @@ $($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$(
     - name: work-dir
       mountPath: $(pwd)
     - name: home-dir
-      mountPath: $HOME   
+      mountPath: $HOME
   securityContext:
     runAsUser: $(id -u)
     runAsGroup: $(id -g)
@@ -138,5 +138,5 @@ $($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$(
   - name: work-dir
     emptyDir: {}
   - name: home-dir
-    emptyDir: {}   
+    emptyDir: {}
 EOF
