@@ -30,8 +30,6 @@ while [ "$1" != "" ]; do
     shift
 done
 
-echo "Reconciling deployment plan for $HUB_DOMAIN_NAME"
-
 if [[ ! -f .env ]]; then
   echo "* Error: configuration '.env' has not been found"
   exit 1
@@ -40,6 +38,8 @@ dotenv=$(dirname "$0")/env/dotenv
 set +a
 eval "$($dotenv export -f ".env" )"
 set -a
+
+echo "Reconciling deployment plan for $HUB_STACK_NAME"
 echo "* Using domain name: $HUB_DOMAIN_NAME"
 
 if test -z "$HUB_FILES"; then
