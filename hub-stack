@@ -2,7 +2,6 @@
 
 usage() {
   cat << EOF
-
 Usage: hub stack <sub command>
 
 Parameters:
@@ -11,6 +10,8 @@ Parameters:
     elaborate       Reconcile deployment plan for this stack
     ls              List of available stacks
     set             Setting active stack
-
 EOF
 }
+
+usage
+exit 1
