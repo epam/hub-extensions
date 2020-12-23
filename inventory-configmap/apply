@@ -19,7 +19,7 @@ while [ "$1" != "" ]; do
   case "$1" in
     -h | --help )            usage
                              exit 0
-                             ;;                      
+                             ;;
   esac
   shift
 done
@@ -51,22 +51,19 @@ if test -f "$HUB_DOMAIN_NAME"; then
   exit 1
 fi
 
-HUB_STATE_FILE=
-for i in $(echo $HUB_STATE | sed "s/,/ /g"); do
-  if test -f "$i"; then
-    HUB_STATE_FILE=$i
-    break
-  fi
-done
+if test -z "$HUB_ELABORATE"; then
+  echo "Error: cannot find elaborate file: '$HUB_ELABORATE'"
+  exit 2
+fi
 
-if test -z "$HUB_STATE_FILE"; then
+if test -z "$HUB_STATE"; then
   echo "Error: cannot find state file: '$HUB_STATE'"
   exit 2
 fi
 
 ns="kube-system"
 cm="superhub"
-explained=$($HUB explain --json -g $HUB_STATE_FILE | base64 | tr -d \\n)
+explained=$($HUB explain $HUB_ELABORATE $HUB_STATE --json -g | base64 | tr -d \\n)
 
 echo -n "* Saving state in configmap: "
 if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
