@@ -2,7 +2,7 @@
 # shellcheck disable=SC2068,SC2086,SC2155
 
 usage() {
-  echo "Check if kubernetes cluster has been reachable"
+  echo "Check Kubernetes cluster is reachable"
 }
 
 checkCluster() {
@@ -10,7 +10,7 @@ checkCluster() {
   if test -n "$1";then
     KUBECONFIG="$1"
     export KUBECONFIG
-    echo "* Trying kubeconfig: $KUBECONFIG" 
+    echo "* Trying kubeconfig: $KUBECONFIG"
   fi
   KUBECONTEXT="$2"
 
@@ -63,7 +63,7 @@ if test -n "$HUB_KUBECONFIG"; then
   if checkCluster "$HUB_KUBECONFIG" "$HUB_DOMAIN_NAME"; then
     exit 0
   fi
-else 
+else
   echo "* File .env does not provide HUB_KUBECONFIG"
 fi
 
@@ -82,12 +82,12 @@ fi
 
 cat << EOF
 * Trying kubeconfig from state: $STATEFILE
-* Running CLI command: 
+* Running CLI command:
 
   $ hub kubeconfig -k $HUB_STATE -c $HUB_DOMAIN_NAME
 
 EOF
-{ 
+{
   _kubeconfig="$KUBECONFIG"
   _temp=$(mktemp)
   export KUBECONFIG="$_temp"
@@ -124,5 +124,5 @@ if test -d "/var/run/secrets/kubernetes.io/serviceaccount"; then
   fi
 fi
 
-echo "Error: unable to configure kubconfig!"
+echo "Error: unable to configure kubeconfig!"
 exit 1
