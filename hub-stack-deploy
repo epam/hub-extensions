@@ -157,8 +157,8 @@ export HUB_YAML HUB_FILES HUB_STATE_FILE HUB_ELABORATE_FILE
 
 for f in $HUB_FILES; do
   test -f "$f" || continue;
-  BEFORE="$BEFORE $(yq r "$f" -j | jq -r '.extensions.deploy.before? | select(.)[]')"
-  AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.deploy.after? | select(.)[]')"
+  BEFORE="$BEFORE $(yq e '.extensions.deploy.before.[]' $f)"
+  AFTER="$AFTER $(yq e '.extensions.deploy.after.[]' $f)"
 done
 
 for i in $(echo "$BEFORE" | xargs -n1); do

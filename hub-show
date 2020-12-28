@@ -114,7 +114,7 @@ fi
 
 if test ! -z "$RAW_OUTPUT"; then
   if test "$FORMAT" = "yaml"; then
-    echo "$RESP" | yq r - 1>&2
+    echo "$RESP" | yq e - 1>&2 # TODO yaml output
   else
     echo "$RESP" | jq $JQ_ARGS . 1>&2
   fi
@@ -198,7 +198,7 @@ else
 fi
 
 if test "$FORMAT" = "yaml"; then
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) '"$JQ_QUERY" | yq r -
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) '"$JQ_QUERY" | yq e - # TODO yaml output
 else
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)"
 fi

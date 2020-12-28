@@ -122,8 +122,8 @@ fi
 
 for f in $HUB_FILES; do
   test -f $f || continue;
-  BEFORE="$BEFORE $(yq r "$f" -j | jq -r '.extensions.undeploy.before? | select(.)[]')"
-  AFTER="$AFTER $(yq r "$f" -j | jq -r '.extensions.undeploy.after? | select(.)[]')"
+  BEFORE="$BEFORE $(yq e '.extensions.undeploy.before.[]' $f)"
+  AFTER="$AFTER $(yq e '.extensions.undeploy.after.[]' $f)"
 done
 
 for i in $(echo "$BEFORE" | xargs -n1); do

@@ -153,7 +153,7 @@ expand_hub_files() {
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
       $HELP || echo "* File $(basename $f): exist"
-      included=$(yq r "$f" -j | jq -r '.extensions.include|select(.)[]')
+      included=$(yq e '.extensions.include.[]' "$f")
       if test -n "$included"; then
         expand_hub_files $included
       fi
@@ -265,7 +265,7 @@ export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG
 if test -z "$REQS"; then
   for f in $HUB_FILES; do
     test -f $f || continue;
-    REQS="$REQS $(yq r "$f" -j | jq -r '.extensions.configure? | select(.)[]')"
+    REQS="$REQS $(yq e '.extensions.configure.[]' $f)"
   done
   REQS=$(echo "$REQS" | xargs -n1)
 fi
@@ -281,7 +281,7 @@ if test -z "$HUB_DEPLOY_PROFILE"; then
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
     for f in $HUB_FILES; do
       test -f $f || continue;
-      r=$(yq r hub.yaml -j | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
+      r=$(yq e . hub.yaml -j | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
       if test "$r" = "kubernetes"; then
         HUB_DEPLOY_PROFILE="pod"
         break

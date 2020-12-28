@@ -27,9 +27,15 @@ CLI flags and arguments are not parsed by Hub CLI - they are passed as is to the
 
 Not all extensions supports all Hub CLI global flags, like `--debug`, `trace`, or `--force`. It's recommended to still parse those flags and ignore if not implemented.
 
-### hub pull
+### Requirements
 
-For `pull` extension you need Node.js and NPM installed.
+Hub CLI Extensions require [AWS CLI], [kubectl], [eksctl], [jq], [yq v4]. Optionally install [Node.js] and NPM for `hub pull` extension.
 
 
 [Hub CLI]: https://github.com/agilestacks/hub
+[AWS CLI]: https://aws.amazon.com/cli/
+[kubectl]: https://kubernetes.io/docs/reference/kubectl/overview/
+[eksctl]: https://eksctl.io
+[jq]: https://stedolan.github.io/jq/
+[yq v4]: https://github.com/mikefarah/yq
+[Node.js]: https://nodejs.org

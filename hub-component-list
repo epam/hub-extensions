@@ -20,7 +20,7 @@ EOF
 
 stack_dir() {
     local name=$1
-    echo $(yq r hub.yaml -j | jq -r '.components[]  | select(.name=="'${name}'") | .source.dir ')
+    echo $(yq e hub.yaml -j | jq -r '.components[]  | select(.name=="'${name}'") | .source.dir')
 }
 
 while [ "$1" != "" ]; do
