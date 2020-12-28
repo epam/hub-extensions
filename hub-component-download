@@ -6,11 +6,11 @@ usage() {
 Helper tool that dowloads components specified in hub.yaml
 Use flags "-A" or "-C" to download all components or subset of them
 
-Usage: 
-$ $(basename "$0") -A -F 
+Usage:
+$ $(basename "$0") -A -F
 To download all components and overwrite if they already exist
 
-$ $(basename "$0") -F -C minio,tiller 
+$ $(basename "$0") -F -C minio,tiller
 To download specified componenets and overwrite if they already exist
 
 
@@ -115,7 +115,7 @@ while [ "$1" != "" ]; do
                         HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
                         ;;
     -A | --all)         COMPONENTS=
-                        ;; 
+                        ;;
     --override)         CHECK=false
                         ;;
     -c | --component )  shift

@@ -19,17 +19,17 @@ CACHE_FILE=${CACHE_FILE:-$(dirname "$0")/.history}
 history="$(dirname "$0")/dotenv -f $CACHE_FILE"
 while [ "$1" != "" ]; do
   case $1 in
-    --defaults ) 
+    --defaults )
       INTERACTIVE=false
-      ;;  
-    --output ) 
-      shift         
+      ;;
+    --output )
+      shift
       DOT_ENV="$1"
-      ;;   
-    -f | --file ) 
+      ;;
+    -f | --file )
       shift
       HUB_FILES="$(echo "$HUB_FILES $1" | xargs)"
-      ;;                
+      ;;
     -h | --help )
       usage
       exit
@@ -38,7 +38,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test $VERBOSE = "true"; then 
+if test $VERBOSE = "true"; then
   set -x
 fi
 
@@ -79,7 +79,7 @@ getByEnvVar() {
   if test -z "$result"; then
     # default value
     echo "$3"
-  fi 
+  fi
 }
 
 getParamNameByEnvVar() {
@@ -122,14 +122,14 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     VAL_empty=""
     if test "$EMPTY" = "allow"; then
       HASHTAGS="hubstate default empty"
-    else 
+    else
       HASHTAGS="hubstate history default random"
     fi
     for t in $HASHTAGS; do
       val=$(eval echo "\$VAL_$t")
       if test -n "$val" || test "$t" = "empty"; then
         hashtag="$t"
-        break; 
+        break;
       fi
     done
 
@@ -145,7 +145,7 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     else
       VALUE="$val"
     fi
-  else    
+  else
     echo "* Parameter $PARAM: already configured"
   fi
   echo "$ENV=\"$VALUE\"" >> $DOT_ENV

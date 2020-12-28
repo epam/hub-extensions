@@ -19,7 +19,7 @@ while [ "$1" != "" ]; do
                         ;;
     --aws-profile )     shift
                         AWS_PROFILE="$1"
-                        ;;              
+                        ;;
     -h | --help )       usage
                         exit
                         ;;
@@ -27,7 +27,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test "$VERBOSE" = "true"; then 
+if test "$VERBOSE" = "true"; then
   set -x
 fi
 

@@ -5,7 +5,7 @@ usage() {
 
 Show status of components in stack
 
-Usage: 
+Usage:
 $ $(basename "$0")
 Display list of components
 
@@ -56,9 +56,9 @@ get_component_rev() {
 is_installed() {
     local path=$(stack_dir $1)
     test -d "${path}"
-    if [[ ${?} == "0" ]]; then 
+    if [[ ${?} == "0" ]]; then
         echo "true"
-    else 
+    else
         echo "false"
     fi
 }
@@ -66,7 +66,7 @@ is_installed() {
 
 results+="NAME INSTALLED|"
 for comp in $(get_component_rev)
-do 
+do
     results+="${comp} $(is_installed ${comp})|"
 done
 
