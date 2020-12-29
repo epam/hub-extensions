@@ -21,6 +21,9 @@ if ! which aws >/dev/null 2>&1 ||
     exit 1
 fi
 
-if test "$(jq -V)" != "jq-1.6"; then
+if test "$(jq -V)" \< "jq-1.6"; then
     echo ${color_start}'We recommend to update JQ to v1.6 or up - https://stedolan.github.io/jq/'${color_end}
+fi
+if test "$(yq -V)" \< "yq version 4.2.0"; then
+    echo ${color_start}'We recommend to update YQ to v4.2.0 or up - https://github.com/mikefarah/yq'${color_end}
 fi
