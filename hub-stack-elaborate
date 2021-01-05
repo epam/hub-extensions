@@ -3,11 +3,11 @@
 usage() {
 cat << EOF
 
-Runs reconciliation for all parameters of this stack components
-and this stack prerequisites
+Assemble hub.yaml.elaborate stack deployment manifest from hub.yaml,
+params.yaml-s, and hub-components.yaml-s
 
 Usage:
-$ hub stack deploy
+$ hub stack elaborate
 
 Parameters:
     -V  --verbose          Verbose outputs for debug purpose
