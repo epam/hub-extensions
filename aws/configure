@@ -40,11 +40,11 @@ while [ "$1" != "" ]; do
     --aws-profile )     shift
                         AWS_PROFILE="$1"
                         ;;
-    --domain-name ) 
+    --domain-name )
       shift
       HUB_DOMAIN_NAME="$1"
       ;;
-    --bubbles-secret-key ) 
+    --bubbles-secret-key )
       shift
       HUB_DOMAIN_SECRET="$1"
       ;;
@@ -191,9 +191,9 @@ elif test "$DNS_MANAGER" = "user"; then
       cat << EOF
 
 Error!
-Route 53 hosted zone $HUB_DOMAIN_NAME has not been found. 
+Route 53 hosted zone $HUB_DOMAIN_NAME has not been found.
 
-You can resolve this error by logging in https://console.aws.amazon.com/route53/ 
+You can resolve this error by logging in https://console.aws.amazon.com/route53/
 and create a hosted zone "$HUB_DOMAIN_NAME."
 
 Then run again:
