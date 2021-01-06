@@ -139,6 +139,9 @@ echo "* Using hub elaborate:"
 # shellcheck disable=SC2001
 for i in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
   echo "  - $i"
+  if ! grep :// <<<$i >/dev/null; then
+    HUB_ELABORATE_FILE=$i
+  fi
 done
 
 if test -z "$HUB_CLOUD_PROVIDER"; then
@@ -149,11 +152,11 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
 fi
 
 # shellcheck disable=SC2086
-if $FULL_STACK || test ! -f "$HUB_ELABORATE_FILE"; then
+if $FULL_STACK || test -n $"$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
   "$(dirname "$0")/hub-stack-elaborate"
 fi
 
-export HUB_YAML HUB_FILES HUB_STATE_FILE HUB_ELABORATE_FILE
+export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 
 for f in $HUB_FILES; do
   test -f "$f" || continue;
