@@ -185,9 +185,9 @@ elif test "$DNS_MANAGER" = "user"; then
   PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
   echo -n "* Checking presence of parent hosted zone $PARENT_DOMAIN: "
   PARENT_ZONE_ID="$($(dirname "$0")/route53/zone-id --domain-name "$PARENT_DOMAIN")"
+  echo "${PARENT_ZONE_ID:-not found}"
   if test -z "$ZONE_ID"; then
     if test -z "$PARENT_ZONE_ID"; then
-      echo "not found"
       cat << EOF
 
 Error!
@@ -204,12 +204,11 @@ Abort!
 EOF
       exit 5
     fi
-    echo "$PARENT_ZONE_ID"
     echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
     $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
     echo "Done"
   fi
-  echo -n "* Updating $HUB_DOMAIN_NAME NS record to zone $PARENT_ZONE_ID (takes a minute)... "
+  echo -n "* Updating $HUB_DOMAIN_NAME NS records in zone $PARENT_ZONE_ID (takes a minute)... "
   $(dirname "$0")/route53/upsert-ns \
     --dest-zone-id "$PARENT_ZONE_ID" \
     --ns-record-name "$HUB_DOMAIN_NAME"  \
