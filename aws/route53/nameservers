@@ -1,6 +1,5 @@
 #!/bin/bash -e
 # shellcheck disable=SC2086
-# Creates a hosted zone by domain name and returns delegation set NS records
 
 NS_OUTPUT=text
 while [ "$1" != "" ]; do
@@ -30,7 +29,7 @@ hosted_zone_ns() {
     --query 'DelegationSet.NameServers'
 }
 
-ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME") 
+ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME")
 if test -n "$ZONE_ID"; then
   hosted_zone_ns "$ZONE_ID"
 elif test -z "$ZONE_ID" && test $NS_OUTPUT = "json"; then

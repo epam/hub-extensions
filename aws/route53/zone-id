@@ -1,6 +1,5 @@
 #!/bin/bash -e
 # shellcheck disable=SC2086
-# Creates a hosted zone by domain name and returns delegation set NS records
 
 while [ "$1" != "" ]; do
     case $1 in
