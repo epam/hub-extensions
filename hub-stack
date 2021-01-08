@@ -8,6 +8,7 @@ Parameters:
     deploy          Deploy current stack
     undeploy        Undeploy current stack
     elaborate       Reconcile deployment plan for this stack
+    explain         Display stack outputs, component's parameters, outputs, and capabilities
     ls              List of available stacks
     set             Setting active stack
 EOF

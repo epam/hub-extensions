@@ -1,0 +1,40 @@
+#!/bin/bash -e
+
+usage() {
+cat << EOF
+
+Display stack outputs, component's parameters, outputs, and capabilities.
+Parameters and outputs are read from state file.
+
+Usage:
+$ hub stack explain
+
+Parameters:
+    -l --op-log            Display operations log (only)
+    -V  --verbose          Verbose outputs for debug purpose
+    -h --help              Show this message
+
+EOF
+}
+
+HUB_OPTS=
+while [ "$1" != "" ]; do
+    case $1 in
+    -V | --verbose )    set -x
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 HUB_OPTS="$HUB_OPTS $1"
+    esac
+    shift
+done
+
+if test ! -f .env; then
+  echo "* Error: configuration '.env' not found"
+  exit 1
+fi
+dotenv=$(dirname "$0")/env/dotenv
+eval "$($dotenv export -f ".env" )"
+
+hub explain "$HUB_ELABORATE" "$HUB_STATE" $HUB_OPTS | less -R
