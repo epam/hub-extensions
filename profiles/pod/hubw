@@ -110,5 +110,14 @@ if test -n "$cloud"; then
   esac
 fi
 
+hub=hub
+if test -n "$TOOLBOX_HUB_CLI_REPLACEMENT" -a -f "$TOOLBOX_HUB_CLI_REPLACEMENT"; then
+  echo -n "* Replacing Hub CLI binary: "
+  gzip -c "$TOOLBOX_HUB_CLI_REPLACEMENT" \
+    | $kubectl exec -i "toolbox-$ID" -- sh -c "gzip -dc >hub; chmod +x hub"
+  echo "Done"
+  hub=./hub
+fi
+
 # shellcheck disable=SC2086
 $kubectl exec -ti "toolbox-$ID" -- gosu "$USER" tini -s -- $hub $HUB_ARGS
