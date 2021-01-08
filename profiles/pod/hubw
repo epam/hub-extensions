@@ -77,6 +77,11 @@ $kubectl wait "pod/toolbox-$ID" \
   --for=condition=Ready \
   --timeout=1200s
 
+if test -n "$TOOLBOX_APK_ADD"; then
+  echo "* Adding APK $TOOLBOX_APK_ADD:"
+  $kubectl exec -i "toolbox-$ID" -- sh -c "apk update && apk add --no-cache $TOOLBOX_APK_ADD"
+fi
+
 # this do not archive directories thus no directory permissions are restored
 echo -n "* Synchronizing working directory (may take few minutes): "
 find -L "." \
