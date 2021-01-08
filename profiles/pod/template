@@ -96,33 +96,17 @@ metadata:
     exec-id: "$ID"
 spec:
   serviceAccountName: toolbox-$ID
-  initContainers:
-  - name: init-workdir
-    image: $IMAGE
-    command: ["chown", "-R", "$(id -u):$(id -g)", $(pwd)]
-    securityContext:
-      runAsUser: 0
-    volumeMounts:
-    - name: work-dir
-      mountPath: $(pwd)
-  - name: init-home
-    image: $IMAGE
-    command: ["chown", "-R", "$(id -u):$(id -g)", $HOME]
-    securityContext:
-      runAsUser: 0
-    volumeMounts:
-    - name: home-dir
-      mountPath: $HOME
   containers:
   - name: toolbox
     image: $IMAGE
     workingDir: "$(pwd)"
-    command: ["sleep", "infinity"]
+    args: ["sleep", "infinity"]
     env:
     - {name: "USER", value: "$USER"}
     - {name: "UID", value: "$(id -u)"}
     - {name: "GID", value: "$(id -g)"}
     - {name: "HOME", value: "$HOME"}
+    - {name: "TF_PLUGIN_CACHE_DIR", value: "$HOME/.terraform.d/plugin-cache"}
 $(env | grep -E '^(KUBECONFIG=|GOOGLE_|AZURE_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)' | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
 $($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
     volumeMounts:
@@ -131,9 +115,7 @@ $($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$(
     - name: home-dir
       mountPath: $HOME
   securityContext:
-    runAsUser: $(id -u)
-    runAsGroup: $(id -g)
-    fsGroup: $(id -g)
+    runAsUser: 0
   volumes:
   - name: work-dir
     emptyDir: {}

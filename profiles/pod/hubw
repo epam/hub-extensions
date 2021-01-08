@@ -77,18 +77,20 @@ $kubectl wait "pod/toolbox-$ID" \
   --for=condition=Ready \
   --timeout=1200s
 
+# this do not archive directories thus no directory permissions are restored
 echo -n "* Synchronizing working directory (may take few minutes): "
 find -L "." \
   -type f \
-  ! -path '*/.git/*'  \
-  ! -path '*/.helm/*'  \
-  ! -path '*/.terraform/*'  \
-  ! -path '*/.cache/*'  \
+  ! -path '*/.git/*' \
+  ! -path '*/.helm/*' \
+  ! -path '*/.terraform/*' \
+  ! -path '*/.cache/*' \
   ! -path './.envrc' \
   ! -path './.env' \
-  ! -path './.kubeconfig'  \
-  | tar -chz -T - \
-  | $kubectl exec -i "toolbox-$ID" -- tar xfz -
+  ! -path './.kubeconfig' \
+  -print0 \
+  | tar cz --null -T - \
+  | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar xz
 echo "Done"
 
 cloud=$($dotenv get HUB_CLOUD_PROVIDER)
@@ -109,4 +111,4 @@ if test -n "$cloud"; then
 fi
 
 # shellcheck disable=SC2086
-$kubectl exec -ti "toolbox-$ID" -- hub $HUB_ARGS
+$kubectl exec -ti "toolbox-$ID" -- gosu "$USER" tini -s -- $hub $HUB_ARGS
