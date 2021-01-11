@@ -1,0 +1,12 @@
+#!/bin/sh -e
+profile="$1"
+verb="$2"
+shift
+test -n "$profile" -a -n "$verb"
+dir=$(dirname "$0")/profiles/$profile
+impl=$dir/impl
+if test -x "$dir/$verb"; then
+    shift
+    impl=$dir/$verb
+fi
+exec "$impl" "$@"

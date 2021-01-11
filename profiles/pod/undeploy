@@ -1,3 +1,3 @@
 #!/bin/bash -e
 # shellcheck disable=SC2046,SC2068
-$(dirname "$0")/hubw undeploy $@
+$(dirname "$0")/impl undeploy $@

@@ -3,11 +3,7 @@
 usage() {
     cat << EOF
 
-Helper tool that create remote toolbox environment
-
-Usage:
-$ $(basename "$0") --create-toolbox
-Create remote toolbox on kuberentes cluster
+Emit toolbox pod template
 
 Parameters:
     --label               Use these labels for toolbox pod (can repeat multiple)
@@ -19,6 +15,7 @@ EOF
 
 IMAGE=${IMAGE:-agilestacks/toolbox}
 NAMESPACE="automation-tasks"
+PASS_ENV=
 while [ "$1" != "" ]; do
     case $1 in
         --namespace )
@@ -41,6 +38,10 @@ while [ "$1" != "" ]; do
           shift
           KUBECONFIG="$1"
           export KUBECONFIG
+        ;;
+        -e | --pass-env )
+          shift
+          PASS_ENV=$1
         ;;
         -V | --verbose )
           set -x
@@ -106,8 +107,9 @@ spec:
     - {name: "UID", value: "$(id -u)"}
     - {name: "GID", value: "$(id -g)"}
     - {name: "HOME", value: "$HOME"}
+    - {name: "HUB_DEPLOY_PROFILE", value: "pod"}
     - {name: "TF_PLUGIN_CACHE_DIR", value: "$HOME/.terraform.d/plugin-cache"}
-$(env | grep -E '^(KUBECONFIG=|GOOGLE_|AZURE_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)' | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
+$(env | grep -E "^(KUBECONFIG=|GOOGLE_|AZURE_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)|^(${PASS_ENV//,/|})=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
 $($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
     volumeMounts:
     - name: work-dir
