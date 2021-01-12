@@ -134,7 +134,6 @@ if test -n "$cloud"; then
   echo -n "* Mounting $cloud credentials: "
   case "$cloud" in
     "aws" )
-      shift
       "$(dirname "$0")/aws" \
         --namespace "$TOOLBOX_NAMESPACE" \
         --pod "toolbox-$ID" \
