@@ -32,9 +32,7 @@ EOF
 
 FULL_STACK=true
 dotenv="$(dirname "$0")/env/dotenv -f .env"
-set +a
 eval "$($dotenv "export")"
-set -a
 
 HUB_OPTS=
 while test "$1" != ""; do
@@ -56,7 +54,7 @@ while test "$1" != ""; do
         --no-tty )          HUB_OPTS="$HUB_OPTS --tty false"
                             ;;
         --profile )         shift
-                            HUB_DEPLOY_PROFILE="$1"
+                            export HUB_DEPLOY_PROFILE="$1"
                             ;;
         -V | --verbose )    set -x
                             ;;

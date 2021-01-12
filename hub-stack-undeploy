@@ -31,14 +31,12 @@ EOF
 HUB_OPTS=""
 
 dotenv=$(dirname "$0")/env/dotenv
-set +a
 eval "$($dotenv export -f ".env" )"
-set -a
 
 while [ "$1" != "" ]; do
     case $1 in
         --profile )         shift
-                            HUB_DEPLOY_PROFILE="$1"
+                            export HUB_DEPLOY_PROFILE="$1"
                             ;;
         -c | --component )  shift
                             HUB_OPTS="$HUB_OPTS -c $1"

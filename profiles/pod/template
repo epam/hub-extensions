@@ -107,10 +107,10 @@ spec:
     - {name: "UID", value: "$(id -u)"}
     - {name: "GID", value: "$(id -g)"}
     - {name: "HOME", value: "$HOME"}
-    - {name: "HUB_DEPLOY_PROFILE", value: "pod"}
     - {name: "TF_PLUGIN_CACHE_DIR", value: "$HOME/.terraform.d/plugin-cache"}
 $(env | grep -E "^(KUBECONFIG=|GOOGLE_|AZURE_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)|^(${PASS_ENV//,/|})=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
-$($dotenv keys | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
+$($dotenv keys | grep -v ^HUB_DEPLOY_PROFILE | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
+    - {name: "HUB_DEPLOY_PROFILE", value: "pod"}
     volumeMounts:
     - name: work-dir
       mountPath: $(pwd)
