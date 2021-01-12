@@ -4,13 +4,13 @@ kubectl="$(which kubectl)"
 while (( "$#" )); do
   case $1 in
     --namespace )
-      shift 
+      shift
       kubectl="$kubectl -n $1"
     ;;
     --pod )
       shift
       POD="$1"
-    ;;    
+    ;;
   esac
   shift
 done
