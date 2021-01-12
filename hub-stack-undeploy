@@ -52,8 +52,6 @@ while [ "$1" != "" ]; do
         --no-tty )          HUB_OPTS="$HUB_OPTS --tty false"
                             ;;
         -V | --verbose )    set -x
-                            export HUB_TRACE=1
-                            export HUB_DEBUG=1
                             ;;
         -h | --help )       usage
                             exit
