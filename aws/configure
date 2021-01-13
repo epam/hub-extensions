@@ -40,17 +40,14 @@ while [ "$1" != "" ]; do
     --aws-profile )     shift
                         AWS_PROFILE="$1"
                         ;;
-    --domain-name )
-      shift
-      HUB_DOMAIN_NAME="$1"
-      ;;
-    --bubbles-secret-key )
-      shift
-      HUB_DOMAIN_SECRET="$1"
-      ;;
-    --prefer-local )
-      PREFER_LOCAL_STATE=true
-    ;;
+    --domain-name )     shift
+                        HUB_DOMAIN_NAME="$1"
+                        ;;
+    --bubbles-secret-key ) shift
+                        HUB_DOMAIN_SECRET="$1"
+                        ;;
+    --prefer-local )    PREFER_LOCAL_STATE=true
+                        ;;
     --dns-update )      DNS_ACTION="update"
                         ;;
     --dry-run )         DRY_RUN=true
@@ -168,14 +165,10 @@ fi
 echo "Configuring AWS Route53"
 echo -n "* Checking presence of hosted zone $HUB_DOMAIN_NAME: "
 ZONE_ID=$($(dirname $0)/route53/zone-id --domain-name $HUB_DOMAIN_NAME)
-if test -z "$ZONE_ID"; then
-  echo "not found"
-else
-  echo "$ZONE_ID"
-fi
+echo "${ZONE_ID:-not found}"
 
 if $DRY_RUN; then
-  echo "* Dry run mode detected: skipping route53 modification"
+  echo "* Dry run mode detected: skipping Route53 modification"
 elif test "$DNS_MANAGER" = "bubbles"; then
   if test -z "$ZONE_ID"; then
     echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
