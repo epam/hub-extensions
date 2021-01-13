@@ -87,7 +87,7 @@ hub_kubeconfig=$($dotenv get HUB_KUBECONFIG --default "$KUBECONFIG")
   $PASS_ENV \
   --exec-id "$ID" \
   --kubeconfig "$hub_kubeconfig" \
-  --namespace="$TOOLBOX_NAMESPACE" > "$temp"
+  --namespace "$TOOLBOX_NAMESPACE" > "$temp"
 
 kubectl="kubectl -n $TOOLBOX_NAMESPACE"
 echo -n "* Checking presence of $TOOLBOX_NAMESPACE: "
