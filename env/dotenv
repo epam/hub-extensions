@@ -106,7 +106,7 @@ __merge() {
     fi
     if [[ "$line" =~ ^(export[ ]+)?(.*)=(.*)$ ]]; then
       key="${BASH_REMATCH[2]}"
-      curr_line=$(cat $1 | grep --color=never -e "$key=" || echo "")
+      curr_line=$(grep --color=never -e "^$key=" "$1" || true)
       if test -z "$curr_line"; then
         echo $line >> $1
       elif test "$curr_line" != "$line"; then
