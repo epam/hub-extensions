@@ -99,6 +99,7 @@ fi
 
 echo -n "* Scheduling a pod toolbox-$ID: "
 if $kubectl -f "$temp" apply >/dev/null; then
+  rm -f "$temp"
   echo "Done"
 else
   exit $?
