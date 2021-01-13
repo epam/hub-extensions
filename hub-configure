@@ -206,7 +206,7 @@ finalize() {
   TEMP2=$(temp_file)
 cat << EOF >> $TEMP2
   # stack definition files
-  HUB_FILES="$HUB_FILES"
+  HUB_FILES="$NEW_HUB_FILES"
   # deploy profiles are: $(echo "$profiles" | xargs)
   HUB_DEPLOY_PROFILE="$HUB_DEPLOY_PROFILE"
 EOF
@@ -290,14 +290,13 @@ if test -z "$HUB_DEPLOY_PROFILE"; then
   fi
 fi
 
+NEW_HUB_FILES="$HUB_FILES"
 trap 'finalize $?' EXIT
 
 MERGE_FILES=""
 if test -f "$WORKDIR/.env"; then
   echo "Configuration .env file: exist"
-  set +a
   eval $($dotenv export -f "$WORKDIR/.env" )
-  set -a
   if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
   if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$WORKDIR/.env"; then
@@ -336,9 +335,7 @@ EOF
     exit 4
   fi
   if test -s "$TEMP"; then
-    set +a
     eval $($dotenv export -f "$TEMP")
-    set -a
     MERGE_FILES="$MERGE_FILES -f $TEMP"
   fi
 done
