@@ -80,13 +80,16 @@ temp=$(mktemp)
 # shellcheck disable=SC2064
 trap "finalize $temp" EXIT
 
-echo "* Using kubeconfig: $hub_kubeconfig"
-hub_kubeconfig=$($dotenv get HUB_KUBECONFIG --default "$KUBECONFIG")
+hub_kubeconfig=${HUB_KUBECONFIG:-$KUBECONFIG}
+if test -n "$hub_kubeconfig"; then
+  echo "* Using kubeconfig: $hub_kubeconfig"
+  hub_kubeconfig_flag="--kubeconfig $hub_kubeconfig"
+fi
 # shellcheck disable=SC2086
 "$(dirname "$0")/template" \
   $PASS_ENV \
   --exec-id "$ID" \
-  --kubeconfig "$hub_kubeconfig" \
+  $hub_kubeconfig_flag \
   --namespace "$TOOLBOX_NAMESPACE" > "$temp"
 
 kubectl="kubectl -n $TOOLBOX_NAMESPACE"
@@ -130,10 +133,9 @@ find -L "." \
   | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar xz
 echo "Done"
 
-cloud=$($dotenv get HUB_CLOUD_PROVIDER)
-if test -n "$cloud"; then
-  echo -n "* Mounting $cloud credentials: "
-  case "$cloud" in
+if test -n "$HUB_CLOUD_PROVIDER"; then
+  echo -n "* Mounting $HUB_CLOUD_PROVIDER credentials: "
+  case "$HUB_CLOUD_PROVIDER" in
     "aws" )
       "$(dirname "$0")/aws" \
         --namespace "$TOOLBOX_NAMESPACE" \
@@ -141,7 +143,7 @@ if test -n "$cloud"; then
         --profile "$($dotenv get AWS_PROFILE)" && echo "Done"
     ;;
     * )
-      echo "Warning: $cloud provider not yet supported!"
+      echo "Warning: $HUB_CLOUD_PROVIDER provider not yet supported!"
     ;;
   esac
 fi
