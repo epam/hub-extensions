@@ -1,27 +1,2 @@
 #!/bin/sh -e
-
-DOMAIN_NAME=${DOMAIN_NAME:?"DOMAIN_NAME has not been defined"}
-NAMESPACE=${NAMESPACE:?"DOMAIN_NAME has not been defined"}
-
-kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
-
-if test -x pre-deploy; then
-  echo "Running pre-deploy hook..."
-  ./pre-deploy
-fi
-
-if which kustomize > /dev/null; then
-  set -x
-  kustomize build "." | $kubectl apply -f -
-  set +x
-else
-  echo "'kustomze'   binary not found. falling back to 'kubectl -k'"
-  set -x
-  $kubectl apply -k "."
-  set +x
-fi
-
-if test -x post-deploy; then
-  echo "Running post-deploy hook..."
-  ./post-deploy
-fi
+$(dirname "$0")/hub-component-kustomize "deploy"

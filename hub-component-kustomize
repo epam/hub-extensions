@@ -1,0 +1,49 @@
+#!/bin/sh -e
+
+if test -z "$1"; then 
+  cat << EOF
+Error: verb has not been specidfied: $(basename "$0") VERB
+
+Currently supported verbs: deploy, undeploy
+EOF
+  exit 1;
+fi
+
+VERB="$1"
+kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
+case "$VERB" in
+  "deploy" )
+    kubectl="$kubectl apply"
+  ;;
+  "undeploy" )
+    kubectl="$kubectl delete"
+  ;;
+  * )
+    echo "Error: unsupported verb: $VERB"
+    exit 1
+  ;;
+esac
+
+DOMAIN_NAME=${DOMAIN_NAME:?"DOMAIN_NAME has not been defined"}
+NAMESPACE=${NAMESPACE:?"DOMAIN_NAME has not been defined"}
+
+if test -x pre-$VERB; then
+  echo "Running pre-$VERB hook..."
+  ./pre-$VERB
+fi
+
+if which kustomize > /dev/null; then
+  set -x
+  kustomize build "." | $kubectl -f -
+  set +x
+else
+  echo "Warning: 'kustomze' binary not found. Falling back to 'kubectl -k ...'"
+  set -x
+  $kubectl -k "."
+  set +x
+fi
+
+if test -x post-$VERB; then
+  echo "Running post-$VERB hook..."
+  ./post-$VERB
+fi
