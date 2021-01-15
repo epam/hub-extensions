@@ -1,0 +1,27 @@
+#!/bin/sh -e
+
+DOMAIN_NAME=${DOMAIN_NAME:?"DOMAIN_NAME has not been defined"}
+NAMESPACE=${NAMESPACE:?"DOMAIN_NAME has not been defined"}
+
+kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
+
+if test -x pre-undeploy; then
+  echo "Running pre-undeploy hook..."
+  ./pre-undeploy
+fi
+
+if which kustomize > /dev/null; then
+  set -x
+  kustomize build "." | $kubectl delete -f -
+  set +x
+else
+  echo "'kustomze'   binary not found. falling back to 'kubectl -k'"
+  set -x
+  $kubectl delete -k "."
+  set +x
+fi
+
+if test -x post-undeploy; then
+  echo "Running post-undeploy hook..."
+  ./post-undeploy
+fi
