@@ -189,7 +189,7 @@ update_symlink() {
   if test -L "$2" && test $(readlink -n "$2") != "$1"; then
     unlink "$2"
   fi
-  if test ! -f ".env"; then
+  if test ! -f "$2"; then
     ln -sf "$1" "$2"
     echo "* Updated .env link to $(basename $1)"
   fi
@@ -216,7 +216,7 @@ EOF
   HUB_DOMAIN_NAME=$($dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
   echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
   $HUB_HOME/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
-  update_symlink "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
+  update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
   echo
   if test "$rv" = "0"; then
     echo "Done!"
