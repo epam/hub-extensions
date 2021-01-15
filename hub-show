@@ -71,10 +71,8 @@ while [ "$1" != "" ]; do
 done
 
 if test -z "$HUB_TOKEN"; then
-  STATEFILE=".hub/$HUB_DOMAIN_NAME.state";
-  if test -f "$STATEFILE"; then
-    RESP=$(hub explain "$STATEFILE" --json)
-  else
+  RESP=$(hub explain "${HUB_STATE:-.hub/$HUB_DOMAIN_NAME.state}" --json || true) # this will spill into stderr on error
+  if test -z "$RESP"; then
     if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -e "$HUB_KUBECONFIG"; then
       export KUBECONFIG=$HUB_KUBECONFIG
     fi
