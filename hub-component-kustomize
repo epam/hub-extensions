@@ -40,7 +40,6 @@ else
   echo "Warning: 'kustomze' binary not found. Falling back to 'kubectl -k ...'"
   set -x
   $kubectl -k "."
-  set +x
 fi
 
 if test -x post-$VERB; then

@@ -1,2 +1,0 @@
-#!/bin/sh -e
-$(dirname "$0")/hub-component-kustomize "deploy"
