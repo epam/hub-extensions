@@ -56,16 +56,17 @@ set -xe
 
 mkdir -p $TF_DATA_DIR
 
-# TODO fail on hooks error
 if test -x pre-init; then
-    tfvars=$(./pre-init | grep -E '^export ' || exit 0)
+    pre_init=$(./pre-init)
+    tfvars=$(grep -E '^export ' <<<"$pre_init" || exit 0)
     if test -n "$tfvars"; then eval "$tfvars"; fi
 fi
 
 $terraform init -get=true $TF_CLI_ARGS -reconfigure -force-copy $STATE_BACKEND_CONFIG
 
 if test -x pre-$verb; then
-    tfvars=$(./pre-$verb | grep -E '^export ' || exit 0)
+    pre_verb=$(./pre-$verb)
+    tfvars=$(grep -E '^export ' <<<"$pre_verb" || exit 0)
     if test -n "$tfvars"; then eval "$tfvars"; fi
 fi
 
