@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 verb=${1:-deploy}
 

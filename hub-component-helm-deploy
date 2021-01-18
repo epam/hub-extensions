@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if test -z "$COMPONENT_NAME" -o -z "$DOMAIN_NAME" -o -z "$NAMESPACE" -o -z "$HELM_REPO" -o -z "$HELM_CHART"; then
     echo "COMPONENT_NAME, DOMAIN_NAME, NAMESPACE, HELM_REPO, HELM_CHART must be set"
@@ -39,9 +39,9 @@ $helm repo add $COMPONENT_NAME $HELM_REPO
 $helm repo update
 $helm fetch $COMPONENT_NAME/$HELM_CHART --destination $charts --untar $chart_version
 
-# TODO fail on hook error
 if test -x pre-deploy; then
-    helmvars=$(./pre-deploy | grep -E '^export ' || exit 0)
+    pre_deploy=$(./pre-deploy)
+    helmvars=$(grep -E '^export ' <<<"$pre_deploy" || exit 0)
     if test -n "$helmvars"; then eval "$helmvars"; fi
 fi
 
