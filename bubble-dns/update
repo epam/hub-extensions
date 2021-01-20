@@ -17,7 +17,7 @@ while [ "$1" != "" ]; do
 done
 
 VERBOSE=${VERBOSE:-"false"}
-if test $VERBOSE = "true"; then 
+if test $VERBOSE = "true"; then
   set -x
 fi
 

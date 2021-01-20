@@ -17,7 +17,7 @@ Common parameters:
   -V  --verbose           Verbose outputs for debug purposeEOF
   -h  --help              Print this message
 
-Use: hub configure -r aws -r kubernetes   # to configure just one requirement
+Use: hub configure -r aws -r kubernetes   # configure specified requirements only
 
 Usage for stack requirements: [$(echo "$1" | xargs)]
 
@@ -54,9 +54,7 @@ HUB_FILES=""
 dotenv=$HUB_HOME/env/dotenv
 
 if test -f ".env"; then
-  set +a
   eval $($dotenv export -f ".env" )
-  set -a
 fi
 
 while [ "$1" != "" ]; do

@@ -9,12 +9,12 @@ while [ "$1" != "" ]; do
                         ;;
     --output )          shift
                         DOT_ENV="$1"
-                        ;;  
+                        ;;
   esac
   shift
 done
 
-if test $VERBOSE = "true"; then 
+if test $VERBOSE = "true"; then
   set -x
 fi
 
@@ -33,7 +33,7 @@ HTTP_CODE=$( \
       -d "{\"baseDomain\": \"$HUB_PARENT_DOMAIN\"}" \
 )
 
-# checking if http code is 2** 
+# checking if http code is 2**
 if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
   cat << EOF
 Error
