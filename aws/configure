@@ -109,7 +109,7 @@ fi
 
 echo "* Using AWS region: $AWS_REGION"
 
-export AWS_PROFILE AWS_RsEGION
+export AWS_PROFILE AWS_REGION
 
 if test -z "$HUB_STATE_BUCKET"; then
   AWS_ACCOUNT="$(aws $AWS_OPTS sts get-caller-identity --query 'Account' --output text)"
