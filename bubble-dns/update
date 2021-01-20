@@ -6,7 +6,7 @@ while [ "$1" != "" ]; do
     --domain-name )       shift
                           HUB_DOMAIN_NAME="$1"
                           ;;
-    --secret-key )        shift
+    --bubbles-secret-key ) shift
                           HUB_DOMAIN_SECRET="$1"
                           ;;
     -ns | --nameserver )  shift

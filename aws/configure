@@ -10,11 +10,9 @@ AWS parameters:
   --domain-name              Custom DNS domain name under existing base domain
   --base-domain-aws-profile  AWS Profile for base domain (in case base domain
                                  hosted zone is located in another AWS account)
-  --bubbles-secret-key       Secret key issued with new DNS name
   --prefer-local             Deploy state locally only
 
 Bubble DNS parameters:
-  --dns-new     Request new DNS domain
   --dns-update  Request to update DNS registration
 
   New DNS record request:
@@ -29,7 +27,6 @@ Bubble DNS parameters:
 EOF
 }
 
-HUB_PARENT_DOMAIN=${HUB_PARENT_DOMAIN:-"bubble.superhub.io"}
 FLAGS=$*
 DRY_RUN=false
 DNS_MANAGER="bubbles"
@@ -76,25 +73,9 @@ if test -z "$DOT_ENV"; then
   exit 2
 fi
 
-dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV"
-updateBubbleDNS() {
-  local domain secret
-  domain="$1"
-  secret="$2"
-  if test -z "$domain"; then
-    echo "Error: cannot find configuration 'domain name'"
-    exit 1
-  fi
-  if test -z "$secret"; then
-    secret=$($dotenv get "HUB_DOMAIN_SECRET")
-    if test -z "$secret"; then
-      echo "Error: cannot find configuration 'dns secret key'"
-    fi
-    exit 1
-  fi
-  echo -n "* Sending request to update $HUB_DOMAIN_NAME record: "
-  $(dirname $(dirname "$0"))/bubble-dns/update --domain-name "$domain" --secret-key "$secret"
-}
+source $(dirname "$0")/../bubble-dns/include
+
+dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
 
 if test "$DNS_ACTION" = "update"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
@@ -102,15 +83,7 @@ if test "$DNS_ACTION" = "update"; then
 fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Configuring Bubble DNS"
-  $(dirname $(dirname "$0"))/bubble-dns/new --output "$DOT_ENV" $FLAGS
-  # Reading newly generated domain name by script above
-  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
-  HUB_DOMAIN_SECRET=$($dotenv get "HUB_DOMAIN_SECRET")
-  if test -z "$HUB_DOMAIN_NAME"; then
-    echo "Error: cannot find domain name: [$HUB_DOMAIN_NAME]"
-    exit 1
-  fi
+  configureBubbleDNS
 elif test -z "$HUB_DOMAIN_SECRET"; then
   DNS_MANAGER="user"
   echo "* Using domain name provided by user: $HUB_DOMAIN_NAME"
