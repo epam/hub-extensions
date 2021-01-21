@@ -1,8 +1,9 @@
 #!/bin/bash
 
+# TODO untangle global vars into function args
 configureBubbleDNS() {
   echo "Configuring Bubble DNS"
-  $(dirname "${BASH_SOURCE[0]}")/new --output "$DOT_ENV" $FLAGS
+  $(dirname "${BASH_SOURCE[0]}")/new --output "$DOT_ENV" $BUBBLES_FLAGS
   # Reading newly generated domain name by script above
   HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
   HUB_DOMAIN_SECRET=$($dotenv get "HUB_DOMAIN_SECRET")

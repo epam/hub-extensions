@@ -27,7 +27,7 @@ Bubble DNS parameters:
 EOF
 }
 
-FLAGS=$*
+BUBBLES_FLAGS=$* # TODO untangle Bubble DNS global vars into function args
 DRY_RUN=false
 DNS_MANAGER="bubbles"
 PREFER_LOCAL_STATE=false
