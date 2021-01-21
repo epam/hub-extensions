@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh -ex
 
 if test -z "$1"; then
   cat << EOF
@@ -10,13 +10,20 @@ EOF
 fi
 
 VERB="$1"
-kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
+kubectl="kubectl"
+if test -n "$DOMAIN_NAME"; then
+  kubectl="$kubectl --context=$DOMAIN_NAME"
+fi
+if test -n "$NAMESPACE"; then
+  kubectl="$kubectl --namespace=$NAMESPACE"
+fi
+
 case "$VERB" in
   "deploy" )
-    kubectl="$kubectl apply"
+    kubectl_cmd="$kubectl apply"
   ;;
   "undeploy" )
-    kubectl="$kubectl delete"
+    kubectl_cmd="$kubectl delete"
   ;;
   * )
     echo "Error: unsupported verb: $VERB"
@@ -27,19 +34,32 @@ esac
 DOMAIN_NAME=${DOMAIN_NAME:?"DOMAIN_NAME has not been defined"}
 NAMESPACE=${NAMESPACE:?"DOMAIN_NAME has not been defined"}
 
+if test $VERB = "deploy"; then
+  if ! $kubectl get namespace "$NAMESPACE" -o name > /dev/null;  then
+    $kubectl create namespace "$NAMESPACE"
+  fi
+  if test -d "crds"; then
+    for f in crds/*.yaml; do
+      crd=$(yq e '.metadata.name' "$f")
+      if $kubectl get crd "$crd" -o name; then
+        echo "$crd already exists"
+      else
+        $kubectl create -f "$f"
+      fi
+    done
+  fi
+fi
+
 if test -x pre-$VERB; then
   echo "Running pre-$VERB hook..."
   ./pre-$VERB
 fi
 
 if which kustomize > /dev/null; then
-  set -x
-  kustomize build "." | $kubectl -f -
-  set +x
+  kustomize build "." | $kubectl_cmd -f -
 else
-  echo "Warning: 'kustomize' binary not found. Falling back to 'kubectl -k ...'"
-  set -x
-  $kubectl -k "."
+  echo "Warning: 'kustomze' binary not found. Falling back to 'kubectl -k ...'"
+  $kubectl_cmd -k "."
 fi
 
 if test -x post-$VERB; then
