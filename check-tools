@@ -1,22 +1,37 @@
 #!/bin/sh
 
+while test -n "$1"; do
+    case "$1" in
+        --omit-optional )
+            OMIT_OPTIONAL=1
+            ;;
+        * )
+            echo "Usage: check-tools [--omit-optional]"
+            exit 1
+    esac
+    shift
+done
+
 if test -t 1; then
     color_start="\033[35;1m"
     color_end="\033[0m"
 fi
 
-which aws >/dev/null 2>&1 || echo ${color_start}'Please install AWS CLI - https://aws.amazon.com/cli/'${color_end}
+which aws >/dev/null 2>&1 || which az >/dev/null 2>&1 || (
+    echo ${color_start}'Please install AWS CLI - https://aws.amazon.com/cli/'${color_end} &&
+    echo ${color_start}'        or Azure CLI - https://docs.microsoft.com/en-us/cli/azure/'${color_end}
+)
 which kubectl >/dev/null 2>&1 || echo ${color_start}'Please install KUBECTL - https://kubernetes.io/docs/reference/kubectl/overview/'${color_end}
 which jq >/dev/null 2>&1 || echo ${color_start}'Please install JQ - https://stedolan.github.io/jq/'${color_end}
 which yq >/dev/null 2>&1 || echo ${color_start}'Please install YQ v4 - https://github.com/mikefarah/yq'${color_end}
-which npm >/dev/null 2>&1 || echo ${color_start}'Please optionally install Node.js and NPM for `hub pull` extension - https://nodejs.org'${color_end}
-which eksctl >/dev/null 2>&1 || echo ${color_start}'Please optionally install EKSCTL for `hub ext eks` extension - https://eksctl.io'${color_end}
-
-if ! which aws >/dev/null 2>&1 ||
+if test -z "$OMIT_OPTIONAL"; then
+    which npm >/dev/null 2>&1 || echo ${color_start}'Please optionally install Node.js and NPM for `hub pull` extension - https://nodejs.org'${color_end}
+    which eksctl >/dev/null 2>&1 || echo ${color_start}'Please optionally install EKSCTL for `hub ext eks` extension - https://eksctl.io'${color_end}
+fi
+if ! (which aws >/dev/null 2>&1 || which az >/dev/null 2>&1) ||
         ! which kubectl >/dev/null 2>&1 ||
         ! which yq >/dev/null 2>&1 ||
         ! which jq >/dev/null 2>&1; then
-    echo '... then run `hub extensions update` again'
     exit 1
 fi
 

@@ -8,5 +8,7 @@ if test -z "$HUB"; then
   exit 1
 fi
 
+$(dirname "$0")/../../check-tools --omit-optional
+
 # shellcheck disable=SC2068
 $HUB deploy $@

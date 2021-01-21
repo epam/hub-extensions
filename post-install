@@ -1,4 +1,8 @@
 #!/bin/sh -xe
 
-./check-tools
+if ! ./check-tools; then
+    set +x
+    echo '... then run `hub extensions update` again'
+    exit 1
+fi
 which npm && npm install || echo '`hub pull` is not available until you install Node.js and NPM'
