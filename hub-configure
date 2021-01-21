@@ -5,7 +5,10 @@ HUB_HOME=${HUB_HOME:-$(dirname "$0")}
 
 usage() {
   cat << EOF
-Reads configuration information in $HUB_FILES and configures stack for deployment
+Reads configuration information in ${HUB_FILES:-hub.yaml} and configures stack for deployment.
+
+The result of configuration is saved under ".hub/env/" with a symlink ".env" pointing
+to the current configuration.
 
 Use:
   hub configure -f hub.yaml <parameters>
@@ -266,7 +269,6 @@ fi
 mkdir -p "$WORKDIR/.hub/env"
 
 
-
 # common environment variables that
 # will be used by exact extensions
 export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG
@@ -311,7 +313,7 @@ fi
 
 if test -f "$WORKDIR/.env"; then
   echo "Configuration .env file: exist"
-  eval $($dotenv export -f "$WORKDIR/.env" )
+  eval $($dotenv export -f "$WORKDIR/.env")
   if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
   if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$WORKDIR/.env"; then
@@ -340,7 +342,7 @@ for req in $(echo "$REQS" | xargs -n1); do
 
 Error: "$req" completed with error!
 
-For trouble shooting:
+For troubleshooting:
   hub configure -r "$req" --verbose
 
 For additional options:

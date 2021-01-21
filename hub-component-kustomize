@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-if test -z "$1"; then 
+if test -z "$1"; then
   cat << EOF
 Error: verb has not been specidfied: $(basename "$0") VERB
 
@@ -37,7 +37,7 @@ if which kustomize > /dev/null; then
   kustomize build "." | $kubectl -f -
   set +x
 else
-  echo "Warning: 'kustomze' binary not found. Falling back to 'kubectl -k ...'"
+  echo "Warning: 'kustomize' binary not found. Falling back to 'kubectl -k ...'"
   set -x
   $kubectl -k "."
 fi

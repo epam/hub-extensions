@@ -6,7 +6,7 @@ usage() {
 AWS parameters:
   --aws-region               AWS Region (defaults to value from: AWS_REGION)
   --aws-profile              AWS Profile (defaults to value from: AWS_PROFILE)
-  --dry-run                  Do not deploy cloud resources
+  --dry-run                  Do not deploy cloud resources, show what will happen
   --domain-name              Custom DNS domain name under existing base domain
   --base-domain-aws-profile  AWS Profile for base domain (in case base domain
                                  hosted zone is located in another AWS account)
@@ -22,14 +22,14 @@ Bubble DNS parameters:
     --domain-name         Previously issued DNS name
     --bubbles-secret-key  Secret key passed during domain name creation
 
-  Use: hub configure -f hub.yaml -f params.yaml -r dns --dns-update
+  Use: hub configure -r aws --dns-update
 
 EOF
 }
 
 BUBBLES_FLAGS=$* # TODO untangle Bubble DNS global vars into function args
 DRY_RUN=false
-DNS_MANAGER="bubbles"
+DNS_MANAGER=bubbles
 PREFER_LOCAL_STATE=false
 while [ "$1" != "" ]; do
   case $1 in
@@ -85,10 +85,11 @@ fi
 if test -z "$HUB_DOMAIN_NAME"; then
   configureBubbleDNS
 elif test -z "$HUB_DOMAIN_SECRET"; then
-  DNS_MANAGER="user"
+  DNS_MANAGER=user
   echo "* Using domain name provided by user: $HUB_DOMAIN_NAME"
 fi
 
+# TODO state bucket per region?
 echo "Configuring AWS S3"
 AWS_PROFILE=${AWS_PROFILE:-$(echo "$AWS_DEFAULT_PROFILE default" | awk '{print $1;}')}
 if aws --profile $AWS_PROFILE configure list > /dev/null 2>&1; then
@@ -132,11 +133,11 @@ else
     echo "will be deployed"
   else
     echo "not found"
-    echo -n "* Deployng S3 bucket $HUB_STATE_BUCKET: "
+    echo -n "* Deploying S3 bucket $HUB_STATE_BUCKET in $HUB_STATE_REGION region: "
     $(dirname "$0")/s3-bucket/deploy \
       --bucket-name "$HUB_STATE_BUCKET" \
-      --aws-region "$AWS_REGION" \
-      --acl "private" || exit 1
+      --aws-region "$HUB_STATE_REGION" \
+      --acl "private"
   fi
 fi
 
@@ -162,13 +163,13 @@ elif test "$DNS_MANAGER" = "user"; then
   echo "${PARENT_ZONE_ID:-not found}"
   if test -z "$ZONE_ID"; then
     if test -z "$PARENT_ZONE_ID"; then
-      cat << EOF
+      cat <<EOF
 
 Error!
 Route 53 hosted zone $HUB_DOMAIN_NAME has not been found.
 
 You can resolve this error by logging in https://console.aws.amazon.com/route53/
-and create a hosted zone "$HUB_DOMAIN_NAME."
+and creating a hosted zone "$HUB_DOMAIN_NAME" or "$PARENT_DOMAIN".
 
 Then run again:
 
@@ -213,27 +214,25 @@ test -z "$HUB_STATE_REGION" || $dotenv set "HUB_STATE_REGION=\"$HUB_STATE_REGION
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
-  cat << EOF
-* DNS record has time to live: 72 hours (use hub configure to refresh)
+  cat <<EOF
+* DNS record has time to live: 72 hours
 
 # Hint! To refresh DNS: hub configure -r aws --dns-update
 
 EOF
 fi
 
+STACK=${STACK:-$(basename "$(pwd)")}
 if test -z "$HUB_STATE"; then
-  echo "* Setting default location for hub state file"
-  STACK=${STACK:-$(basename "$(pwd)")}
+  echo "* Setting hub state file location"
   HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
   if ! $PREFER_LOCAL_STATE; then
     HUB_STATE_FILE="$HUB_STATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
   fi
   $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
 fi
-
 if test -z "$HUB_ELABORATE"; then
-  echo "* Setting default location for hub elaborate file"
-  STACK=${STACK:-$(basename "$(pwd)")}
+  echo "* Setting hub elaborate file location"
   HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
   if ! $PREFER_LOCAL_STATE; then
     HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
