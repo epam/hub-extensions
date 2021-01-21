@@ -191,8 +191,9 @@ if $DRY_RUN; then
   echo "* Dry run mode detected: skipping DNS modification"
 elif test "$DNS_MANAGER" = "bubbles"; then
   if test -z "$ZONE_ID"; then
-    echo -n "* Deploying zone $HUB_DOMAIN_NAME (takes a minute)... "
-    az network dns zone create $AZ_OPTS -n "$HUB_DOMAIN_NAME"
+    echo "* Deploying zone $HUB_DOMAIN_NAME... "
+    az network dns zone create $AZ_OPTS -n "$HUB_DOMAIN_NAME" -o none
+    echo "Done"
   fi
 elif test "$DNS_MANAGER" = "user"; then
   PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
@@ -239,6 +240,7 @@ else
   exit 6
 fi
 
+export HUB_CLOUD_PROVIDER=azure
 $dotenv set 'HUB_CLOUD_PROVIDER="azure"'
 test -z "$AZURE_REGION"              || $dotenv set "AZURE_REGION=\"$AZURE_REGION\""
 test -z "$AZURE_RESOURCE_GROUP_NAME" || $dotenv set "AZURE_RESOURCE_GROUP_NAME=\"$AZURE_RESOURCE_GROUP_NAME\""
@@ -248,6 +250,7 @@ test -z "$HUB_STATE_CONTAINER"       || $dotenv set "HUB_STATE_CONTAINER=\"$HUB_
 test -z "$HUB_STATE_REGION"          || $dotenv set "HUB_STATE_REGION=\"$HUB_STATE_REGION\""
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
+  # TODO supply NS records as args
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
   cat <<EOF
 * DNS record has time to live: 72 hours
