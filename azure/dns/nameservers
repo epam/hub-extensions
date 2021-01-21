@@ -1,0 +1,36 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+set -o pipefail
+
+NS_OUTPUT=text
+while [ "$1" != "" ]; do
+    case $1 in
+        --domain-name )  shift
+                         HUB_DOMAIN_NAME="$1"
+                         ;;
+        --json )         NS_OUTPUT=json
+                         ;;
+        --verbose )      set -x
+                         ;;
+    esac
+    shift
+done
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Flag --domain-name VALUE not defined"
+  exit 1
+fi
+
+if test "$NS_OUTPUT" = "json"; then
+  JQ_OPTS=".nameServers"
+else
+  JQ_OPTS="-r .nameServers[]"
+fi
+
+if az network dns zone show $AZ_OPTS -n $HUB_DOMAIN_NAME -o json | jq $JQ_OPTS; then
+  exit
+fi
+if test "$NS_OUTPUT" = "json"; then
+  echo '[]'
+fi

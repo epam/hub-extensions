@@ -23,8 +23,23 @@ fi
 
 if test -n "$(echo $NAMESERVERS | xargs)"; then
   NAMESERVERS=$(echo "\"$NAMESERVERS\"" | jq -cM '[split(" ") []| select(length > 0)]')
-else 
-  NAMESERVERS=$($(dirname $(dirname "$0"))/aws/route53/nameservers --domain-name "$HUB_DOMAIN_NAME" --json)
+else
+  cloud=${HUB_CLOUD_PROVIDER:-aws}
+  case $cloud in
+    aws )
+      impl=aws/route53
+      ;;
+    azure )
+      impl=azure/dns
+      ;;
+    gcp )
+      impl=gcp/clouddns
+      ;;
+    * )
+      echo "Unsupported cloud provider: $cloud"
+      exit 2
+  esac
+  NAMESERVERS=$($(dirname "$0")/../$impl/nameservers --domain-name "$HUB_DOMAIN_NAME" --json)
 fi
 
 if test "$NAMESERVERS" = "[]"; then

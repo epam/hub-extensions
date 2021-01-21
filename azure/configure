@@ -1,0 +1,276 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+set -o pipefail
+
+usage() {
+  cat << EOF
+Azure parameters:
+  --azure-region                Azure Region (defaults to value from: AZURE_REGION, AZURE_DEFAULTS_LOCATION)
+  --azure-resource-group        Azure Resource Group (defaults to value from: AZURE_RESOURCE_GROUP_NAME, AZURE_DEFAULTS_GROUP)
+  --azure-subscription          Azure Subscription (defaults to value from: AZURE_SUBSCRIPTION_ID)
+  --dry-run                     Do not deploy cloud resources, show what will happen
+  --domain-name                 Custom DNS domain name under existing base domain
+  --base-domain-resource-group  Resource Group for base domain (in case base domain
+                                    zone is located in another resource group)
+  --base-domain-subscription    Subscription for base domain (in case base domain
+                                    zone is located in another subscription)
+  --base-domain-resource-group  Resource Group for base domain
+  --prefer-local                Save deployment state locally only
+
+Bubble DNS parameters:
+  --dns-update  Request to update DNS registration
+
+  New DNS record request:
+    --parent-domain       Parent domain for stack (defaults to: bubble.superhub.io)
+
+  Request to update DNS record:
+    --domain-name         Previously issued DNS name
+    --bubbles-secret-key  Secret key passed during domain name creation
+
+  Use: hub configure -r azure --dns-update
+
+EOF
+}
+
+BUBBLES_FLAGS=$* # TODO untangle Bubble DNS global vars into function args
+DRY_RUN=false
+DNS_MANAGER=bubbles
+PREFER_LOCAL_STATE=false
+while [ "$1" != "" ]; do
+  case $1 in
+    --azure-region )          shift
+                              AZURE_REGION="$1"
+                              ;;
+    --azure-resource-group )  shift
+                              AZURE_RESOURCE_GROUP_NAME="$1"
+                              ;;
+    --azure-subscription )    shift
+                              AZURE_SUBSCRIPTION_ID="$1"
+                              ;;
+    --domain-name )           shift
+                              HUB_DOMAIN_NAME="$1"
+                              ;;
+    --base-domain-resource-group ) shift
+                              HUB_BASE_DOMAIN_AZURE_RESOURCE_GROUP_NAME="$1"
+                              echo "Sorry, not implemented"
+                              exit 1
+                              ;;
+    --base-domain-subscription ) shift
+                              HUB_BASE_DOMAIN_AZURE_SUBSCRIPTION_ID="$1"
+                              echo "Sorry, not implemented"
+                              exit 1
+                              ;;
+    --bubbles-secret-key )    shift
+                              HUB_DOMAIN_SECRET="$1"
+                              ;;
+    --prefer-local )          PREFER_LOCAL_STATE=true
+                              ;;
+    --dns-update )            DNS_ACTION="update"
+                              ;;
+    --dry-run )               DRY_RUN=true
+                              ;;
+    --output )                shift
+                              DOT_ENV="$1"
+                              ;;
+    -h | --help )             usage
+                              exit
+                              ;;
+  esac
+  shift
+done
+
+AZ_OPTS=
+if test "$VERBOSE" = "true"; then
+  AZ_OPTS="--verbose"
+  set -x
+fi
+
+if test -z "$DOT_ENV"; then
+  echo "Error: please run with option: $0 --output FILE"
+  exit 2
+fi
+
+source $(dirname "$0")/../bubble-dns/include
+
+dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
+
+if test "$DNS_ACTION" = "update"; then
+  updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
+  exit $?
+fi
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  configureBubbleDNS
+elif test -z "$HUB_DOMAIN_SECRET"; then
+  DNS_MANAGER=user
+  echo "* Using domain name provided by user: $HUB_DOMAIN_NAME"
+fi
+
+# https://docs.microsoft.com/en-us/cli/azure/azure-cli-configuration
+# AZURE_DEFAULTS_* automatically recognized up by `az`
+eval $(az configure --list-defaults | jq -r '.[] | "AZURE_CONFIG_DEFAULTS_" + (.name | ascii_upcase) + "=" + .value')
+
+location=${AZURE_REGION:-${AZURE_DEFAULTS_LOCATION:-$AZURE_CONFIG_DEFAULTS_LOCATION}}
+if test -z "$location"; then
+  echo "Error: please run with option: $0 --azure-region REGION"
+  exit 2
+fi
+echo "* Using Azure location: $location"
+AZ_LOCATION_OPTS=
+if test -n "$AZURE_REGION"; then
+  AZ_LOCATION_OPTS="--location $AZURE_REGION"
+fi
+
+resource_group=${AZURE_RESOURCE_GROUP_NAME:-${AZURE_DEFAULTS_GROUP:-$AZURE_CONFIG_DEFAULTS_GROUP}}
+if test -z "$resource_group"; then
+  echo "Error: please run with option: $0 --azure-resource-group RESOURCE_GROUP"
+  exit 2
+fi
+echo "* Using Azure resource group: $resource_group"
+if test -n "$AZURE_RESOURCE_GROUP_NAME"; then
+  AZ_OPTS="$AZ_OPTS --resource-group $AZURE_RESOURCE_GROUP_NAME"
+fi
+
+if test -n "$AZURE_SUBSCRIPTION_ID"; then
+  AZ_OPTS="$AZ_OPTS --subscription $AZURE_SUBSCRIPTION_ID"
+else
+  AZURE_SUBSCRIPTION_ID=$(az account show -o json | jq -r .id)
+fi
+echo "* Using Azure subscription: $AZURE_SUBSCRIPTION_ID"
+export AZ_OPTS
+
+# TODO state storage account per region?
+echo "Configuring Azure Storage Account"
+if test -z "$HUB_STATE_BUCKET"; then
+  HUB_STATE_BUCKET="superhub$(echo $AZURE_SUBSCRIPTION_ID | cut -d- -f1)"
+fi
+if test -z "$HUB_STATE_CONTAINER"; then
+  HUB_STATE_CONTAINER=superhub
+fi
+
+echo -n "* Checking presence of storage account $resource_group/$HUB_STATE_BUCKET: "
+if az storage account show $AZ_OPTS -n $HUB_STATE_BUCKET -o none 2>/dev/null; then
+  echo "exist"
+else
+  if $DRY_RUN; then
+    echo "will be deployed"
+  else
+    echo "not found"
+    echo "* Deploying storage account $resource_group/$HUB_STATE_BUCKET in $location location..."
+    AZ_STORAGE_LOCATION_OPTS=$AZ_LOCATION_OPTS
+    if test -n "$HUB_STATE_REGION"; then
+      AZ_STORAGE_LOCATION_OPTS="--location $HUB_STATE_REGION"
+    fi
+    az storage account create $AZ_OPTS $AZ_STORAGE_LOCATION_OPTS --sku Standard_ZRS --kind StorageV2 -n $HUB_STATE_BUCKET -o none
+  fi
+fi
+echo -n "* Checking presence of storage account $resource_group/$HUB_STATE_BUCKET blob container $HUB_STATE_CONTAINER: "
+if az storage container show $AZ_OPTS --account-name $HUB_STATE_BUCKET -n $HUB_STATE_CONTAINER -o none 2>/dev/null; then
+  echo "exist"
+else
+  if $DRY_RUN; then
+    echo "will be deployed"
+  else
+    echo "not found"
+    echo "* Deploying storage account $resource_group/$HUB_STATE_BUCKET blob container $HUB_STATE_CONTAINER..."
+    az storage container create $AZ_OPTS --account-name $HUB_STATE_BUCKET --auth-mode login --public-access off -n $HUB_STATE_CONTAINER -o none
+  fi
+fi
+
+if ! $DRY_RUN; then
+  HUB_STATE_REGION="$(az storage account show $AZ_OPTS -n $HUB_STATE_BUCKET -o json | jq -r .location)"
+fi
+
+echo "Configuring Azure DNS"
+echo -n "* Checking presence of zone $HUB_DOMAIN_NAME: "
+ZONE_ID=$(az network dns zone show $AZ_OPTS -n $HUB_DOMAIN_NAME -o json 2>/dev/null | jq -r .id || true)
+echo "${ZONE_ID:-not found}"
+
+if $DRY_RUN; then
+  echo "* Dry run mode detected: skipping DNS modification"
+elif test "$DNS_MANAGER" = "bubbles"; then
+  if test -z "$ZONE_ID"; then
+    echo -n "* Deploying zone $HUB_DOMAIN_NAME (takes a minute)... "
+    az network dns zone create $AZ_OPTS -n "$HUB_DOMAIN_NAME"
+  fi
+elif test "$DNS_MANAGER" = "user"; then
+  PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
+  echo -n "* Checking presence of parent zone $PARENT_DOMAIN: "
+  PARENT_ZONE_ID=$(az network dns zone show $AZ_OPTS -n $PARENT_DOMAIN -o json 2>/dev/null | jq -r .id || true)
+  echo "${PARENT_ZONE_ID:-not found}"
+  if test -z "$ZONE_ID"; then
+    if test -z "$PARENT_ZONE_ID"; then
+      cat <<EOF
+
+Error!
+Azure DNS zone $HUB_DOMAIN_NAME has not been found.
+
+You can resolve this error by logging in https://portal.azure.com/ > DNS zones
+and creating a zone "$HUB_DOMAIN_NAME" or "$PARENT_DOMAIN".
+
+Then run again:
+
+$ hub configure -r azure --domain-name $HUB_DOMAIN_NAME
+
+Abort!
+EOF
+      exit 5
+    fi
+    echo "* Deploying zone $HUB_DOMAIN_NAME... "
+    az network dns zone create $AZ_OPTS --parent-name "$PARENT_DOMAIN" -n "$HUB_DOMAIN_NAME" -o none
+    echo "Done"
+    zone_just_created=1
+  fi
+  if test -n "$PARENT_ZONE_ID" -a -z "$zone_just_created"; then
+    echo "* Updating $HUB_DOMAIN_NAME NS records in $PARENT_DOMAIN... "
+    # TODO all add-record errors are suppressed for now
+    # BadRequestError: Operation failed with status: 'Bad Request'. Details: The list of record sets of type 'NS' may not contain multiple entries with the same 'nsdname'
+    az network dns zone show $AZ_OPTS -n $HUB_DOMAIN_NAME -o json | jq -r .nameServers[] |
+      xargs -n1 \
+        az network dns record-set ns add-record $AZ_OPTS -z $PARENT_DOMAIN -n $(echo "$HUB_DOMAIN_NAME" | cut -f1 -d.) --if-none-match --ttl 300 -d 2>/dev/null || true
+    echo "Done"
+  fi
+  # make sure .env file is up-to-date
+  $dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
+  $dotenv set "HUB_STACK_NAME=\"$(echo "$HUB_DOMAIN_NAME" | cut -f1 -d.)\""
+else
+  echo "Error: unsupported DNS operation"
+  exit 6
+fi
+
+$dotenv set 'HUB_CLOUD_PROVIDER="azure"'
+test -z "$AZURE_REGION"              || $dotenv set "AZURE_REGION=\"$AZURE_REGION\""
+test -z "$AZURE_RESOURCE_GROUP_NAME" || $dotenv set "AZURE_RESOURCE_GROUP_NAME=\"$AZURE_RESOURCE_GROUP_NAME\""
+test -z "$AZURE_SUBSCRIPTION_ID"     || $dotenv set "AZURE_SUBSCRIPTION_ID=\"$AZURE_SUBSCRIPTION_ID\""
+test -z "$HUB_STATE_BUCKET"          || $dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
+test -z "$HUB_STATE_CONTAINER"       || $dotenv set "HUB_STATE_CONTAINER=\"$HUB_STATE_CONTAINER\""
+test -z "$HUB_STATE_REGION"          || $dotenv set "HUB_STATE_REGION=\"$HUB_STATE_REGION\""
+
+if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
+  updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
+  cat <<EOF
+* DNS record has time to live: 72 hours
+
+# Hint! To refresh DNS: hub configure -r azure --dns-update
+
+EOF
+fi
+
+STACK=${STACK:-$(basename "$(pwd)")}
+if test -z "$HUB_STATE"; then
+  echo "* Setting hub state file location"
+  HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
+  if ! $PREFER_LOCAL_STATE; then
+    HUB_STATE_FILE="$HUB_STATE_FILE,az://$HUB_STATE_BUCKET/$HUB_STATE_CONTAINER/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
+  fi
+  $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
+fi
+if test -z "$HUB_ELABORATE"; then
+  echo "* Setting hub elaborate file location"
+  HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
+  if ! $PREFER_LOCAL_STATE; then
+    HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,az://$HUB_STATE_BUCKET/$HUB_STATE_CONTAINER/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
+  fi
+  $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""
+fi
