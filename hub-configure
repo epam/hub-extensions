@@ -13,6 +13,7 @@ Use:
 Common parameters:
   -f  --file              Path to stack definition file (can be repeated multiple times)
   -r  --requirement       Configure one requirement (can be repeated multiple times)
+  -i  --init-dotenv FILE  Start with initial values from the .env FILE
   -s  --silent            Suppress console outputs in favor of result codes
   -V  --verbose           Verbose outputs for debug purposeEOF
   -h  --help              Print this message
@@ -75,6 +76,10 @@ while [ "$1" != "" ]; do
       shift
       REQS=$(echo "$REQS $1" | xargs)
       ;;
+    -i | --init-dotenv )
+      shift
+      INIT_DOTENV="$1"
+      ;;
     -S | --silent )
       SILENT=true
       ;;
@@ -105,6 +110,11 @@ Example:
   hub configure -f hub.yaml
 
 EOF
+  exit 1
+fi
+
+if test -n "$INIT_DOTENV" -a ! -f "$INIT_DOTENV"; then
+  echo "Error: init dotenv $INIT_DOTENV file not found"
   exit 1
 fi
 
@@ -292,15 +302,22 @@ NEW_HUB_FILES="$HUB_FILES"
 trap 'finalize $?' EXIT
 
 MERGE_FILES=""
+
+if test -n "$INIT_DOTENV"; then
+  echo "Using $INIT_DOTENV as initial configuration"
+  eval $($dotenv export -f "$INIT_DOTENV")
+  MERGE_FILES="$MERGE_FILES -f $INIT_DOTENV"
+fi
+
 if test -f "$WORKDIR/.env"; then
   echo "Configuration .env file: exist"
   eval $($dotenv export -f "$WORKDIR/.env" )
   if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
   if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$WORKDIR/.env"; then
-    MERGE_FILES="-f $(readlink -n "$WORKDIR/.env")"
+    MERGE_FILES="-f $(readlink -n "$WORKDIR/.env") $MERGE_FILES"
   else
-    MERGE_FILES="-f $WORKDIR/.env"
+    MERGE_FILES="-f $WORKDIR/.env $MERGE_FILES"
   fi
 else
   echo "Configuration .env file: to be created"
