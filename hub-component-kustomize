@@ -40,12 +40,13 @@ if test $VERB = "deploy"; then
   fi
   if test -d "crds"; then
     for f in crds/*.yaml; do
-      crd=$(yq e '.metadata.name' "$f")
-      if $kubectl get crd "$crd" > /dev/null; then
-        echo "$crd already exists"
-      else
-        $kubectl create -f "$f"
-      fi
+      for crd in $(yq e '.metadata.name' "$f" | sed 's/^---$//g' | xargs); do
+        if $kubectl get crd "$crd" > /dev/null; then
+          echo "$crd already exists"
+        else
+          $kubectl create -f "$f"
+        fi
+      done
     done
   fi
 fi
