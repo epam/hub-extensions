@@ -8,6 +8,7 @@ Emit toolbox pod template
 Parameters:
     --label               Use these labels for toolbox pod (can repeat multiple)
     --image               Image of toolbox (default: agilestacks/toolbox:latest)
+    -e  --pass-env        Pass environment variables VAR1,VAR2,...
     -V  --verbose         Verbose outputs for debug purpose
     -h  --help            Print this message
 EOF
@@ -108,7 +109,7 @@ spec:
     - {name: "GID", value: "$(id -g)"}
     - {name: "HOME", value: "$HOME"}
     - {name: "TF_PLUGIN_CACHE_DIR", value: "$HOME/.terraform.d/plugin-cache"}
-$(env | grep -E "^(KUBECONFIG=|GOOGLE_|AZURE_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)|^(${PASS_ENV//,/|})=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
+$(env | grep -E "^(KUBECONFIG=|GOOGLE_|AZURE_|ARM_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)|^(${PASS_ENV//,/|})=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
 $($dotenv keys | grep -v ^HUB_DEPLOY_PROFILE | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
     - {name: "HUB_DEPLOY_PROFILE", value: "pod"}
     volumeMounts:

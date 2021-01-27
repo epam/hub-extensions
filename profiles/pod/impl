@@ -142,6 +142,15 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
         --pod "toolbox-$ID" \
         --profile "$($dotenv get AWS_PROFILE)" && echo "Done"
     ;;
+
+    "azure" )
+      if env | grep -E '^(AZURE|ARM)_' >/dev/null; then
+        echo "found $(env | grep -E '^(AZURE|ARM)_' | cut -d= -f1 | sort | xargs)"
+      else
+        echo "no AZURE_* nor ARM_* vars set"
+      fi
+    ;;
+
     * )
       echo "Warning: $HUB_CLOUD_PROVIDER provider not yet supported!"
     ;;
