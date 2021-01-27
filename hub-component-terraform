@@ -73,10 +73,14 @@ if test "$CLOUD_KIND" == azure -a -z "$ARM_CLIENT_ID" -a -z "$ARM_ACCESS_KEY"; t
     ARM_ACCESS_KEY=${AZURE_STORAGE_ACCESS_KEY:-$AZURE_STORAGE_KEY}
     if test -z "$ARM_ACCESS_KEY"; then
         if test -z "$AZURE_CLIENT_ID"; then
+            set +x
+            echo
             echo "You may want to set AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID"
             echo "    or ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_SUBSCRIPTION_ID ARM_TENANT_ID"
             echo "    or ARM_ACCESS_KEY for Terraform Azure backend"
             echo "https://www.terraform.io/docs/language/settings/backends/azurerm.html"
+            echo
+            set -x
         else
             ARM_CLIENT_ID=$AZURE_CLIENT_ID
             ARM_CLIENT_SECRET=$AZURE_CLIENT_SECRET
