@@ -12,6 +12,7 @@ STATE_PREFIX="$DOMAIN_NAME/$(basename $(pwd))/$(echo $COMPONENT_NAME | sed -e 's
 case "$CLOUD_KIND" in
     aws )
         STATE_BACKEND_CONFIG="-backend-config=bucket=$STATE_BUCKET -backend-config=region=$STATE_REGION -backend-config=key=$STATE_PREFIX/terraform.tfstate -backend-config=profile=$AWS_PROFILE"
+        STATE_BACKEND_TYPE=s3
         ;;
     azure )
         if test -z "$STATE_CONTAINER" -o -z "$AZURE_RESOURCE_GROUP_NAME"; then
@@ -19,9 +20,11 @@ case "$CLOUD_KIND" in
             exit 1
         fi
         STATE_BACKEND_CONFIG="-backend-config=storage_account_name=$STATE_BUCKET -backend-config=container_name=$STATE_CONTAINER -backend-config=resource_group_name=$AZURE_RESOURCE_GROUP_NAME -backend-config=key=$STATE_PREFIX/terraform.tfstate"
+        STATE_BACKEND_TYPE=azurerm
         ;;
     gcp )
         STATE_BACKEND_CONFIG="-backend-config=bucket=$STATE_BUCKET -backend-config=region=$STATE_REGION -backend-config=prefix=$STATE_PREFIX -backend-config=credentials=$GOOGLE_APPLICATION_CREDENTIALS"
+        STATE_BACKEND_TYPE=gcs
         ;;
     * )
         echo "cloud.kind / CLOUD_KIND must be one of: aws, azure, gcp"
@@ -60,6 +63,10 @@ if test -x pre-init; then
     pre_init=$(./pre-init)
     tfvars=$(grep -E '^export ' <<<"$pre_init" || exit 0)
     if test -n "$tfvars"; then eval "$tfvars"; fi
+fi
+
+if test ! -f _backend.tf && ! grep -E 'backend ".+" {' *.tf >/dev/null; then
+    echo -e "terraform {\n  backend \"$STATE_BACKEND_TYPE\" {}\n}" > _backend.tf
 fi
 
 $terraform init -get=true $TF_CLI_ARGS -reconfigure -force-copy $STATE_BACKEND_CONFIG
