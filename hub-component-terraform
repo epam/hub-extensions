@@ -69,6 +69,26 @@ if test ! -f _backend.tf && ! grep -E 'backend ".+" {' *.tf >/dev/null; then
     echo -e "terraform {\n  backend \"$STATE_BACKEND_TYPE\" {}\n}" > _backend.tf
 fi
 
+if test "$CLOUD_KIND" == azure -a -z "$ARM_CLIENT_ID" -a -z "$ARM_ACCESS_KEY"; then
+    ARM_ACCESS_KEY=${AZURE_STORAGE_ACCESS_KEY:-$AZURE_STORAGE_KEY}
+    if test -z "$ARM_ACCESS_KEY"; then
+        if test -z "$AZURE_CLIENT_ID"; then
+            echo "You may want to set AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID"
+            echo "    or ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_SUBSCRIPTION_ID ARM_TENANT_ID"
+            echo "    or ARM_ACCESS_KEY for Terraform Azure backend"
+            echo "https://www.terraform.io/docs/language/settings/backends/azurerm.html"
+        else
+            ARM_CLIENT_ID=$AZURE_CLIENT_ID
+            ARM_CLIENT_SECRET=$AZURE_CLIENT_SECRET
+            ARM_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+            ARM_TENANT_ID=$AZURE_TENANT_ID
+            export ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_SUBSCRIPTION_ID ARM_TENANT_ID
+        fi
+    else
+        export ARM_ACCESS_KEY
+    fi
+fi
+
 $terraform init -get=true $TF_CLI_ARGS -reconfigure -force-copy $STATE_BACKEND_CONFIG
 
 if test -x pre-$verb; then
