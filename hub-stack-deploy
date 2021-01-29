@@ -1,24 +1,26 @@
 #!/bin/bash -e
 
+# TODO unify with undeploy into hub-stack-lifecycle
+
 usage() {
 # shellcheck disable=SC2006
 cat << EOF
 
-Deploys this stack
+Deploy the stack
 
 Usage:
 $ hub stack deploy
-Deploys all components
+Deploys entire stack
 
 $ hub stack deploy -c component1,component2
-Deploys deploys two components
+Deploys two components
 
 $ hub stack deploy -c component1,component2 --profile pod
-Deploys deploys two components and executes deployment in a pod
+Deploys two components and executes deployment in a pod
 
 Parameters:
     -c --component        List of components to deploy
-    --profile             Can be: pod | local
+    --profile             Can be: local | toolbox | pod
     -o --offset           Deploy starting with the given component
     -l --limit            Component to stop deploy at
     -V  --verbose         Verbose outputs for debug purpose

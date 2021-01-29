@@ -4,19 +4,18 @@
 usage() {
 cat << EOF
 
-Deploys this stack
+Undeploy the stack
 
 Usage:
 $ hub stack undeploy
-
-Deploys all components
+Undeploys entire stack
 
 $ hub stack undeploy -c component1,component2
-Deploys deploys two components
+Undeploys two components
 
 Parameters:
     -c --component        List of components to deploy
-    --profile             Can be: deploy-pod (default) | deploy-local | deploy-toolbox
+    --profile             Can be: local | toolbox | pod
     -o --offset           Deploy starting with the given component
     -l --limit            Component to stop deploy at
     -V  --verbose         Verbose outputs for debug purpose
@@ -84,7 +83,7 @@ Warning: this operation cannot be reverted! It may lead to data loss!
 
 EOF
 if test -z "$HUB_CLOUD_PROVIDER"; then
-  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_CLOUD_PROVIDER")
+  HUB_CLOUD_PROVIDER=$($dotenv get "HUB_CLOUD_PROVIDER")
 fi
 if test -n "$HUB_CLOUD_PROVIDER"; then
   echo "* Using cloud: $HUB_CLOUD_PROVIDER"
