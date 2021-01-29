@@ -149,9 +149,16 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
-# shellcheck disable=SC2086
-if $FULL_STACK || test -n $"$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
-  "$(dirname "$0")/hub-stack-elaborate"
+if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
+  $(dirname "$0")/hub-stack-elaborate
+elif test -n "$HUB_ELABORATE_FILE"; then
+  if ! $(dirname "$0")/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
+    echo "Call:"
+    echo "    $ hub stack elaborate"
+    echo "or update elaborate file timestamp:"
+    echo "    $ touch $HUB_ELABORATE_FILE"
+    exit 1
+  fi
 fi
 
 export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
