@@ -4,11 +4,10 @@
 usage() {
 cat << EOF
 Kubernetes parameters:
-  --kubeconfig            Path to the kubeconfig. If not specified then use default to kubectl
+  --kubeconfig            Path to the kubeconfig. If not specified then use kubectl's default
   --kubecontext           Name of Kubernetes context in Kubeconfig file
                           "_" reserved for "current context"
-  --current-kubecontext   Use current kubecontext existing
-                          configuration (mandatory)
+  --current-kubecontext   Use current kubecontext (this is the default)
 
 Use: hub configure [--kubecontext _] or [--current-kubecontext] for current kubecontext
 
