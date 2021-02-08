@@ -10,7 +10,7 @@ Reads configuration information in ${HUB_FILES:-hub.yaml} and configures stack f
 The result of configuration is saved under ".hub/env/" with a symlink ".env" pointing
 to the current configuration.
 
-Use:
+Usage:
   hub configure -f hub.yaml <parameters>
 
 Common parameters:

@@ -15,7 +15,6 @@ Azure parameters:
                                     zone is located in another resource group)
   --base-domain-subscription    Subscription for base domain (in case base domain
                                     zone is located in another subscription)
-  --base-domain-resource-group  Resource Group for base domain
   --prefer-local                Save deployment state locally only
 
 Bubble DNS parameters:
