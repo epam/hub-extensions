@@ -36,6 +36,7 @@ FULL_STACK=true
 dotenv="$(dirname "$0")/env/dotenv -f .env"
 eval "$($dotenv "export")"
 
+WORKDIR="$(pwd)"
 HUB_OPTS=
 while test "$1" != ""; do
     case $1 in

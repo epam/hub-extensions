@@ -27,6 +27,7 @@ Parameters:
 EOF
 }
 
+WORKDIR="$(pwd)"
 HUB_OPTS=""
 
 dotenv=$(dirname "$0")/env/dotenv
