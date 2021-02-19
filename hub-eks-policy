@@ -10,25 +10,25 @@ EKS cluster node group IAM policies
 
 Sub commands:
     attach   Attach IAM policy
-    detach   Remove IAM policy
+    detach   Detach IAM policy
     ls       List IAM policies
 
 EOF
 }
 
-if test -z "$@"; then
+if test -z "$1"; then
   usage
   exit 1
 fi
 
 while [ "$1" != "" ]; do
   case $1 in
-    attach )      hub-eks-policy-attach $@      
-                  ;;                 
-    detach )      hub-eks-policy-attach $@      
-                  ;;                 
-    ls     )      hub-eks-policy-ls $@      
-                  ;;                 
+    attach )      hub-eks-policy-attach "$@"
+                  ;;
+    detach )      hub-eks-policy-attach "$@"
+                  ;;
+    ls     )      hub-eks-policy-ls "$@"
+                  ;;
     -h | --help ) usage
                   exit
                   ;;
@@ -37,4 +37,3 @@ while [ "$1" != "" ]; do
   esac
   shift
 done
-

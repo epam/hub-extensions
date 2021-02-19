@@ -2,11 +2,11 @@
 
 usage() {
   cat << EOF
-Remove IAM policy from EKS cluster
+Remove IAM policy from EKS cluster nodegroup IAM role
 
-Usage: $(basename "$0") -c lorem-ipsum --all
-
-Usage: $(basename "$0") -c lorem-ipsum -p AmazonS3FullAccess
+Usage:
+    $(basename "$0") -c cluster-name --all
+    $(basename "$0") -c cluster-name -p AmazonS3FullAccess
 
 Parameters:
     -c --eks-cluster      Name of the eks cluster (required)
@@ -92,7 +92,7 @@ for ARN in $ARNS; do
   aws iam detach-role-policy \
     --role-name "$ROLE_NAME" \
     --policy-arn "$ARN" && echo "Done" || echo " (Ignoring)"
-done 
+done
 
 if aws iam get-policy --policy-arn "$POLICY_ARN" --query 'Policy.Arn' 2>/dev/null; then
   echo -n "* Deleting $POLICY_NAME policy: "

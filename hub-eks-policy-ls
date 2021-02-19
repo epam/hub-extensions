@@ -2,11 +2,10 @@
 
 usage() {
   cat << EOF
-Remove IAM policy from EKS cluster
+List EKS cluster nodegroup IAM role policies
 
-Usage: $(basename "$0") -c lorem-ipsum --all
-
-Usage: $(basename "$0") -c lorem-ipsum -p AmazonS3FullAccess
+Usage:
+    $(basename "$0") -c cluster-name
 
 Parameters:
     -c --eks-cluster      Name of the eks cluster (required)
@@ -18,16 +17,10 @@ EOF
 
 test -f ".env" && source .env
 
-ALL_POLICIES=false
-POLICY_NAME="$CLUSTER_NAME-custompolicy"
-
 while [ "$1" != "" ]; do
   case $1 in
     -c | --eks-cluster ) shift
                          CLUSTER_NAME="$1"
-                         ;;
-    -p | --policy )      shift
-                         POLICY_NAME="$1"
                          ;;
     --aws-region )       shift
                          export AWS_REGION="$1"
@@ -41,7 +34,7 @@ while [ "$1" != "" ]; do
                          exit
                          ;;
     * )                  usage
-                         sexit 1
+                         exit 1
   esac
   shift
 done
@@ -55,9 +48,9 @@ export AWS_DEFAULT_OUTPUT=text
 
 ROLE_ARN=$(eksctl get iamidentitymapping --cluster "$CLUSTER_NAME" -o json | jq -r '.[0].rolearn')
 if test -n "$ROLE_ARN"; then
-  for NAME in $(aws iam list-attached-role-policies \
+  (for NAME in $(aws iam list-attached-role-policies \
                   --role-name "$(basename $ROLE_ARN)" \
                   --query 'AttachedPolicies[].PolicyName'); do
     echo "$NAME"
-  done
+  done) | sort
 fi

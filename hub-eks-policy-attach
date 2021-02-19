@@ -2,19 +2,15 @@
 
 usage() {
   cat << EOF
-Attaches custom user role policy for cluster node group
+Attach IAM policy to EKS cluster nodegroup IAM role
 
-Usage: 
-
-$(basename "$0") -c lorem-ipsum -f etc/iam-role-policy.json
-
-or
-
-$(basename "$0") -c lorem-ipsum -p AmazonS3FullAccess
+Usage:
+    $(basename "$0") -c cluster-name -f etc/iam-role-policy.json
+    $(basename "$0") -c cluster-name -p AmazonS3FullAccess
 
 Parameters:
     -c --eks-cluster      Name of the eks cluster
-    -f --file             Policy document 
+    -f --file             Policy document
     -p --policy           Policy name
     --aws-region          AWS Region
     --aws-profile         AWS Profile
@@ -69,7 +65,7 @@ echo "$ROLE_NAME"
 if test -n "$POLICY_FILE"; then
   echo "* Using policy file: $POLICY_FILE"
   if test ! -f "$POLICY_FILE"; then
-    cat << EOF 
+    cat << EOF
 
   Error: file $POLIICY_DOC not found!
 
@@ -95,7 +91,7 @@ EOF
 fi
 
 if test -n "$POLICY_NAME"; then
-  echo -n "* Using policy: ... "  
+  echo -n "* Using policy: ... "
   # shellcheck disable=SC2006
   POLICY_ARN=$(aws iam list-policies \
                 --query "Policies[?PolicyName==\`$POLICY_NAME\`].Arn")
