@@ -1,0 +1,107 @@
+#!/bin/bash -e
+
+usage() {
+cat << EOF
+Remove configuration from current stack
+
+Usage:
+$ hub stack unconfigure [DOMAIN_NAME]
+
+Parameters:
+    -V  --verbose          Verbose outputs for debug purpose
+    -h --help              Show this message
+
+EOF
+}
+
+HUB_OPTS=
+DOTENV=".env"
+while [ "$1" != "" ]; do
+    case $1 in
+    -V | --verbose )    set -x
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 DOTENV=".hub/env/$1.env"
+                        ;;
+    esac
+    shift
+done
+
+if test ! -f "$DOTENV"; then
+  cat <<EOF
+* Error: configuration '.env' has not been found"
+
+EOF
+  usage
+  cat <<EOF
+
+To see list of available stacks run
+
+  $ hub stack ls
+
+EOF
+  exit 1
+fi
+dotenv="$(dirname "$0")/env/dotenv -f $DOTENV"
+HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
+echo "Unconfiguring: $HUB_DOMAIN_NAME"
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: cannot find 'HUB_DOMAIN_NAME' has not been defined"
+  exit 2
+fi
+
+FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
+FILES="$FILES $($dotenv get "HUB_STATE" | sed "s/,/ /g")"
+FILES="$FILES $($dotenv get "HUB_ELABORATE" | sed "s/,/ /g")"
+for f in $FILES; do
+  if test -f "$f"; then
+    echo "* Removing $f"
+    rm -f "$f"
+  fi
+done
+
+# if test -z "$HUB_ELABORATE"; then
+#   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
+# fi
+
+
+# # shellcheck disable=SC2001
+# for f in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
+#   if test -f "$f"; then
+#     echo "* Removing $f"
+#     rm -f $f
+#   fi
+# done
+# for f in $(echo "$HUB_STATE" | sed "s/,/ /g"); do
+#   if test -f "$f"; then
+#     echo "* Removing $f"
+#     rm -f $f
+#   fi
+# done
+
+# HUB_KUBECONFIG="$($dotenv get HUB_KUBECONFIG)"
+# if test -f "$HUB_KUBECONFIG"; then
+#   echo "* Removing $HUB_KUBECONFIG"
+#   rm -f "$HUB_KUBECONFIG"
+# fi
+
+if test -L "$DOTENV"; then
+  envfile=$(readlink "$DOTENV")
+  echo "* Unlinking $DOTENV"
+  unlink "$DOTENV"
+elif test -L ".env"; then
+  envfile=$(readlink ".env")
+  if "$envfile" -ef "$DOTENV"; then
+    echo "* Unlinking .env"
+    unlink ".env"
+  fi
+fi
+
+if test -f "$DOTENV"; then
+  echo -n "* Removing "
+  rm -fv "$DOTENV"
+fi
+
+echo "Unconfigured!"
