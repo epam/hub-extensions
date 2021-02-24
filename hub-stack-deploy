@@ -1,43 +1,50 @@
 #!/bin/bash -e
 
-# TODO unify with undeploy into hub-stack-lifecycle
+verb=deploy/undeploy
 
 usage() {
-# shellcheck disable=SC2006
 cat << EOF
 
-Deploy the stack
+${verb} the stack
 
 Usage:
-$ hub stack deploy
-Deploys entire stack
+$ hub stack ${verb}
+${verb}s entire stack
 
-$ hub stack deploy -c component1,component2
-Deploys two components
+$ hub stack ${verb} -c component1,component2
+${verb}s two components
 
-$ hub stack deploy -c component1,component2 --profile pod
-Deploys two components and executes deployment in a pod
+$ hub stack ${verb} -c component1,component2 --profile pod
+${verb}s two components and executes deployment in a pod
 
 Parameters:
-    -c --component        List of components to deploy
-    --profile             Can be: local | toolbox | pod
-    -o --offset           Deploy starting with the given component
-    -l --limit            Component to stop deploy at
+    -c --component        Components to ${verb}
+    -o --offset           Start with the given component
+    -l --limit            Component to stop ${verb} at
+    --profile             Deployment profile, one of: local, toolbox, pod
     -V  --verbose         Verbose outputs for debug purpose
-    --tty                 Use TTY (terminal) mode for hub deploy
-    --no-tty              Do not use TTY (terminal) mode for hub deploy
-    --                    Separator to define "hub deploy" low level parameters (see: "hub deploy --help")
+    --tty                 Use TTY (terminal) mode for hub ${verb}
+    --no-tty              Do not use TTY (terminal) mode for hub ${verb}
+    --                    Separator to define "hub ${verb}" low level parameters (see: "hub ${verb} --help")
     -h  --help            Print this message
 
 EOF
 }
 
-FULL_STACK=true
+maybe_verb=$(basename "$0" | cut -d- -f3)
+if test -z "$maybe_verb"; then
+  usage
+  exit 1
+fi
+verb="$maybe_verb"
+
 dotenv="$(dirname "$0")/env/dotenv -f .env"
 eval "$($dotenv "export")"
 
-WORKDIR="$(pwd)"
+FULL_STACK=true
+WORKDIR=$(pwd)
 HUB_OPTS=
+
 while test "$1" != ""; do
     case $1 in
         -c | --component )  shift
@@ -65,7 +72,7 @@ while test "$1" != ""; do
                             exit
                             ;;
         -- )                shift
-                            HUB_OPTS="$HUB_OPTS $@"
+                            HUB_OPTS="$HUB_OPTS $*"
                             break
                             ;;
         * )                 usage
@@ -111,14 +118,12 @@ if test -z "$HUB_DOMAIN_NAME"; then
 fi
 
 cat << EOF
-Starting deployment:
+Starting ${verb}:
 * Using domain name: $HUB_DOMAIN_NAME
 EOF
 
-hub_kubeconfig=$($dotenv get "HUB_KUBECONFIG")
-if test -n "$hub_kubeconfig"; then
-  KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
-  export KUBECONFIG
+if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -f "$HUB_KUBECONFIG"; then
+  export KUBECONFIG="$HUB_KUBECONFIG"
   echo "* Using kubeconfig: $KUBECONFIG"
 fi
 
@@ -128,8 +133,7 @@ if test -z "$HUB_STATE"; then
   HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
 fi
 echo "* Using hub state:"
-# shellcheck disable=SC2001
-for i in $(echo "$HUB_STATE" | sed "s/,/ /g"); do
+for i in ${HUB_STATE//,/ }; do
   echo "  - $i"
 done
 
@@ -137,29 +141,27 @@ if test -z "$HUB_ELABORATE"; then
   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
 fi
 echo "* Using hub elaborate:"
-# shellcheck disable=SC2001
-for i in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
+for i in ${HUB_ELABORATE//,/ }; do
   echo "  - $i"
   if ! grep :// <<<$i >/dev/null; then
     HUB_ELABORATE_FILE=$i
   fi
 done
 
-if test -z "$HUB_CLOUD_PROVIDER"; then
-  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_CLOUD_PROVIDER")
-fi
 if test -n "$HUB_CLOUD_PROVIDER"; then
+  echo "* Using cloud: $HUB_CLOUD_PROVIDER"
   HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
 if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
-  $(dirname "$0")/hub-stack-elaborate
+  "$(dirname "$0")"/hub-stack-elaborate
 elif test -n "$HUB_ELABORATE_FILE"; then
-  if ! $(dirname "$0")/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
+  if ! "$(dirname "$0")"/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
     echo "Call:"
     echo "    $ hub stack elaborate"
     echo "or update elaborate file timestamp:"
     echo "    $ touch $HUB_ELABORATE_FILE"
+    echo
     exit 1
   fi
 fi
@@ -168,41 +170,36 @@ export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 
 for f in $HUB_FILES; do
   test -f "$f" || continue;
-  BEFORE="$BEFORE $(yq e '.extensions.deploy.before.[]' $f)"
-  AFTER="$AFTER $(yq e '.extensions.deploy.after.[]' $f)"
+  BEFORE="$BEFORE $(yq e .extensions.${verb}.before.[] "$f")"
+  AFTER="$AFTER $(yq e .extensions.${verb}.after.[] "$f")"
 done
 
 for i in $(echo "$BEFORE" | xargs -n1); do
-  if test -f "$WORKDIR/.hub/$i/before-deploy"; then
-    hook="$WORKDIR/.hub/$i/before-deploy"
-  elif test -f "$(dirname "$0")/$i/before-deploy"; then
-    hook="$(dirname "$0")/$i/before-deploy"
+  if test -f "$WORKDIR/.hub/$i/before-${verb}"; then
+    hook="$WORKDIR/.hub/$i/before-${verb}"
+  elif test -f "$(dirname "$0")/$i/before-${verb}"; then
+    hook="$(dirname "$0")/$i/before-${verb}"
   else
-    echo "Warning! cannot find before deploy hook: $i"
+    echo "Warning! cannot find before ${verb} hook: $i"
     continue
   fi
-  echo "Running before deploy: $i"
+  echo "Running before ${verb}: $i"
   $hook
 done
 
-if test -z "$HUB_DEPLOY_PROFILE"; then
-  HUB_DEPLOY_PROFILE=$($dotenv get "HUB_DEPLOY_PROFILE" --default "pod")
-fi
-
 script_dir=$(dirname "$0")
-if test -f "$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/deploy"; then
-  deploy="$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/deploy"
-elif test -f "$script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy"; then
-  deploy="$script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy"
+if test -f "$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}"; then
+  lifecycle="$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}"
+elif test -f "$script_dir/profiles/$HUB_DEPLOY_PROFILE/${verb}"; then
+  lifecycle="$script_dir/profiles/$HUB_DEPLOY_PROFILE/${verb}"
 else
-  # shellcheck disable=SC2046
   if test -d "$WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$WORKDIR/.hub/profiles")"; fi
-  if test -d "$script_dir/profiles"; then profiles="$profiles $(ls $script_dir/profiles)"; fi
+  if test -d "$script_dir/profiles"; then profiles="$profiles $(ls "$script_dir/profiles")"; fi
   cat << EOF
 
 Error! Cannot find deployment profile $HUB_DEPLOY_PROFILE
-* Not found: $WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/deploy
-* Not found: $script_dir/profiles/$HUB_DEPLOY_PROFILE/deploy
+* Not found: $WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}
+* Not found: $script_dir/profiles/$HUB_DEPLOY_PROFILE/${verb}
 
 Deployment profile configured via .env variable HUB_DEPLOY_PROFILE
 
@@ -215,28 +212,29 @@ fi
 
 cat << EOF
 
-Proceeding with: deploy
+Proceeding with: ${verb}
 * Using profile: $HUB_DEPLOY_PROFILE
 * Running CLI command:
 
-  $ hub deploy $HUB_ELABORATE -s $HUB_STATE $HUB_OPTS
+  $ hub ${verb} $HUB_ELABORATE -s $HUB_STATE $HUB_OPTS
 
 EOF
 
-# shellcheck disable=SC2086,SC2046
-$deploy "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
+# shellcheck disable=SC2086
+$lifecycle "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
+echo
+
 for i in $(echo "$AFTER" | xargs -n1); do
-  if test -f "$WORKDIR/.hub/$i/after-deploy"; then
-    hook="$WORKDIR/.hub/$i/after-deploy"
-  elif test -f "$(dirname "$0")/$i/after-deploy"; then
-    hook="$(dirname "$0")/$i/after-deploy"
+  if test -f "$WORKDIR/.hub/$i/after-${verb}"; then
+    hook="$WORKDIR/.hub/$i/after-${verb}"
+  elif test -f "$(dirname "$0")/$i/after-${verb}"; then
+    hook="$(dirname "$0")/$i/after-${verb}"
   else
     echo "Warning! cannot find post hook: $i"
     continue
   fi
-  echo "Running after deploy hook: $i"
+  echo "Running after ${verb} hook: $i"
   $hook
 done
 
-echo
 echo "Done!"
