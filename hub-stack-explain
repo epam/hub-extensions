@@ -31,8 +31,8 @@ while [ "$1" != "" ]; do
 done
 
 if test ! -f .env; then
-  echo "* Error: configuration '.env' not found"
-  exit 1
+    echo "* Error: configuration '.env' not found"
+    exit 1
 fi
 dotenv=$(dirname "$0")/env/dotenv
 eval "$($dotenv export -f ".env" )"
