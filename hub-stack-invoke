@@ -1,0 +1,42 @@
+#!/bin/bash -e
+
+usage() {
+cat << EOF
+
+Invoke stack component's verb
+
+Usage:
+$ hub stack invoke <component> <verb>
+
+Parameters:
+    -V  --verbose          Verbose outputs for debug purpose
+    -h --help              Show this message
+
+EOF
+}
+
+HUB_OPTS=
+while [ "$1" != "" ]; do
+    case $1 in
+    -V | --verbose )    set -x
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+    * )                 HUB_OPTS="$HUB_OPTS $1"
+    esac
+    shift
+done
+
+if test ! -f .env; then
+    echo "* Error: configuration '.env' not found"
+    exit 1
+fi
+dotenv=$(dirname "$0")/env/dotenv
+eval "$($dotenv export -f ".env" )"
+
+if test -n "$HUB_KUBECONFIG" -a -z "$KUBECONFIG"; then
+    export KUBECONFIG="$HUB_KUBECONFIG"
+fi
+
+hub invoke -m "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
