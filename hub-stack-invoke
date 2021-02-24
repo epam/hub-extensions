@@ -35,7 +35,7 @@ fi
 dotenv=$(dirname "$0")/env/dotenv
 eval "$($dotenv export -f ".env" )"
 
-if test -n "$HUB_KUBECONFIG" -a -z "$KUBECONFIG"; then
+if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -f "$HUB_KUBECONFIG"; then
     export KUBECONFIG="$HUB_KUBECONFIG"
 fi
 
