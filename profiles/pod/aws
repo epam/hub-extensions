@@ -15,22 +15,20 @@ while (( "$#" )); do
   shift
 done
 
-# shellcheck disable=SC2046
-dotenv="$(dirname $(dirname $(dirname "$0")))/env/dotenv -f .env"
-if test -f ".env"; then
-  set +a
-  eval "$($dotenv export)"
-  set -a
-fi
-
 if test -z "$POD"; then
   echo "Error: missing value for argument: --pod"
   exit 1
 fi
 
-aws_creds=$($dotenv get "AWS_SHARED_CREDENTIALS_FILE" --default "$HOME/.aws/credentials")
-aws_config=$($dotenv get "AWS_CONFIG_FILE" --default "$HOME/.aws/config")
-aws_profile=$($dotenv get "AWS_PROFILE")
+# shellcheck disable=SC2046
+dotenv="$(dirname "$0")/../../env/dotenv -f .env"
+if test -f ".env"; then
+  eval "$($dotenv export)"
+fi
+
+aws_creds=${AWS_SHARED_CREDENTIALS_FILE:-$HOME/.aws/credentials}
+aws_config=${AWS_CONFIG_FILE:-$HOME/.aws/config}
+aws_profile=$AWS_PROFILE
 
 if test -n "$aws_profile"; then
   AWS_ARGS="$AWS_ARGS --profile $aws_profile"
@@ -40,10 +38,22 @@ else
 fi
 
 render_conf_line() {
+  local config_var=$1
+  local shell_var
   local val
-  if val=$(aws $AWS_ARGS configure get "$1"); then
+
+  shell_var=$(echo $config_var | tr a-z A-Z)
+  if echo $shell_var | grep ^AWS_ >/dev/null; then
+    val=${!shell_var}
     if test -n "$val"; then
-      echo "$1 = $val"
+      echo "$config_var = $val"
+      return
+    fi
+  fi
+
+  if val=$(aws $AWS_ARGS configure get $config_var); then
+    if test -n "$val"; then
+      echo "$config_var = $val"
     fi
   fi
 }
