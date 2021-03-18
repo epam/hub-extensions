@@ -153,10 +153,12 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
+script_dir=$(dirname "$0")
+
 if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
-  "$(dirname "$0")"/hub-stack-elaborate
+  "$script_dir"/hub-stack-elaborate
 elif test -n "$HUB_ELABORATE_FILE"; then
-  if ! "$(dirname "$0")"/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
+  if ! "$script_dir"/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
     echo "Call:"
     echo "    $ hub stack elaborate"
     echo "or update elaborate file timestamp:"
@@ -168,17 +170,12 @@ fi
 
 export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 
-for f in $HUB_FILES; do
-  test -f "$f" || continue;
-  BEFORE="$BEFORE $(yq e .extensions.${verb}.before.[] "$f")"
-  AFTER="$AFTER $(yq e .extensions.${verb}.after.[] "$f")"
-done
-
+BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$BEFORE" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$i/before-${verb}"; then
     hook="$WORKDIR/.hub/$i/before-${verb}"
-  elif test -f "$(dirname "$0")/$i/before-${verb}"; then
-    hook="$(dirname "$0")/$i/before-${verb}"
+  elif test -f "$script_dir/$i/before-${verb}"; then
+    hook="$script_dir/$i/before-${verb}"
   else
     echo "Warning! cannot find before ${verb} hook: $i"
     continue
@@ -187,7 +184,6 @@ for i in $(echo "$BEFORE" | xargs -n1); do
   $hook
 done
 
-script_dir=$(dirname "$0")
 if test -f "$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}"; then
   lifecycle="$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}"
 elif test -f "$script_dir/profiles/$HUB_DEPLOY_PROFILE/${verb}"; then
@@ -224,13 +220,14 @@ EOF
 $lifecycle "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
 echo
 
+AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$AFTER" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$i/after-${verb}"; then
     hook="$WORKDIR/.hub/$i/after-${verb}"
-  elif test -f "$(dirname "$0")/$i/after-${verb}"; then
-    hook="$(dirname "$0")/$i/after-${verb}"
+  elif test -f "$script_dir/$i/after-${verb}"; then
+    hook="$script_dir/$i/after-${verb}"
   else
-    echo "Warning! cannot find post hook: $i"
+    echo "Warning! cannot find after hook: $i"
     continue
   fi
   echo "Running after ${verb} hook: $i"

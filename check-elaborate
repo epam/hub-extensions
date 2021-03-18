@@ -13,10 +13,7 @@ if test -t 1; then
     color_end="\033[0m"
 fi
 
-additional=""
-for s in $sources; do
-    additional="$additional $(yq e '.components[].source.dir | . + "/hub-component.yaml"' "$s")"
-done
+additional=$(yq -N e '.components[].source.dir | . + "/hub-component.yaml"' $sources | sort | uniq)
 
 newer=""
 for s in $sources $additional; do
