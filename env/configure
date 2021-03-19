@@ -147,6 +147,7 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     fi
   else
     echo "* Parameter $PARAM: already configured"
+    continue
   fi
   echo "$ENV=\"$VALUE\"" >> $DOT_ENV
   echo "  saved as $ENV to .env file"
