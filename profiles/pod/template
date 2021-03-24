@@ -98,6 +98,7 @@ metadata:
     exec-id: "$ID"
 spec:
   serviceAccountName: toolbox-$ID
+  terminationGracePeriodSeconds: 2
   containers:
   - name: toolbox
     image: $IMAGE

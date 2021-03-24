@@ -65,11 +65,10 @@ finalize() {
     fi
   done
   set -e
-  echo "* Cleaning toolbox-$ID: "
-  {
-    kubectl delete -f "$1" --wait --timeout=300s >/dev/null
-    rm -rf "$1"
-  } &
+  echo -n "* Cleaning toolbox-$ID: "
+  kubectl delete -f "$1" >/dev/null
+  echo "Done"
+  rm -f "$1"
   if test "$rv" != "0"; then
     echo "Aborted!"
   fi
@@ -77,8 +76,6 @@ finalize() {
 
 echo "Starting toolbox pod: toolbox-$ID"
 temp=$(mktemp)
-# shellcheck disable=SC2064
-trap "finalize $temp" EXIT
 
 hub_kubeconfig=${HUB_KUBECONFIG:-$KUBECONFIG}
 if test -n "$hub_kubeconfig"; then
@@ -102,11 +99,14 @@ fi
 
 echo -n "* Scheduling a pod toolbox-$ID: "
 if $kubectl -f "$temp" apply >/dev/null; then
-  rm -f "$temp"
   echo "Done"
 else
   exit $?
 fi
+
+# shellcheck disable=SC2064
+trap "finalize $temp" EXIT
+
 echo -n "* Starting pod toolbox-$ID: "
 $kubectl wait "pod/toolbox-$ID" \
   --for=condition=Ready \
@@ -118,7 +118,7 @@ if test -n "$TOOLBOX_APK_ADD"; then
 fi
 
 # this do not archive directories thus no directory permissions are restored
-echo -n "* Synchronizing working directory (may take few minutes): "
+echo -n "* Synchronizing working directory (may take a while): "
 find -L "." \
   -type f \
   ! -path '*/.git/*' \
@@ -174,4 +174,4 @@ echo -n "* Executing: "
 # shellcheck disable=SC2086
 echo $kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hub $HUB_ARGS
 # shellcheck disable=SC2086
-exec $kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hub $HUB_ARGS
+$kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hub $HUB_ARGS
