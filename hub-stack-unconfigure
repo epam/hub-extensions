@@ -14,8 +14,12 @@ Parameters:
 EOF
 }
 
-HUB_OPTS=
-DOTENV=".env"
+if test -f ".env"; then
+  DOTENV=".env"
+elif test -L ".env"; then
+  DOTENV=$(readlink ".env")
+fi
+
 while [ "$1" != "" ]; do
     case $1 in
     -V | --verbose )    set -x
@@ -46,62 +50,30 @@ EOF
 fi
 dotenv="$(dirname "$0")/env/dotenv -f $DOTENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
-echo "Unconfiguring: $HUB_DOMAIN_NAME"
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Error: cannot find 'HUB_DOMAIN_NAME' has not been defined"
+  echo "Error: 'HUB_DOMAIN_NAME' has not been defined!"
+  echo "Error:  is $DOTENV is a stack you want to unconfigure?"
   exit 2
 fi
+
+echo "Unconfiguring: $HUB_DOMAIN_NAME"
 
 FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
 FILES="$FILES $($dotenv get "HUB_STATE" | sed "s/,/ /g")"
 FILES="$FILES $($dotenv get "HUB_ELABORATE" | sed "s/,/ /g")"
+FILES="$FILES $DOTENV"
 for f in $FILES; do
-  if test -f "$f"; then
-    echo "* Removing $f"
-    rm -f "$f"
-  fi
+  test -f "$f" || continue
+  echo "* Removing $f"
+  rm -f "$f"
 done
 
-# if test -z "$HUB_ELABORATE"; then
-#   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
-# fi
-
-
-# # shellcheck disable=SC2001
-# for f in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
-#   if test -f "$f"; then
-#     echo "* Removing $f"
-#     rm -f $f
-#   fi
-# done
-# for f in $(echo "$HUB_STATE" | sed "s/,/ /g"); do
-#   if test -f "$f"; then
-#     echo "* Removing $f"
-#     rm -f $f
-#   fi
-# done
-
-# HUB_KUBECONFIG="$($dotenv get HUB_KUBECONFIG)"
-# if test -f "$HUB_KUBECONFIG"; then
-#   echo "* Removing $HUB_KUBECONFIG"
-#   rm -f "$HUB_KUBECONFIG"
-# fi
-
-if test -L "$DOTENV"; then
-  envfile=$(readlink "$DOTENV")
-  echo "* Unlinking $DOTENV"
-  unlink "$DOTENV"
-elif test -L ".env"; then
+if test -L ".env"; then
   envfile=$(readlink ".env")
-  if "$envfile" -ef "$DOTENV"; then
-    echo "* Unlinking .env"
+  if "$envfile" -ef ".env"; then
+    echo "* Removing .env: "
     unlink ".env"
   fi
-fi
-
-if test -f "$DOTENV"; then
-  echo -n "* Removing "
-  rm -fv "$DOTENV"
 fi
 
 echo "Unconfigured!"
