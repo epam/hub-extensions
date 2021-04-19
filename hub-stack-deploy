@@ -122,8 +122,12 @@ Starting ${verb}:
 * Using domain name: $HUB_DOMAIN_NAME
 EOF
 
-if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -f "$HUB_KUBECONFIG"; then
-  export KUBECONFIG="$HUB_KUBECONFIG"
+if test -n "$HUB_KUBECONFIG" -a -f "$HUB_KUBECONFIG"; then
+  KUBECONFIG="$HUB_KUBECONFIG"
+  export KUBECONFIG
+  echo "* Using kubeconfig: $KUBECONFIG"
+elif test -n "$KUBECONFIG" -a -f "$KUBECONFIG"; then
+  export KUBECONFIG
   echo "* Using kubeconfig: $KUBECONFIG"
 fi
 
