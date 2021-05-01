@@ -71,7 +71,7 @@ if which kustomize > /dev/null; then
   kustomize build "." > "$WORKDIR/all.yaml"
 
   if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/all.yaml")"; then
-    echo "* Removing Namespace from kustomize:"
+    echo "* Removing shared resource Namespace from kustomize build"
     echo "  HINT: consider to move Namespace to pre-$VERB script"
     yq e '. | select(.kind == "Namespace").metadata.name | "  - " + .' "$WORKDIR/all.yaml"
     yq e '. | select(.kind == "Namespace" | not)' -i "$WORKDIR/all.yaml"
