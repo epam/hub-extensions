@@ -69,11 +69,18 @@ if which kustomize > /dev/null; then
 
   echo "* Running kustomize build"
   kustomize build "." > "$WORKDIR/all.yaml"
-  $yq e '. | (select(.kind == "CustomResourceDefinition" | not))' "$WORKDIR/all.yaml" > "$WORKDIR/resources.yaml"
+  $yq e \
+    '. | select(.kind == "CustomResourceDefinition" or .kind == "Namespace" | not)' \
+    "$WORKDIR/all.yaml" > "$WORKDIR/resources.yaml"
+
+  if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/all.yaml")"; then
+    echo "* Removing Namespace resource. HINT: consider to move Namespace to pre-$VERB script"
+    yq e '. | select(.kind == "Namespace" | not)' -i "$WORKDIR/all.yaml"
+  fi
 
   # Special case for CRD
   if test "$VERB" = "deploy"; then
-    $yq e '. | (select(.kind == "CustomResourceDefinition"))' "$WORKDIR/all.yaml" > "$WORKDIR/crds.yaml"
+    $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/all.yaml" > "$WORKDIR/crds.yaml"
     max_di=$($yq e 'di' "$WORKDIR/crds.yaml" | tail -1)
     if test -n "$max_di"; then
       echo "* Processing CRDs before other kustomize resources:"
