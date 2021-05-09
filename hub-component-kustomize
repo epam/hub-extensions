@@ -24,7 +24,7 @@ case "$VERB" in
     kubectl_cmd="$kubectl apply"
   ;;
   "undeploy" )
-    kubectl_cmd="$kubectl delete"
+    kubectl_cmd="$kubectl delete --ignore-not-found=true"
   ;;
   * )
     echo "Error: unsupported verb: $VERB"
@@ -42,7 +42,8 @@ if test $VERB = "deploy"; then
   if test -d "crds"; then
     echo "* Processing CRDs..."
     for f in crds/*.yaml; do
-      max_di=$($yq e 'di' "$f" | tail -1)
+      # TODO: add support for JSON
+      max_di=$($yq e 'di' $f | tail -1)
       for i in $(seq 0 "$max_di"); do
         crd=$($yq e "select(di == $i).metadata.name" "$f")
         if test -z "$crd" -o "$crd" = "null"; then
@@ -68,18 +69,18 @@ if which kustomize > /dev/null; then
   trap 'rm -rf -- "$WORKDIR"' EXIT
 
   echo "* Running kustomize build"
-  kustomize build "." > "$WORKDIR/all.yaml"
+  kustomize build "." > "$WORKDIR/resources.yaml"
 
-  if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/all.yaml")"; then
+  if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/resources.yaml")"; then
     echo "* Removing shared resource Namespace from kustomize build"
     echo "  HINT: consider to move Namespace to pre-$VERB script"
-    yq e '. | select(.kind == "Namespace").metadata.name | "  - " + .' "$WORKDIR/all.yaml"
-    yq e '. | select(.kind == "Namespace" | not)' -i "$WORKDIR/all.yaml"
+    yq e '. | select(.kind == "Namespace").metadata.name | "  - " + .' "$WORKDIR/resources.yaml"
+    yq e '. | select(.kind == "Namespace" | not)' -i "$WORKDIR/resources.yaml"
   fi
 
   # Special case for CRD
-  if test -n "$(yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/all.yaml")"; then
-    $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/all.yaml" > "$WORKDIR/crds.yaml"
+  if test -n "$(yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml")"; then
+    $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml" > "$WORKDIR/crds.yaml"
     max_di=$($yq e 'di' "$WORKDIR/crds.yaml" | tail -1)
     if test "$VERB" = deploy; then
       echo "* Processing CRDs before other kustomize resources:"
@@ -98,11 +99,11 @@ if which kustomize > /dev/null; then
     fi
 
     echo "* Removing CustomResourceDefinition from kustomize build"
-    yq e '. | select(.kind == "CustomResourceDefinition" | not)' -i "$WORKDIR/all.yaml"
+    yq e '. | select(.kind == "CustomResourceDefinition" | not)' -i "$WORKDIR/resources.yaml"
   fi
 
   echo "* Processing kustomize resources..."
-  $kubectl_cmd -f "$WORKDIR/all.yaml"
+  $kubectl_cmd -f "$WORKDIR/resources.yaml"
 else
   echo "Warning: 'kustomze' binary not found. Falling back to 'kubectl -k ...'"
   $kubectl_cmd -k "."
