@@ -4,16 +4,18 @@ if test -z "$COMPONENT_NAME" -o -z "$DOMAIN_NAME" -o -z "$NAMESPACE" -o -z "$HEL
     echo "COMPONENT_NAME, DOMAIN_NAME, NAMESPACE, HELM_CHART must be set"
 fi
 
-charts=".charts"
+charts="$(mktemp -d)"
+trap 'rm -rf -- "$charts"' EXIT
+
 yq="yq"
 helm3="helm"
 if which helm3 >/dev/null; then helm3=helm3; fi
 
-export kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
-export helm="$helm3 --kube-context=$DOMAIN_NAME --namespace=$NAMESPACE"
+kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
+helm="$helm3 --kube-context=$DOMAIN_NAME --namespace=$NAMESPACE"
 
-rm -rf $charts
-mkdir -p $charts
+export kubectl helm
+
 
 echo "Resolving helm chart: $HELM_CHART"
 if test -d "$HELM_CHART"; then
@@ -39,7 +41,7 @@ elif test -d "charts"; then
         echo "  chart: $file"
         _name=$(helm show chart "$file" | yq e -M '.name' -)
         _ver=$(helm show chart "$file" | yq e -M '.version' -)
-        echo "  name: $_name version: $_ver"
+        echo "  chart: $_name version: $_ver"
         if test "$_name" = "$HELM_CHART"; then
             if test -z "$HELM_CHART_VERSION" -o "$HELM_CHART_VERSION" = "$_ver"; then
                 echo "  resolved to: $file"
@@ -47,7 +49,7 @@ elif test -d "charts"; then
                     chart_path="$file"
                 elif test -f "$file"; then
                     tar xzf "$file" -C "$charts"
-                    dir=$(tar tf "$HELM_CHART" | grep Chart.yaml | head -n1 | cut -d "/" -f1)
+                    dir=$(tar tf "$file" | grep Chart.yaml | head -n1 | cut -d "/" -f1)
                     chart_path="$charts/$dir"
                     break
                 fi
@@ -70,7 +72,6 @@ else
     exit 1
 fi
 
-
 # TODO no HELM_HOME in Helm 3
 # https://helm.sh/docs/faq/#xdg-base-directory-support
 # Helm stores cache, configuration, and data based on the following configuration order:
@@ -79,7 +80,6 @@ fi
 # - When no other location is set a default location will be used based on the operating system
 #export HELM_HOME=$(pwd)/.helm
 
-charts=.charts
 
 echo "Checking namespace: $NAMESPACE"
 if ! $kubectl get namespace "$NAMESPACE" -o name > /dev/null;  then
