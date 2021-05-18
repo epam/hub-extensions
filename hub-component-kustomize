@@ -41,7 +41,8 @@ if test "$VERB" = "deploy"; then
   fi
   if test -d "crds"; then
     echo "Processing CRDs..."
-    find "crds" -type f -print0 -name '*.yaml' -o -name '*.yml' | while read -r file; do
+    for file in crds/*.yaml crds/*.yml; do
+      if test ! -f "$file"; then continue; fi;
       echo "* Reading: $file"
       max_di=$($yq e 'di' "$file" | tail -1)
       for i in $(seq 0 "$max_di"); do
