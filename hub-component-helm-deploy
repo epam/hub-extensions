@@ -121,6 +121,14 @@ if $helm list --failed --pending -q | grep -E "^$COMPONENT_NAME\$"; then
 fi
 
 echo "Resolving helm chart values:"
+if test -n "$CHART_VALUES_FILE"; then
+    for file in $CHART_VALUES_FILE; do
+        if test -f "$chart_path/$file"; then
+            echo "* HELM_CHART/$file"
+            HELM_ARGS="$HELM_ARGS --values $chart_path/$file"
+        fi
+    done
+fi
 for file in values.yaml values-*.yaml values.yml values-*.yml; do
     if test ! -f "$file"; then continue; fi
     echo "* $file"
