@@ -74,6 +74,15 @@ finalize() {
   fi
 }
 
+if test -z "$HUB_EXTENSIONS"; then
+  if test -n "$HOME"; then
+    HUB_EXTENSIONS="$HOME/.hub"
+  else
+    # shellcheck disable=SC2088
+    HUB_EXTENSIONS="~/.hub"
+  fi
+fi
+
 echo "Starting toolbox pod: toolbox-$ID"
 temp=$(mktemp)
 
@@ -165,6 +174,15 @@ if test -n "$TOOLBOX_HUB_CLI_REPLACEMENT" -a -f "$TOOLBOX_HUB_CLI_REPLACEMENT"; 
   echo "Done"
   hub=./hub
 fi
+
+if test -d "$HUB_EXTENSIONS"; then
+  echo "* Syncronizing hub extensions from: $HUB_EXTENSIONS"
+  $kubectl exec -i "toolbox-$ID" -- gosu "$USER" mkdir -p "$HUB_EXTENSIONS"
+  # FIXME: tar in toolbox doesn't support -P upgrade tar is an abstraciton leak
+  find -L "$HUB_EXTENSIONS"  -type f ! -path '*/.git/*' -print0 \
+  | tar cz -P --null -T - \
+  | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar zx -C "/" 2>/dev/null
+sfi
 
 maybe_tty=
 if test -t 0; then
