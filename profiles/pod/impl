@@ -182,7 +182,7 @@ if test -d "$HUB_EXTENSIONS"; then
   find -L "$HUB_EXTENSIONS"  -type f ! -path '*/.git/*' -print0 \
   | tar cz -P --null -T - \
   | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar zx -C "/" 2>/dev/null
-sfi
+fi
 
 maybe_tty=
 if test -t 0; then
