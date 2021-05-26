@@ -18,7 +18,7 @@ Common parameters:
   -r  --requirement       Configure one requirement (can be repeated multiple times)
   -i  --init-dotenv FILE  Start with initial values from the .env FILE
   -s  --silent            Suppress console outputs in favor of result codes
-  -V  --verbose           Verbose outputs for debug purposeEOF
+  -V  --verbose           Verbose outputs for debug purposes
   -h  --help              Print this message
 
 Use: hub configure -r aws -r kubernetes   # configure specified requirements only
