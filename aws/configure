@@ -157,12 +157,15 @@ elif test "$DNS_MANAGER" = "user"; then
   if test -n "$HUB_BASE_DOMAIN_AWS_PROFILE"; then
     parent_aws_profile_flag="--aws-profile $HUB_BASE_DOMAIN_AWS_PROFILE"
   fi
-  PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
-  echo -n "* Checking presence of parent hosted zone $PARENT_DOMAIN: "
-  PARENT_ZONE_ID=$($(dirname "$0")/route53/zone-id --domain-name "$PARENT_DOMAIN" $parent_aws_profile_flag)
-  echo "${PARENT_ZONE_ID:-not found}"
+  private_zone=$($(dirname "$0")/route53/private-zone --domain-name "$HUB_DOMAIN_NAME")
+  if test "$private_zone" != True; then
+    PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
+    echo -n "* Checking presence of parent hosted zone $PARENT_DOMAIN: "
+    PARENT_ZONE_ID=$($(dirname "$0")/route53/zone-id --domain-name "$PARENT_DOMAIN" $parent_aws_profile_flag)
+    echo "${PARENT_ZONE_ID:-not found}"
+  fi
   if test -z "$ZONE_ID"; then
-    if test -z "$PARENT_ZONE_ID"; then
+    if test -z "$PARENT_ZONE_ID" -a "$private_zone" != True; then
       cat <<EOF
 
 Error!
@@ -183,7 +186,7 @@ EOF
     $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
     echo "Done"
   fi
-  if test -n "$PARENT_ZONE_ID"; then
+  if test -n "$PARENT_ZONE_ID" -a "$private_zone" != True; then
     echo -n "* Updating $HUB_DOMAIN_NAME NS records in $PARENT_DOMAIN / $PARENT_ZONE_ID (takes a minute)... "
     ns=$($(dirname "$0")/route53/nameservers --domain-name "$HUB_DOMAIN_NAME" --json | jq -c '[.[] | {"Value":.}]')
     $(dirname "$0")/route53/upsert \

@@ -1,0 +1,31 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+NS_OUTPUT=text
+while [ "$1" != "" ]; do
+    case $1 in
+        --domain-name )   shift
+                          HUB_DOMAIN_NAME="$1"
+                          ;;
+        --json )          NS_OUTPUT=json
+                          ;;
+        --verbose )       set -x
+                          ;;
+    esac
+    shift
+done
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Flag --domain-name DOMAIN is not defined"
+  exit 1
+fi
+
+ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME")
+if test -n "$ZONE_ID"; then
+  aws $AWS_OPTS \
+    route53 \
+    get-hosted-zone \
+    --id="$ZONE_ID" \
+    --output="${NS_OUTPUT:-text}" \
+    --query 'HostedZone.Config.PrivateZone'
+fi
