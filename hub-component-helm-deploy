@@ -139,6 +139,7 @@ set -x
 # shellcheck disable=SC2086
 $helm upgrade "$COMPONENT_NAME" "$chart_path" \
     $HELM_ARGS \
+    $HELM_OPTS \
     --install \
     --create-namespace \
     --wait
