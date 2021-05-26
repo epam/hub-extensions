@@ -16,7 +16,7 @@ while [ "$1" != "" ]; do
 done
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Error: --domain-name FQDN has not been defined"
+  echo "Error: --domain-name DOMAIN is not defined"
   exit 1
 fi
 

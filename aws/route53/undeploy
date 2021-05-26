@@ -22,7 +22,7 @@ while [ "$1" != "" ]; do
                           export AWS_PROFILE="$1"
                           ;;
         --domain-name )   shift
-                          DOMAIN_NAME="$1"
+                          HUB_DOMAIN_NAME="$1"
                           ;;
         -h | --help )     usage
                           exit

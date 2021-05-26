@@ -16,22 +16,18 @@ while [ "$1" != "" ]; do
 done
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Flag --domain-name VALUE not defined"
+  echo "Flag --domain-name DOMAIN is not defined"
   exit 1
 fi
 
-hosted_zone_ns() {
+ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME")
+if test -n "$ZONE_ID"; then
   aws $AWS_OPTS \
     route53 \
     get-hosted-zone \
     --id="$ZONE_ID" \
     --output="${NS_OUTPUT:-text}" \
     --query 'DelegationSet.NameServers'
-}
-
-ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME")
-if test -n "$ZONE_ID"; then
-  hosted_zone_ns "$ZONE_ID"
 elif test -z "$ZONE_ID" -a "$NS_OUTPUT" = "json"; then
   echo '[]'
 fi
