@@ -5,7 +5,7 @@ if test -z "$COMPONENT_NAME" -o -z "$DOMAIN_NAME" -o -z "$NAMESPACE" -o -z "$HEL
 fi
 
 charts="$(mktemp -d)"
-trap 'rm -rf -- "$charts"' EXIT
+trap "rm -rf -- $charts" EXIT
 
 yq="yq"
 helm3="helm"
@@ -15,7 +15,6 @@ kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
 helm="$helm3 --kube-context=$DOMAIN_NAME --namespace=$NAMESPACE"
 
 export kubectl helm
-
 
 echo "Resolving helm chart: $HELM_CHART"
 if test -d "$HELM_CHART"; then
@@ -57,6 +56,9 @@ elif test -d "charts"; then
         fi
     done
 elif test -n "$HELM_REPO"; then
+    if test -d .charts; then
+        charts=.charts
+    fi
     echo "Fetching chart repository: $HELM_REPO"
     $helm repo add stable "https://charts.helm.sh/stable"
     $helm repo add "$COMPONENT_NAME" "$HELM_REPO"
@@ -64,9 +66,10 @@ elif test -n "$HELM_REPO"; then
     if test -n "$HELM_CHART_VERSION"; then
         HELM_ARGS="$HELM_ARGS --version $HELM_CHART_VERSION"
     fi
+    chart_path=$charts/$(basename "$HELM_CHART")
+    rm -rf "$chart_path"
     # shellcheck disable=SC2086
     $helm fetch "$COMPONENT_NAME/$HELM_CHART" $HELM_ARGS --destination $charts --untar
-    chart_path=$charts/$(basename "$HELM_CHART")
 else
     echo "Cannot find helm chart $HELM_CHART"
     exit 1
