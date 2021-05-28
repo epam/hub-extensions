@@ -16,6 +16,13 @@ Parameters:
 EOF
 }
 
+if test ! -f .env; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+dotenv=$(dirname "$0")/env/dotenv
+eval "$($dotenv export -f ".env" )"
+
 HUB_OPTS=
 while [ "$1" != "" ]; do
     case $1 in
@@ -23,6 +30,9 @@ while [ "$1" != "" ]; do
                         ;;
     -h | --help )       usage
                         exit
+                        ;;
+    --hub-files )       shift
+                        HUB_FILES="$1"
                         ;;
     -- )                shift
                         HUB_OPTS="$HUB_OPTS $*"
@@ -33,13 +43,6 @@ while [ "$1" != "" ]; do
     esac
     shift
 done
-
-if [[ ! -f .env ]]; then
-  echo "* Error: configuration '.env' has not been found"
-  exit 1
-fi
-dotenv=$(dirname "$0")/env/dotenv
-eval "$($dotenv export -f ".env" )"
 
 echo "Reconciling deployment plan for $HUB_STACK_NAME"
 echo "* Using domain name: $HUB_DOMAIN_NAME"
