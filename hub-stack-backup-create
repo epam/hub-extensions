@@ -1,0 +1,177 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+usage() {
+cat << EOF
+
+Create backup for current stack
+
+Usage:
+$ hub stack backup create
+
+Creates a backup for entire stack
+
+$  hub stack backup create -c component1,component2
+
+Creates a backup for two components
+
+Parameters:
+    -t --tag              Backup tags
+    -c --component        Components to backup
+    -V  --verbose         Verbose outputs for debug purpose
+    --tty                 Use TTY (terminal) mode for hub ${verb}
+    --no-tty              Do not use TTY (terminal) mode for hub ${verb}
+    --                    Separator to define "hub ${verb}" low level parameters (see: "hub ${verb} --help")
+    -h  --help            Print this message
+
+EOF
+}
+
+
+if test ! -f .env; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+
+abspath() {
+  if test -d "$1"; then
+    (cd "$1" && pwd)
+  elif test -f "$1"; then
+    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
+  fi
+}
+
+dotenv="$(dirname "$0")/env/dotenv -f .env"
+eval "$($dotenv "export")"
+
+FULL_STACK=true
+HUB_OPTS=
+
+while test "$1" != ""; do
+    case $1 in
+        -t | --tag )        shift
+                            HUB_BACKUP_TAG="$1"
+                            ;;
+        -c | --component )  shift
+                            HUB_OPTS="$HUB_OPTS -c $1"
+                            FULL_STACK=false
+                            ;;
+        --tty )             HUB_OPTS="$HUB_OPTS --tty true"
+                            ;;
+        --no-tty )          HUB_OPTS="$HUB_OPTS --tty false"
+                            ;;
+        -V | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        -- )                shift
+                            HUB_OPTS="$HUB_OPTS $*"
+                            break
+                            ;;
+        * )                 usage
+                            exit 1
+    esac
+    shift
+done
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  exit 2
+fi
+
+cat << EOF
+Creating backup:
+* Using domain name: $HUB_DOMAIN_NAME
+EOF
+
+if test -n "$HUB_KUBECONFIG" -a -f "$HUB_KUBECONFIG"; then
+  KUBECONFIG="$HUB_KUBECONFIG"
+  export KUBECONFIG
+  echo "* Using kubeconfig: $KUBECONFIG"
+elif test -n "$KUBECONFIG" -a -f "$KUBECONFIG"; then
+  export KUBECONFIG
+  echo "* Using kubeconfig: $KUBECONFIG"
+fi
+
+if test -z "$HUB_STATE"; then
+  HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+fi
+echo "* Using hub state:"
+for i in ${HUB_STATE//,/ }; do
+  echo "  - $i"
+done
+
+if test -z "$HUB_ELABORATE"; then
+  HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
+fi
+echo "* Using hub elaborate:"
+for i in ${HUB_ELABORATE//,/ }; do
+  echo "  - $i"
+  if ! grep :// <<<$i >/dev/null; then
+    HUB_ELABORATE_FILE=$i
+  fi
+done
+
+if test -n "$HUB_CLOUD_PROVIDER"; then
+  echo "* Using cloud: $HUB_CLOUD_PROVIDER"
+  HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
+fi
+
+script_dir=$(dirname "$0")
+
+if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
+  "$script_dir"/hub-stack-elaborate
+elif test -n "$HUB_ELABORATE_FILE"; then
+  if ! "$script_dir"/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
+    echo "Call:"
+    echo "    $ hub stack elaborate"
+    echo "or update elaborate file timestamp:"
+    echo "    $ touch $HUB_ELABORATE_FILE"
+    echo
+    exit 1
+  fi
+fi
+
+# export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR=".hub/backups"
+fi
+
+hub_backup_dir="$HUB_BACKUP_DIR"
+HUB_BACKUP_DIR="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$(date +"%Y%m%d-%H%M%S")"
+mkdir -p "$HUB_BACKUP_DIR"
+HUB_BACKUP_DIR=$(abspath $HUB_BACKUP_DIR)
+export HUB_BACKUP_DIR
+
+rm_empty() {
+  if test -z "$(ls -A "$1")"; then
+    echo "* deleting empty $1"
+    rm -rf "$1"
+  fi
+}
+
+# shellcheck disable=SC2064
+trap "rm_empty $HUB_BACKUP_DIR" EXIT
+
+cat << EOF
+* Running CLI command:
+
+  $ hub backup create $HUB_ELABORATE -s $HUB_STATE -o $HUB_BACKUP_DIR/hub-bundle.yaml.gz $HUB_OPTS
+
+EOF
+
+# shellcheck disable=SC2086
+hub backup create "$HUB_ELABORATE" -s "$HUB_STATE" -o "$HUB_BACKUP_DIR/hub-bundle.yaml.gz" $HUB_OPTS
+
+if test -n "$HUB_BACKUP_TAG"; then
+  echo "* Tagging backup: $HUB_BACKUP_TAG"
+  tag_path="$hub_backup_dir/tags/$HUB_BACKUP_TAG"
+  if test -L "$tag_path"; then
+    echo "  Unlinking $tag_path"
+    unlink "$tag_path"
+  fi
+  echo "  Reference to backup: $(basename $HUB_BACKUP_DIR)"
+  mkdir -p "$(dirname "$tag_path")"
+  ln -s "$HUB_BACKUP_DIR" "$tag_path"
+fi

@@ -1,0 +1,142 @@
+#!/bin/bash -e
+usage() {
+cat << EOF
+
+Elaborate (include) backup parameters with the stack parameters
+
+Usage:
+$ hub stack backup elaborate BACKUP_NAME/TAG
+
+Parameters:
+    -V  --verbose         Verbose outputs for debug purpose
+    --tty                 Use TTY (terminal) mode for hub ${verb}
+    --no-tty              Do not use TTY (terminal) mode for hub ${verb}
+    --                    additional arguments for "hub backup unbundle" command
+    -h  --help            Print this message
+
+Additional arguments for: hub backup unbundle -h
+---
+EOF
+  hub backup unbundle -h
+}
+
+
+if test ! -f .env; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+
+abspath() {
+  if test -d "$1"; then
+    (cd "$1" && pwd)
+  elif test -f "$1"; then
+    # shellcheck disable=SC2086,SC2046
+    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
+  fi
+}
+
+if test ! -f .env; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+dotenv="$(dirname "$0")/env/dotenv -f .env"
+eval "$($dotenv "export")"
+
+while test "$1" != ""; do
+    case $1 in
+        # -c | --component )  shift
+        #                     HUB_OPTS="$HUB_OPTS -c $1"
+        #                     FULL_STACK=false
+        #                     ;;
+        # -t | --tag          )  shift
+        #                     HUB_BACKUP_TAG="$1"
+        #                     ;;
+        --tty )             HUB_OPTS="$HUB_OPTS --tty true"
+                            ;;
+        --no-tty )          HUB_OPTS="$HUB_OPTS --tty false"
+                            ;;
+        -V | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit 0
+                            ;;
+        -- )                shift
+                            HUB_OPTS="$HUB_OPTS $*"
+                            exit
+                            ;;
+        * )                 BACKUP_NAME="$1"
+                            break
+                            ;;
+    esac
+    shift
+done
+
+if test -z "$BACKUP_NAME"; then
+  echo "Backup: name or tag has not been defined"
+  usage
+  exit 1
+fi
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  exit 2
+fi
+
+cat << EOF
+Elaborate stack:
+* Using domain name: $HUB_DOMAIN_NAME
+EOF
+
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR=".hub/backups"
+fi
+
+# maybe tag?
+backup_path="$HUB_BACKUP_DIR/tags/$BACKUP_NAME"
+if test -L "$backup_path"; then
+  backup_path="$(readlink -n "$backup_path")"
+fi
+if test -d "$backup_path"; then
+  # for better readability
+  backup_path="$backup_path"
+elif test  -L "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$BACKUP_NAME"; then
+  # maybe backup name?
+  backup_path=$(readlink -n "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$BACKUP_NAME")
+elif test  -d "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$BACKUP_NAME"; then
+  backup_path="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$BACKUP_NAME"
+else
+  echo "* Error: backup $BACKUP_NAME has not been found"
+  exit 4
+fi
+
+echo "* Using backup: $backup_path"
+
+if test -f "$backup_path/hub-bundle.yaml.gz"; then
+  HUB_OPTS="$backup_path/hub-bundle.yaml.gz $HUB_OPTS"
+elif test -f "$backup_path/hub-bundle.yaml"; then
+  HUB_OPTS="$backup_path/hub-bundle.yaml $HUB_OPTS"
+else
+  echo "Error: cannot find $backup_path/hub-bundle.yaml or $backup_path/hub-bundle.yaml.gz"
+  exit 5
+fi
+
+
+cat <<EOF
+* Running CLI command:
+
+  $ hub backup unbundle $HUB_OPTS -o $backup_path/params.yaml.gz
+
+EOF
+
+# shellcheck disable=SC2086
+hub backup unbundle $HUB_OPTS -o "$backup_path/params.yaml.gz"
+gunzip -f "$backup_path/params.yaml.gz"
+if test ! -f "$backup_path/params.yaml"; then
+  echo "Error: $backup_path/params.yaml has not been created"
+  exit 1
+fi
+hub-stack-elaborate --hub-files "$HUB_FILES $backup_path/params.yaml"
+echo "Updating $HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
+if test -L "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"; then
+  unlink "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
+fi
+ln -s "$backup_path" "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"

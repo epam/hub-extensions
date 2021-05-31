@@ -1,0 +1,63 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+usage() {
+cat << EOF
+
+Create backup for current stack
+
+Parameters:
+    -V  --verbose         Verbose outputs for debug purpose
+    -h  --help            Print this message
+
+Usage:
+
+    hub stack backup tag TAG_NAME
+
+EOF
+}
+
+if test -z "$1"; then
+  usage
+  exit 1
+fi
+
+
+while test "$1" != ""; do
+    case $1 in
+        -V | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        * )                 HUB_BACKUP_TAG="$1"
+    esac
+    shift
+done
+
+
+if test -z "$HUB_BACKUP_TAG"; then
+  echo "Error: tag name is missing"
+  usage
+  exit 2
+fi
+
+if test ! -f .env; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+
+dotenv="$(dirname "$0")/env/dotenv -f .env"
+eval "$($dotenv "export")"
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR=".hub/backups"
+fi
+
+tag_path="$HUB_BACKUP_DIR/tags/$HUB_BACKUP_TAG"
+if test ! -L "$tag_path"; then
+  echo "Error: $HUB_BACKUP_TAG not found"
+  exit 3
+fi
+
+echo "Unlinking $HUB_BACKUP_TAG"
+unlink "$tag_path"

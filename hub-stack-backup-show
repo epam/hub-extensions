@@ -1,0 +1,80 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+usage() {
+cat << EOF
+
+Display backup bundle in human readable way
+
+Parameters:
+    -V  --verbose         Verbose outputs for debug purpose
+    -h  --help            Print this message
+
+Usage:
+
+    hub stack backup show BACKUP_NAME
+    hub stack backup show BACKUP_TAG
+
+EOF
+}
+
+if test -z "$1"; then
+  usage
+  exit 1
+fi
+
+if test ! -f .env; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+
+dotenv="$(dirname "$0")/env/dotenv -f .env"
+eval "$($dotenv "export")"
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  exit 2
+fi
+
+while test "$1" != ""; do
+    case $1 in
+        -V | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        * )                 HUB_BACKUP_NAME=$1
+    esac
+    shift
+done
+
+if test -z "$HUB_BACKUP_NAME"; then
+  echo "Error: name of the bakcup is missing"
+  usage
+  exit 2
+fi
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  exit 2
+fi
+
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR=".hub/backups"
+fi
+
+backup_path="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$HUB_BACKUP_NAME"
+if test ! -d "$backup_path"; then
+  backup_path="$HUB_BACKUP_DIR/tags/$HUB_BACKUP_NAME"
+fi
+
+if test ! -d "$backup_path"; then
+  echo "Error: directory $backup_path not found"
+  exit 3
+fi
+
+if test -f "$backup_path/hub-bundle.yaml"; then
+  cat "$backup_path/hub-bundle.yaml" | yq e -
+elif test -f "$backup_path/hub-bundle.yaml.gz"; then
+  gunzip "$backup_path/hub-bundle.yaml.gz" | yq e -
+fi

@@ -9,6 +9,7 @@ Parameters:
     undeploy        Undeploy current stack
     elaborate       Reconcile deployment plan for this stack
     explain         Display stack outputs, component's parameters, outputs, and capabilities
+    backup          Backup operations
     invoke          Invoke stack component's verb
     ls              List of available stacks
     set             Setting active stack

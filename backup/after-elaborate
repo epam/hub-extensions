@@ -1,0 +1,11 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR=".hub/backups"
+fi
+
+if test -L "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"; then
+  echo "* Unlinking: $HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
+  unlink "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
+fi

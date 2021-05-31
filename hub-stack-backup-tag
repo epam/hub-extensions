@@ -1,0 +1,89 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+usage() {
+cat << EOF
+
+Create backup for current stack
+
+Parameters:
+    -t --tag              Backup tags
+    -V  --verbose         Verbose outputs for debug purpose
+    -h  --help            Print this message
+
+Usage:
+
+    hub stack backup tag BACKUP_NAME -t TAG_NAME
+
+EOF
+}
+
+if test -z "$1"; then
+  usage
+  exit 1
+fi
+
+if test ! -f .env; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+
+dotenv="$(dirname "$0")/env/dotenv -f .env"
+eval "$($dotenv "export")"
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  exit 2
+fi
+
+while test "$1" != ""; do
+    case $1 in
+        -t | --tag )        shift
+                            HUB_BACKUP_TAG="$1"
+                            ;;
+        -V | --verbose )    set -x
+                            ;;
+        -h | --help )       usage
+                            exit
+                            ;;
+        * )                 HUB_BACKUP_NAME=$1
+    esac
+    shift
+done
+
+
+if test -z "$HUB_BACKUP_NAME"; then
+  echo "Error: name of the bakcup is missing"
+  usage
+  exit 2
+fi
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  exit 2
+fi
+
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR=".hub/backups"
+fi
+if test -z "$HUB_BACKUP_TAG"; then
+  echo "Error: backup tag has not been defined"
+  usage
+  exit 4
+fi
+
+backup_path="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$HUB_BACKUP_NAME"
+tag_path="$HUB_BACKUP_DIR/tags/$HUB_BACKUP_TAG"
+if test ! -d "$backup_path"; then
+  echo "Error: directory $backup_path not found"
+  exit 3
+fi
+
+echo "* Setting tag: $HUB_BACKUP_TAG..."
+if test -L "$tag_path"; then
+  echo "  Unlinking $tag_path"
+  unlink "$tag_path"
+fi
+echo "  Reference to bakup: $(basename $backup_path)"
+mkdir -p "$(dirname "$tag_path")"
+ln -s "$backup_path" "$tag_path"

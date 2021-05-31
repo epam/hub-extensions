@@ -1,0 +1,35 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+usage() {
+  cat << EOF
+Configures backup for this stack:
+  --backup-dir         override components if already downloaded
+
+EOF
+}
+
+while [ "$1" != "" ]; do
+  case $1 in
+    --backup-dir )      shift
+                        HUB_BACKUP_DIR="$1"
+                        ;;
+    --output )          shift
+                        DOT_ENV="$1"
+                        ;;
+    -h | --help )       usage
+                        exit
+                        ;;
+  esac
+  shift
+done
+
+
+WORKDIR=${WORKDIR:-$(pwd)}
+DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
+dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR="$WORKDIR/.hub/backups"
+fi
+$dotenv set "HUB_BACKUP_DIR=\"$HUB_BACKUP_DIR\""
+mkdir -p "$HUB_BACKUP_DIR"

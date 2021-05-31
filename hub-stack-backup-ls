@@ -1,0 +1,61 @@
+#!/bin/bash -e
+
+abspath() {
+  if test -d "$1"; then
+    (cd "$1" && pwd)
+  elif test -f "$1"; then
+    # shellcheck disable=SC2086,SC2046
+    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
+  fi
+}
+
+if [[ ! -f .env ]]; then
+  echo "* Error: configuration '.env' has not been found"
+  exit 1
+fi
+dotenv=$(dirname "$0")/env/dotenv
+eval "$($dotenv export -f ".env" )"
+
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR=".hub/backups"
+fi
+
+find_tags() {
+  local param
+  param="$(abspath "$1")"
+  for f in $HUB_BACKUP_DIR/tags/*; do
+    if ! test -L "$f"; then continue; fi
+    if test "$(abspath "$(readlink -n "$f")")" = "$param"; then
+      echo -n " $(basename "$f")"
+    fi
+  done
+}
+
+if test -L "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"; then
+  elaborated="$(abspath "$(readlink -n "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate")")"
+fi
+
+working_dir="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME"
+if test -d "$working_dir"; then
+  cat << EOF
+
+Listing backups for $HUB_DOMAIN_NAME:
+EOF
+  for d in "$working_dir"/*; do
+    if test ! -d "$d"; then continue; fi
+    tags="$(find_tags "$d")"
+    if test "$elaborated" == "$(abspath "$d")"; then
+      star="*"
+    else
+      star=" "
+    fi
+    if test -z "$tags"; then
+      echo "$star $(basename "$d")    local"
+    else
+      echo "$star $(basename "$d")    local    ($(echo "$tags" | xargs))"
+    fi
+  done
+else
+  echo "There are no backups for stack $HUB_DOMAIN_NAME"
+  exit 2
+fi

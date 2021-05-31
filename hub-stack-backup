@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+usage() {
+  cat << EOF
+Usage: hub stack backup <sub command>
+
+Parameters:
+    create          Create backup for entire stack or individual components
+    show            Show the content of backup bundle
+    ls              List of available backups
+    elaborate       Merge bundle with the stack deployment
+    tag             Add tag to backup
+    untag           Drop tag from backup
+EOF
+}
+
+usage
+exit 1
