@@ -72,9 +72,10 @@ if test ! -d "$backup_path"; then
   echo "Error: directory $backup_path not found"
   exit 3
 fi
+if test -f "$backup_path/hub-bundle.yaml.gz"; then
+  gunzip -k "$backup_path/hub-bundle.yaml.gz"
+fi
 
 if test -f "$backup_path/hub-bundle.yaml"; then
   cat "$backup_path/hub-bundle.yaml" | yq e -
-elif test -f "$backup_path/hub-bundle.yaml.gz"; then
-  gunzip "$backup_path/hub-bundle.yaml.gz" | yq e -
 fi
