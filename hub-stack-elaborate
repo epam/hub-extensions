@@ -86,5 +86,39 @@ Proceeding with: elaborate
 
 EOF
 
+verb="elaborate"
+work_dir="$(pwd)"
+script_dir=$(dirname "$0")
+
+
+BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
+for i in $(echo "$BEFORE" | xargs -n1); do
+  if test -f "$work_dir/.hub/$i/before-${verb}"; then
+    hook="$work_dir/.hub/$i/before-${verb}"
+  elif test -f "$script_dir/$i/before-${verb}"; then
+    hook="$script_dir/$i/before-${verb}"
+  else
+    echo "Warning! cannot find before hook: $i"
+    continue
+  fi
+  echo "Running before ${verb} hook: $i"
+  $hook
+done
+
+
 # shellcheck disable=SC2086
 hub elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS
+
+AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
+for i in $(echo "$AFTER" | xargs -n1); do
+  if test -f "$work_dir/.hub/$i/after-${verb}"; then
+    hook="$work_dir/.hub/$i/after-${verb}"
+  elif test -f "$script_dir/$i/after-${verb}"; then
+    hook="$script_dir/$i/after-${verb}"
+  else
+    echo "Warning! cannot find after hook: $i"
+    continue
+  fi
+  echo "Running after ${verb} hook: $i"
+  $hook
+done
