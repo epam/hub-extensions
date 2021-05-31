@@ -234,6 +234,7 @@ EOF
   # make sure .env file is up-to-date
   $dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
   $dotenv set "HUB_STACK_NAME=\"$(echo "$HUB_DOMAIN_NAME" | cut -f1 -d.)\""
+  $dotenv set "HUB_BASE_DOMAIN_NAME=\"$(echo "$HUB_DOMAIN_NAME" | cut -f2- -d.)\""
 else
   echo "Error: unsupported DNS operation"
   exit 6
