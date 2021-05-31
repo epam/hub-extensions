@@ -1,0 +1,41 @@
+#!/bin/sh -e
+# shellcheck disable=SC2064,SC2086
+
+VERSION="${VERSION:-master}"
+
+while [ "$1" != "" ]; do
+  case $1 in
+    -u | --url )   shift
+                      URL="$1"
+                      ;;
+    -o | --to-dir )   shift
+                      TO_DIR="$1"
+                      ;;
+    -s | --subpapth ) shift
+                      TAR_SUBPATH="$1"
+                      ;;
+    -v | --version )  shift
+                      VERSION="$1"
+                      ;;
+  esac
+  shift
+done
+
+curl="curl -fSL"
+tarball="$(mktemp)"
+trap "rm -f $tarball" EXIT
+echo "Downloading tarball for kubeflow $VERSION"
+$curl \
+  "$URL" \
+  -o "$tarball"
+ROOT=$(tar -tvf "$tarball" | awk 'NR==1{print substr($NF, 1, length($NF)-1)}')
+
+STRIP=$(echo "$ROOT/$TAR_SUBPATH" | tr / " " | wc -w)
+rm -rf "$TO_DIR"
+mkdir -p "$TO_DIR"
+set -x
+tar \
+  -xf "$tarball" \
+  --strip-components $STRIP \
+  -C "$TO_DIR" \
+  "$ROOT/$TAR_SUBPATH"
