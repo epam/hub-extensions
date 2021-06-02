@@ -73,7 +73,7 @@ if test ! -d "$backup_path"; then
   exit 3
 fi
 if test -f "$backup_path/hub-bundle.yaml.gz"; then
-  gunzip -k "$backup_path/hub-bundle.yaml.gz"
+  gunzip -k -c "$backup_path/hub-bundle.yaml.gz" | yq e -
 fi
 
 if test -f "$backup_path/hub-bundle.yaml"; then

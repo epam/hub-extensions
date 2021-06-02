@@ -52,7 +52,7 @@ EOF
     if test -z "$tags"; then
       echo "$star $(basename "$d")    local"
     else
-      echo "$star $(basename "$d")    local    ($(echo "$tags" | xargs))"
+      echo "$star $(basename "$d")    local    $(echo "$tags" | xargs)"
     fi
   done
 else
