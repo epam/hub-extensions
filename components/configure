@@ -14,13 +14,13 @@ EOF
 ARGS="--all"
 while [ "$1" != "" ]; do
   case $1 in
-    -c | --component ) 
+    -c | --component )
       shift
       ARGS="$ARGS -c $1"
-      ;;  
-    --override ) 
+      ;;
+    --override )
       ARGS="$ARGS --override"
-      ;;                      
+      ;;
     -h | --help )
       usage
       exit
@@ -29,7 +29,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test $VERBOSE = "true"; then 
+if test $VERBOSE = "true"; then
   set -x
 fi
 

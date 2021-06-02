@@ -85,9 +85,14 @@ git_ref() {
       yq e "$f" -j | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.ref|select(.)'
     )
-    test -z "$res" || break
+    if test -n "$res"; then
+      echo "$res"
+      break;
+    fi
   done
-  echo "$res"
+  if test -z "$res"; then
+    echo "main"
+  fi
 }
 
 if test -z "$*"; then
@@ -149,7 +154,7 @@ if test -z "$COMPONENTS"; then
 fi
 
 TEMP_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_DIR" EXIT
+trap 'rm -rf $TEMP_DIR' EXIT
 for component in $COMPONENTS; do
   echo -n "* Checking component $component: "
   to_dir=$(local_dir "$component")
