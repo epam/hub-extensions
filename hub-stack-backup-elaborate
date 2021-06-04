@@ -129,14 +129,13 @@ EOF
 
 # shellcheck disable=SC2086
 hub backup unbundle $HUB_OPTS -o "$backup_path/params.yaml.gz"
-gunzip -k -f "$backup_path/params.yaml.gz"
-if test ! -f "$backup_path/params.yaml"; then
-  echo "Error: $backup_path/params.yaml has not been created"
-  exit 1
-fi
-hub-stack-elaborate --hub-files "$HUB_FILES $backup_path/params.yaml"
+gunzip -c "$backup_path/params.yaml.gz" > "$backup_path/params.yaml"
+
+hub stack elaborate --hub-files "$HUB_FILES $backup_path/params.yaml"
 echo "Updating $HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
 if test -L "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"; then
   unlink "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
+elif test -f "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"; then
+  rm -rfv "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
 fi
 ln -s "$backup_path" "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
