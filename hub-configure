@@ -163,7 +163,7 @@ expand_hub_files() {
     fi
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
-      $HELP || echo "* File $(basename $f): exist"
+      $HELP || echo "* File $f: exist"
       included=$(yq e '.extensions.include.[]' "$f")
       if test -n "$included"; then
         expand_hub_files $included
