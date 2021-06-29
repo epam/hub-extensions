@@ -120,11 +120,16 @@ echo -n "* Starting pod toolbox-$ID: "
 $kubectl wait "pod/toolbox-$ID" \
   --for=condition=Ready \
   --timeout=1200s
+# let entrypoint to finish
+sleep 2
 
 if test -n "$TOOLBOX_APK_ADD"; then
   echo "* Adding APK $TOOLBOX_APK_ADD:"
   $kubectl exec -i "toolbox-$ID" -- sh -c "apk update && apk add --no-cache $TOOLBOX_APK_ADD"
 fi
+
+# set ownership of (nested) emptyDir volumes
+$kubectl exec -i "toolbox-$ID" -- chown -R $(id -u):$(id -g) "$HOME"
 
 # this do not archive directories thus no directory permissions are restored
 echo -n "* Synchronizing working directory (may take a while): "
@@ -176,12 +181,12 @@ if test -n "$TOOLBOX_HUB_CLI_REPLACEMENT" -a -f "$TOOLBOX_HUB_CLI_REPLACEMENT"; 
 fi
 
 if test -d "$HUB_EXTENSIONS"; then
-  echo "* Syncronizing hub extensions from: $HUB_EXTENSIONS"
+  echo -n "* Synchronizing Hub CLI extensions from $HUB_EXTENSIONS: "
   $kubectl exec -i "toolbox-$ID" -- gosu "$USER" mkdir -p "$HUB_EXTENSIONS"
-  # FIXME: tar in toolbox doesn't support -P upgrade tar is an abstraciton leak
-  find -L "$HUB_EXTENSIONS"  -type f ! -path '*/.git/*' -print0 \
-  | tar cz -P --null -T - \
-  | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar zx -C "/" 2>/dev/null
+  find -L "$HUB_EXTENSIONS" -type f ! -path '*/.git/*' ! -path '*/node_modules/*' -print0 \
+    | tar cz -P --null -T -\
+    | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar xz -C / 2>/dev/null
+  echo "Done"
 fi
 
 maybe_tty=

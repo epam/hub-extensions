@@ -120,6 +120,7 @@ $($dotenv keys | grep -v ^HUB_DEPLOY_PROFILE | while read -r key ; do echo '    
       mountPath: $HOME
   securityContext:
     runAsUser: 0
+    fsGroup: $(id -g)
   volumes:
   - name: work-dir
     emptyDir: {}
