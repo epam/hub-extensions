@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # shellcheck disable=SC2086
-kubectl="$(which kubectl)"
+kubectl="kubectl"
 while (( "$#" )); do
   case $1 in
     --namespace )
@@ -26,6 +26,8 @@ if test -f ".env"; then
   eval "$($dotenv export)"
 fi
 
+# these AWS_* vars are passed into pod by ./template as we may copy files to the non-default locations
+# or switch to the default locations instead
 aws_creds=${AWS_SHARED_CREDENTIALS_FILE:-$HOME/.aws/credentials}
 aws_config=${AWS_CONFIG_FILE:-$HOME/.aws/config}
 aws_profile=$AWS_PROFILE
@@ -67,12 +69,12 @@ trap 'rm -rf $temp_dir' EXIT
   render_conf_line "aws_secret_access_key"
   render_conf_line "aws_session_token"
 } > "$temp_dir/$(basename $aws_creds)"
-$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_config")"
-$kubectl cp "$temp_dir/$(basename $aws_creds)" "$POD:$(dirname "$aws_config")"
+$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_creds")"
+$kubectl cp "$temp_dir/$(basename $aws_creds)" "$POD:$(dirname "$aws_creds")"
 
 {
   echo "[profile $aws_profile]"
   render_conf_line "region"
 } > "$temp_dir/$(basename $aws_config)"
-$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_creds")"
+$kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_config")"
 $kubectl cp "$temp_dir/$(basename $aws_config)" "$POD:$(dirname "$aws_config")"
