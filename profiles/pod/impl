@@ -153,8 +153,7 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
     "aws" )
       "$(dirname "$0")/aws" \
         --namespace "$TOOLBOX_NAMESPACE" \
-        --pod "toolbox-$ID" \
-        --profile "$($dotenv get AWS_PROFILE)" && echo "Done"
+        --pod "toolbox-$ID" && echo "Done"
     ;;
 
     "azure" )
