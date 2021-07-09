@@ -63,12 +63,25 @@ render_conf_line() {
 temp_dir=$(mktemp -d)
 mkdir -p "$temp_dir"
 trap 'rm -rf $temp_dir' EXIT
-{
-  echo "[$aws_profile]"
-  render_conf_line "aws_access_key_id"
-  render_conf_line "aws_secret_access_key"
-  render_conf_line "aws_session_token"
-} > "$temp_dir/$(basename $aws_creds)"
+
+credential_process=$(aws $AWS_ARGS configure get credential_process)
+if test -n "$credential_process"; then
+  json_credentials=$($credential_process)
+  {
+    echo "[$aws_profile]"
+    echo "aws_access_key_id = $(jq -r .AccessKeyId <<<$json_credentials)"
+    echo "aws_secret_access_key = $(jq -r .SecretAccessKey <<<$json_credentials)"
+    echo "aws_session_token = $(jq -r .SessionToken <<<$json_credentials)"
+  } > "$temp_dir/$(basename $aws_creds)"
+else
+  {
+    echo "[$aws_profile]"
+    render_conf_line "aws_access_key_id"
+    render_conf_line "aws_secret_access_key"
+    render_conf_line "aws_session_token"
+  } > "$temp_dir/$(basename $aws_creds)"
+fi
+
 $kubectl exec "$POD" -- mkdir -p "$(dirname "$aws_creds")"
 $kubectl cp "$temp_dir/$(basename $aws_creds)" "$POD:$(dirname "$aws_creds")"
 
