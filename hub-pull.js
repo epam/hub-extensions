@@ -112,7 +112,7 @@ if (!isEmpty(splits)) {
 }
 
 cmds.push('\n# stash worktree before subtree merge');
-cmds.push('git stash save -a');
+cmds.push('git stash save -u');
 
 if (!isEmpty(splits)) {
     cmds.push('\n# merge `split` branches');
