@@ -132,7 +132,7 @@ if test -n "$CHART_VALUES_FILE"; then
         fi
     done
 fi
-for file in values.yaml values-*.yaml values.yml values-*.yml; do
+for file in values.yaml values-*.yaml values.yml values-*.yml $EXTRA_VALUES_FILE; do
     if test ! -f "$file"; then continue; fi
     echo "* $file"
     HELM_ARGS="$HELM_ARGS --values $file";
