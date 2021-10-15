@@ -113,19 +113,22 @@ if (!isEmpty(splits)) {
 
 cmds.push('\n# stash worktree before subtree merge');
 cmds.push('git stash save -u');
+cmds.push('\n# need to run subtree command from the toplevel of the working tree');
+// eslint-disable-next-line no-template-curly-in-string, max-len
+cmds.push('git_top=$(git rev-parse --show-toplevel); if test "$PWD" != "$git_top"; then dir_prefix="${PWD#$git_top/}/"; cd "$git_top"; fi');
 
 if (!isEmpty(splits)) {
     cmds.push('\n# merge `split` branches');
     cmds = cmds.concat(splits.map(({name, dir}) =>
-        `if test -d ${dir}; then verb=merge; else verb=add; fi\n`
-        + `git subtree $subtree_flags $verb --squash -m "${name} $verb" --prefix=${dir} ${splitBranchName(name)}`));
+        `if test -d \${dir_prefix}${dir}; then verb=merge; else verb=add; fi\n`
+        + `git subtree $subtree_flags $verb --squash -m "${name} $verb" --prefix=\${dir_prefix}${dir} ${splitBranchName(name)}`));
 }
 
 if (!isEmpty(singles)) {
     cmds.push('\n# merge changes from repositiories with component source on top level');
     cmds = cmds.concat(singles.map(({dir, git: {remote, ref}}) =>
-        `if test -d ${dir}; then verb=merge; else verb=add; fi\n`
-        + `git subtree $subtree_flags $verb --squash -m "${dir} $verb" --prefix=${dir} ${remoteBranchName(remote, ref)}`));
+        `if test -d \${dir_prefix}${dir}; then verb=merge; else verb=add; fi\n`
+        + `git subtree $subtree_flags $verb --squash -m "${dir} $verb" --prefix=\${dir_prefix}${dir} ${remoteBranchName(remote, ref)}`));
 }
 
 cmds.push('git stash pop');
