@@ -4,6 +4,10 @@ if test -z "$COMPONENT_NAME" -o -z "$DOMAIN_NAME" -o -z "$NAMESPACE" -o -z "$HEL
     echo "COMPONENT_NAME, DOMAIN_NAME, NAMESPACE, HELM_CHART must be set"
 fi
 
+if test -z "$HELM_OPTS"; then
+    HELM_OPTS="--wait --create-namespace"
+fi
+
 charts="$(mktemp -d)"
 trap "rm -rf -- $charts" EXIT
 
@@ -143,9 +147,7 @@ set -x
 $helm upgrade "$COMPONENT_NAME" "$chart_path" \
     $HELM_ARGS \
     $HELM_OPTS \
-    --install \
-    --create-namespace \
-    --wait
+    --install
 set +x
 
 if test -x post-deploy; then
