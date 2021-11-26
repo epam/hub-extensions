@@ -63,9 +63,13 @@ elif test -n "$HELM_REPO"; then
     if test -d .charts; then
         charts=.charts
     fi
-    echo "Fetching chart repository: $HELM_REPO"
     $helm repo add stable "https://charts.helm.sh/stable"
-    $helm repo add "$COMPONENT_NAME" "$HELM_REPO"
+    echo "Fetching chart repository: $HELM_REPO"
+    if test -n "$HELM_CHART_USERNAME" -a -n "$HELM_CHART_PASSWORD"; then
+        HELM_REPO_ARGS="$HELM_REPO_ARGS --username $HELM_CHART_USERNAME --password $HELM_CHART_PASSWORD"
+    fi
+    # shellcheck disable=SC2086
+    $helm repo add "$COMPONENT_NAME" "$HELM_REPO" $HELM_REPO_ARGS
     $helm repo update
     if test -n "$HELM_CHART_VERSION"; then
         HELM_ARGS="$HELM_ARGS --version $HELM_CHART_VERSION"
