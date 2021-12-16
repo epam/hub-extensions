@@ -99,7 +99,7 @@ fi
 
 if test -x pre-deploy; then
     echo "Running pre-deploy..."
-    pre_deploy=$(./pre-deploy)
+    pre_deploy=$(CHART_PATH=$chart_path ./pre-deploy)
     helmvars=$(grep -E '^export ' <<<"$pre_deploy" || exit 0)
     if test -n "$helmvars"; then eval "$helmvars"; fi
 fi
