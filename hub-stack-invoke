@@ -15,6 +15,9 @@ Parameters:
 EOF
 }
 
+component="$1"
+verb="$2"
+
 HUB_OPTS=
 while [ "$1" != "" ]; do
     case $1 in
@@ -35,8 +38,20 @@ fi
 dotenv=$(dirname "$0")/env/dotenv
 eval "$($dotenv export -f ".env" )"
 
-if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -f "$HUB_KUBECONFIG"; then
-    export KUBECONFIG="$HUB_KUBECONFIG"
+cat << EOF
+Invoking $verb:
+* Using stack: $HUB_DOMAIN_NAME
+* Using component: $component
+EOF
+
+if test -n "$HUB_KUBECONFIG" -a -f "$HUB_KUBECONFIG"; then
+  KUBECONFIG="$HUB_KUBECONFIG"
+  export KUBECONFIG
+  echo "* Using kubeconfig: $KUBECONFIG"
+elif test -n "$KUBECONFIG" -a -f "$KUBECONFIG"; then
+  export KUBECONFIG
+  echo "* Using kubeconfig: $KUBECONFIG"
 fi
 
+# shellcheck disable=SC2086
 hub invoke -m "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
