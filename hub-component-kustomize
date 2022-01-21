@@ -74,49 +74,55 @@ if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
 fi
 
 if which kustomize > /dev/null; then
-  WORKDIR="$(mktemp -d)"
-  trap 'rm -rf -- "$WORKDIR"' EXIT
-
-  echo "* Running kustomize build"
-  kustomize build "." > "$WORKDIR/resources.yaml"
-
-  if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/resources.yaml")"; then
-    echo "* Removing shared resource Namespace from kustomize build"
-    echo "  HINT: consider to move Namespace to pre-$VERB script"
-    yq e '. | select(.kind == "Namespace").metadata.name | "  - " + .' "$WORKDIR/resources.yaml"
-    yq e '. | select(.kind == "Namespace" | not)' -i "$WORKDIR/resources.yaml"
-  fi
-
-  # Special case for CRD
-  if test -n "$(yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml")"; then
-    $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml" > "$WORKDIR/crds.yaml"
-    max_di=$($yq e 'di' "$WORKDIR/crds.yaml" | tail -1)
-    if test "$VERB" = deploy; then
-      echo "* Processing CRDs before other kustomize resources:"
-      for i in $(seq 0 "$max_di"); do
-        crd=$($yq e "select(di == $i).metadata.name" "$WORKDIR/crds.yaml")
-        if test -z "$crd" -o "$crd" = "null"; then
-          continue
-        fi
-
-        if $kubectl get crd "$crd" > /dev/null; then
-          echo "  - $crd already exists"
-        else
-          $yq e yq e "select(di == $i)" "$WORKDIR/crds.yaml" | $kubectl create -f -
-        fi
-      done
-    fi
-
-    echo "* Removing CustomResourceDefinition from kustomize build"
-    yq e '. | select(.kind == "CustomResourceDefinition" | not)' -i "$WORKDIR/resources.yaml"
-  fi
-
-  echo "* Processing kustomize resources..."
-  $kubectl_cmd -f "$WORKDIR/resources.yaml"
+  echo "* Using kustomize"
+  kustomize_build_cmd="kustomize build ."
+elif which kubectl > /dev/null; then
+  echo "* Using kubectl (kustomize found found)"
+  kustomize_build_cmd="kubectl kustomize ."
 else
-  echo "Warning: 'kustomze' binary not found. Falling back to 'kubectl -k ...'"
-  $kubectl_cmd -k "."
+  echo "Error: kustomize or kubectl has not been found!"
+  exit 5
 fi
+
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf -- "$WORKDIR"' EXIT
+
+echo "* Running kustomize build"
+$kustomize_build_cmd > "$WORKDIR/resources.yaml"
+
+if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/resources.yaml")"; then
+  echo "* Removing shared resource Namespace from kustomize build"
+  echo "  HINT: consider to move Namespace to pre-$VERB script"
+  yq e '. | select(.kind == "Namespace").metadata.name | "  - " + .' "$WORKDIR/resources.yaml"
+  yq e '. | select(.kind == "Namespace" | not)' -i "$WORKDIR/resources.yaml"
+fi
+
+# Special case for CRD
+if test -n "$(yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml")"; then
+  $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml" > "$WORKDIR/crds.yaml"
+  max_di=$($yq e 'di' "$WORKDIR/crds.yaml" | tail -1)
+  if test "$VERB" = deploy; then
+    echo "* Processing CRDs before other kustomize resources:"
+    for i in $(seq 0 "$max_di"); do
+      crd=$($yq e "select(di == $i).metadata.name" "$WORKDIR/crds.yaml")
+      if test -z "$crd" -o "$crd" = "null"; then
+        continue
+      fi
+
+      if $kubectl get crd "$crd" > /dev/null; then
+        echo "  - $crd already exists"
+      else
+        $yq e yq e "select(di == $i)" "$WORKDIR/crds.yaml" | $kubectl create -f -
+      fi
+    done
+  fi
+
+  echo "* Removing CustomResourceDefinition from kustomize build"
+  yq e '. | select(.kind == "CustomResourceDefinition" | not)' -i "$WORKDIR/resources.yaml"
+fi
+
+echo "* Processing kustomize resources..."
+$kubectl_cmd -f "$WORKDIR/resources.yaml"
 
 if test -x post-$VERB; then
   echo "Running post-$VERB hook..."
