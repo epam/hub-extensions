@@ -137,6 +137,8 @@ if test -n "$CHART_VALUES_FILE"; then
         if test -f "$chart_path/$file"; then
             echo "* HELM_CHART/$file"
             HELM_ARGS="$HELM_ARGS --values $chart_path/$file"
+        else
+            echo "* WARN: cannot find file HELM_CHART/$file (ignoring)"
         fi
     done
 fi
@@ -147,6 +149,11 @@ for file in values.yaml values-*.yaml values.yml values-*.yml $EXTRA_VALUES_FILE
 done
 echo "Installing helm chart: $COMPONENT_NAME"
 set -x
+
+if test -z "$HELM_OPTS"; then
+    HELM_OPTS="--create-namespace --wait"
+fi
+
 # shellcheck disable=SC2086
 $helm upgrade "$COMPONENT_NAME" "$chart_path" \
     $HELM_ARGS \
