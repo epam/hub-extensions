@@ -39,6 +39,6 @@ fi
 if test "$(jq -V)" \< "jq-1.6"; then
     echo ${color_start}'We recommend to update JQ to v1.6 or up - https://stedolan.github.io/jq/'${color_end}
 fi
-if test "$(yq -V)" \< "yq version 4.16.2"; then
+if test "$(yq --version | awk '{ print $NF }')" \< "4.16"; then
     echo ${color_start}'We recommend to update YQ to v4.16.2 or up - https://github.com/mikefarah/yq'${color_end}
 fi
