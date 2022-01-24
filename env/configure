@@ -52,7 +52,7 @@ ALL_ENVS=
 for f in $HUB_FILES; do
   test -f $f || continue;
   envs=$(
-    yq e $f -j | jq -cr \
+    yq e -o=json $f | jq -cr \
       '.. | objects | with_entries(select(.key=="fromEnv")).fromEnv? | select(.!=null)'
   )
   ALL_ENVS="$ALL_ENVS $envs"
@@ -68,7 +68,7 @@ getByEnvVar() {
   for f in $HUB_FILES; do
     test -f $f || continue;
     result=$(
-      yq e $f -j | jq -cr \
+      yq e -o=json $f | jq -cr \
         "[ .. | objects | select(.fromEnv==\"$2\").$1 | select(.) ] | first | select(.)"
     )
     if test -n "$result"; then
@@ -87,7 +87,7 @@ getParamNameByEnvVar() {
   for f in $HUB_FILES; do
     test -f $f || continue;
     result=$(
-      yq e $f -j \
+      yq e -o=json $f \
         | jq -r \
           "[ \
             .parameters | walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \

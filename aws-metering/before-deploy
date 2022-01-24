@@ -56,7 +56,7 @@ fi
 param() {
   local rv
   rv=$(
-      yq e $HUB_YAML -j | jq -r \
+      yq e -o=json $HUB_YAML | jq -r \
       '.extensions.parameters? | select(.)[] | select(.name=="'$1'").value'
     )
   if test -n "$rv"; then

@@ -30,7 +30,7 @@ local_dir() {
   local f res
   for f in $HUB_FILES; do
     res=$(
-      yq e "$f" -j | \
+      yq e -o=json "$f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.dir'
     )
     test -z "$res" || break
@@ -43,7 +43,7 @@ git_sub_dir() {
     local f res
     for f in $HUB_FILES; do
       res=$(
-        yq e "$f" -j | \
+        yq e -o=json "$f" | \
         jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.subDir|select(.)'
       )
       test -z "$res" || break
@@ -56,7 +56,7 @@ git_remote() {
   local f res
   for f in $HUB_FILES; do
     res=$(
-      yq e "$f" -j | \
+      yq e -o=json "$f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.remote|select(.)'
     )
     test -z "$res" || break
@@ -69,7 +69,7 @@ git_cloned_dir() {
   local f res
   for f in $HUB_FILES; do
     res=$(
-      yq e "$f" -j | \
+      yq e -o=json "$f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.remote|select(.)|split("/")[-1] |split(".")[0]'
     )
     test -z "$res" || break
@@ -82,7 +82,7 @@ git_ref() {
   local f res
   for f in $HUB_FILES; do
     res=$(
-      yq e "$f" -j | \
+      yq e -o=json "$f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.ref|select(.)'
     )
     if test -n "$res"; then
@@ -144,9 +144,9 @@ fi
 
 if test -z "$COMPONENTS"; then
   for f in $HUB_FILES; do
-    c=$(yq e "$f" -j | jq -r '.components?|select(.)[]|select(.source.git != null ).name')
+    c=$(yq e -o=json "$f" | jq -r '.components?|select(.)[]|select(.source.git != null ).name')
     COMPONENTS=$(echo "$COMPONENTS $c" | xargs)
-    # GIT_URLS=$(yq e hub.yaml -j | jq -r '.components[].source.git.remote | select(length > 0)'  | sort | uniq)
+    # GIT_URLS=$(yq e -o=json hub.yaml | jq -r '.components[].source.git.remote | select(length > 0)'  | sort | uniq)
   done
   if test -z "$COMPONENTS"; then
     echo "Error: cannot find components in [$HUB_FILES]"

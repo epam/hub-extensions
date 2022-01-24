@@ -291,7 +291,7 @@ if test -z "$HUB_DEPLOY_PROFILE"; then
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
     for f in $HUB_FILES; do
       test -f $f || continue;
-      r=$(yq e . hub.yaml -j | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
+      r=$(yq e -o=json . hub.yaml | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
       if test "$r" = "kubernetes"; then
         HUB_DEPLOY_PROFILE="pod"
         break

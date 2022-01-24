@@ -24,7 +24,7 @@ which aws >/dev/null 2>&1 || which az >/dev/null 2>&1 || (
 which curl >/dev/null 2>&1 || echo ${color_start}'Please install CURL - https://curl.se'${color_end}
 which kubectl >/dev/null 2>&1 || echo ${color_start}'Please install KUBECTL - https://kubernetes.io/docs/reference/kubectl/overview/'${color_end}
 which jq >/dev/null 2>&1 || echo ${color_start}'Please install JQ - https://stedolan.github.io/jq/'${color_end}
-which yq >/dev/null 2>&1 || echo ${color_start}'Please install YQ v4 - https://github.com/mikefarah/yq'${color_end}
+which yq >/dev/null 2>&1 || echo ${color_start}'Please install YQ v4.16 - https://github.com/mikefarah/yq'${color_end}
 if test -z "$OMIT_OPTIONAL"; then
     which npm >/dev/null 2>&1 || echo ${color_start}'Please optionally install Node.js and NPM for `hub pull` extension - https://nodejs.org'${color_end}
     which eksctl >/dev/null 2>&1 || echo ${color_start}'Please optionally install EKSCTL for `hub ext eks` extension - https://eksctl.io'${color_end}
@@ -39,6 +39,6 @@ fi
 if test "$(jq -V)" \< "jq-1.6"; then
     echo ${color_start}'We recommend to update JQ to v1.6 or up - https://stedolan.github.io/jq/'${color_end}
 fi
-if test "$(yq -V)" \< "yq version 4.4.1"; then
-    echo ${color_start}'We recommend to update YQ to v4.4.1 or up - https://github.com/mikefarah/yq'${color_end}
+if test "$(yq -V)" \< "yq version 4.16.2"; then
+    echo ${color_start}'We recommend to update YQ to v4.16.2 or up - https://github.com/mikefarah/yq'${color_end}
 fi
