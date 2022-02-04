@@ -164,7 +164,7 @@ expand_hub_files() {
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
       $HELP || echo "* File $f: exist"
-      included=$(yq e '.extensions.include.[]' "$f")
+      included=$(cat "$f" | yq e '.extensions.include.[]' -)
       if test -n "$included"; then
         expand_hub_files $included
       fi
@@ -275,7 +275,7 @@ export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG
 if test -z "$REQS"; then
   for f in $HUB_FILES; do
     test -f $f || continue;
-    REQS="$REQS $(yq e '.extensions.configure.[]' $f)"
+    REQS="$REQS $(cat "$f" | yq e '.extensions.configure.[]' -)"
   done
   REQS=$(echo "$REQS" | xargs -n1)
 fi
