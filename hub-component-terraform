@@ -23,7 +23,7 @@ case "$CLOUD_KIND" in
         STATE_BACKEND_TYPE=azurerm
         ;;
     gcp )
-        STATE_BACKEND_CONFIG="-backend-config=bucket=$STATE_BUCKET -backend-config=region=$STATE_REGION -backend-config=prefix=$STATE_PREFIX -backend-config=credentials=$GOOGLE_APPLICATION_CREDENTIALS"
+        STATE_BACKEND_CONFIG="-backend-config=bucket=$STATE_BUCKET -backend-config=prefix=$STATE_PREFIX -backend-config=credentials=$GOOGLE_APPLICATION_CREDENTIALS"
         STATE_BACKEND_TYPE=gcs
         ;;
     * )
