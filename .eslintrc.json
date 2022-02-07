@@ -11,7 +11,7 @@
     "eqeqeq": ["error", "smart"],
     "func-style": ["error", "declaration", {"allowArrowFunctions": true}],
     "indent": ["error", 4, { "SwitchCase": 1 }],
-    "max-len": ["error", 130],
+    "max-len": ["error", {"code": 130, "ignoreTemplateLiterals": true, "ignoreStrings": true}],
     "no-param-reassign": ["error", {"props": true, "ignorePropertyModificationsFor": ["ctx", "acc"]}],
     "object-curly-spacing": ["error", "never"],
     "operator-linebreak": ["error", "before", { "overrides": { "=": "none", "?": "ignore", ":": "ignore" } }],

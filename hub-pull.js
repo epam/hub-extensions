@@ -51,7 +51,7 @@ const worktreePrefix = 'hub-pull';
 const worktreeDirPrefix = `${trimEnd(tmpDir, '/') || '/var/tmp'}/${worktreePrefix}`;
 const worktreeTemplate = `${worktreeDirPrefix}.XXXXXX`;
 
-const manifest = yaml.safeLoad(fs.readFileSync(manifestFilename));
+const manifest = yaml.load(fs.readFileSync(manifestFilename));
 
 const remoteName = (remote) => {
     const u = url.parse(remote);
