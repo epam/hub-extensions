@@ -3,14 +3,16 @@
 usage() {
     cat <<EOF
 GCP parameters:
-  --gcp-project-id               GCP project ID (default to superhub)
+  --gcp-project-id               GCP project ID (default to GCP_PROJECT_ID)
   --gcs-bucket-name              GCS bucket name (defaults to <gcp-project-id>-superhub-state)
 
 EOF
 }
 
-GCP_PROJECT_ID=superhub
-DOT_ENV=.env
+# What should set the $DOT_ENV var?
+if test -z "$DOT_ENV"; then
+    DOT_ENV=.hub/"$HUB_DOMAIN_NAME".env
+fi
 
 while [ "$1" != "" ]; do
     case $1 in
