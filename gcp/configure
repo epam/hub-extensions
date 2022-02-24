@@ -4,12 +4,12 @@ usage() {
     cat <<EOF
 GCP parameters:
   --gcp-project-id               GCP project ID (default to GCP_PROJECT_ID)
-  --gcs-bucket-name              GCS bucket name (defaults to <gcp-project-id>-superhub-state)
+  --gcs-bucket-name              GCS bucket name (defaults to STATE_BUCKET)
 
 EOF
 }
 
-# What should set the $DOT_ENV var?
+# Is the right way to guess the .env file location?
 if test -z "$DOT_ENV"; then
     DOT_ENV=.hub/"$HUB_DOMAIN_NAME".env
 fi
@@ -49,4 +49,6 @@ else
     echo "Bucket gs://$STATE_BUCKET has been created"
 fi
 
+# If vars were overridenin the extension, make sure the env file is updated
 $dotenv set "STATE_BUCKET=\"$STATE_BUCKET\""
+$dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
