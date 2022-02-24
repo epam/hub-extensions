@@ -1,5 +1,50 @@
 #!/bin/bash -e
 
+usage() {
+    cat <<EOF
+GCP parameters:
+  --gcp-project-id               GCP project ID (default to superhub)
+  --gcs-bucket-name              GCS bucket name (defaults to <gcp-project-id>-superhub-state)
+
+EOF
+}
+
+GCP_PROJECT_ID=superhub
+DOT_ENV=.env
+
+while [ "$1" != "" ]; do
+    case $1 in
+    --gcs-bucket-name)
+        shift
+        STATE_BUCKET="$1"
+        ;;
+    --gcp-project-id)
+        shift
+        GCP_PROJECT_ID="$1"
+        ;;
+    esac
+    shift
+done
+
+if test "$VERBOSE" = "true"; then
+    set -x
+fi
+
+if test -z "$STATE_BUCKET"; then
+    STATE_BUCKET="$GCP_PROJECT_ID"_superhub_state
+fi
+
+### Setting current project to GCP_PROJECT_ID
 echo "Setting GCP project to $GCP_PROJECT_ID"
 gcloud config set project "$GCP_PROJECT_ID"
 
+dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
+
+if gsutil du gs://"$STATE_BUCKET"; then
+    echo "Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"
+else
+    gsutil mb -c standard gs://"$STATE_BUCKET"
+    echo "Bucket gs://$STATE_BUCKET has been created"
+fi
+
+$dotenv set "STATE_BUCKET=\"$STATE_BUCKET\""
