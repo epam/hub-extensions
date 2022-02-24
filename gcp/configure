@@ -11,7 +11,7 @@ EOF
 
 # Is the right way to guess the .env file location?
 if test -z "$DOT_ENV"; then
-    DOT_ENV=.hub/"$HUB_DOMAIN_NAME".env
+    DOT_ENV=.hub/env/"$HUB_DOMAIN_NAME".env
 fi
 
 while [ "$1" != "" ]; do
