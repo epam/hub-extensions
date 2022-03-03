@@ -31,8 +31,8 @@ EOF
       continue
     fi
     local configure
-    if test -f "$WORKDIR/.hub/$req/configure"; then
-      configure="$WORKDIR/.hub/$req/configure"
+    if test -f "$HUB_WORKDIR/.hub/$req/configure"; then
+      configure="$HUB_WORKDIR/.hub/$req/configure"
     elif test -f "$HUB_HOME/$req/configure"; then
       configure=$HUB_HOME/$req/configure
     else
@@ -164,7 +164,7 @@ expand_hub_files() {
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
       $HELP || echo "* File $f: exist"
-      included=$(yq e '.extensions.include.[]' "$f")
+      included="$(cat "$f" | yq e '.extensions.include.[]' - )"
       if test -n "$included"; then
         expand_hub_files $included
       fi
@@ -172,7 +172,7 @@ expand_hub_files() {
     fi
     # is url
     if echo "$f" | grep -e '^https\?://' >/dev/null 2>&1; then
-      local_file="$WORKDIR/$(basename "$f")"
+      local_file="$HUB_WORKDIR/$(basename "$f")"
       if test ! -f "$local_file"; then
         download_file "$f" "$local_file"
         KNOWN_URLS=$(dirname $f | xargs)
@@ -183,8 +183,8 @@ expand_hub_files() {
 
     for url in $KNOWN_URLS; do
       # shellcheck disable=SC2001
-      if download_file "$url/$1" "$WORKDIR/$1"; then
-        expand_hub_files "$WORKDIR/$1"
+      if download_file "$url/$1" "$HUB_WORKDIR/$1"; then
+        expand_hub_files "$HUB_WORKDIR/$1"
         break
       fi
     done
@@ -210,7 +210,7 @@ finalize() {
   # shellcheck disable=SC2046
   local rv=$?
   local profiles
-  if test -d "$WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$WORKDIR/.hub/profiles")"; fi
+  if test -d "$HUB_WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$HUB_WORKDIR/.hub/profiles")"; fi
   if test -d "$HUB_HOME/profiles"; then profiles="$profiles $(ls $HUB_HOME/profiles)"; fi
   echo "Finalizing env files..."
   TEMP1=$(temp_file)
@@ -226,8 +226,8 @@ EOF
   $dotenv merge $MERGE_FILES > $TEMP1
   HUB_DOMAIN_NAME=$($dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
   echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
-  $HUB_HOME/env/copy "$TEMP1" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
-  update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$WORKDIR/.env"
+  $HUB_HOME/env/copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+  update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
   echo
   if test "$rv" = "0"; then
     echo "Done!"
@@ -237,18 +237,20 @@ EOF
   exit $rv
 }
 
-if test -z "$WORKDIR"; then
-  first=$(echo "$HUB_FILES" | awk '{print $1;}')
-  if test -f $first; then
-    WORKDIR=$(dirname "$FIRST_FILE")
+if test -z "$HUB_WORKDIR"; then
+  FIRST_FILE="$(echo "$HUB_FILES" | awk '{print $1;}')"
+  if test -f $FIRST_FILE; then
+    HUB_WORKDIR=$(dirname "$FIRST_FILE")
   else
-    WORKDIR=$(pwd)
+    HUB_WORKDIR=$(pwd)
   fi
 fi
 
-if test ! -d $WORKDIR; then
-  mkdir -p "$WORKDIR"
+if test ! -d $HUB_WORKDIR; then
+  mkdir -p "$HUB_WORKDIR"
 fi
+
+export HUB_WORKDIR
 
 $HELP || echo "Checking hub files:"
 expand_hub_files $HUB_FILES
@@ -266,7 +268,7 @@ EOF
   usage
 fi
 
-mkdir -p "$WORKDIR/.hub/env"
+mkdir -p "$HUB_WORKDIR/.hub/env"
 
 
 # common environment variables that
@@ -311,15 +313,15 @@ if test -n "$INIT_DOTENV"; then
   MERGE_FILES="$MERGE_FILES -f $INIT_DOTENV"
 fi
 
-if test -f "$WORKDIR/.env"; then
+if test -f "$HUB_WORKDIR/.env"; then
   echo "Configuration .env file: exist"
-  eval $($dotenv export -f "$WORKDIR/.env")
+  eval $($dotenv export -f "$HUB_WORKDIR/.env")
   if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
   if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
-  if test -L "$WORKDIR/.env"; then
-    MERGE_FILES="-f $(readlink -n "$WORKDIR/.env") $MERGE_FILES"
+  if test -L "$HUB_WORKDIR/.env"; then
+    MERGE_FILES="-f $(readlink -n "$HUB_WORKDIR/.env") $MERGE_FILES"
   else
-    MERGE_FILES="-f $WORKDIR/.env $MERGE_FILES"
+    MERGE_FILES="-f $HUB_WORKDIR/.env $MERGE_FILES"
   fi
 else
   echo "Configuration .env file: to be created"
@@ -328,8 +330,8 @@ fi
 echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 
 for req in $(echo "$REQS" | xargs -n1); do
-  if test -f "$WORKDIR/.hub/$req/configure"; then
-    configure="$WORKDIR/.hub/$req/configure"
+  if test -f "$HUB_WORKDIR/.hub/$req/configure"; then
+    configure="$HUB_WORKDIR/.hub/$req/configure"
   elif test -f "$HUB_HOME/$req/configure"; then
     configure="$HUB_HOME/$req/configure"
   else

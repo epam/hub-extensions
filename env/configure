@@ -15,8 +15,6 @@ else
   INTERACTIVE=false
 fi
 
-CACHE_FILE=${CACHE_FILE:-$(dirname "$0")/.history}
-history="$(dirname "$0")/dotenv -f $CACHE_FILE"
 while [ "$1" != "" ]; do
   case $1 in
     --defaults )
@@ -38,6 +36,21 @@ while [ "$1" != "" ]; do
   shift
 done
 
+if test -z "$HUB_WORKDIR"; then
+  FIRST_FILE="$(echo "$HUB_FILES" | awk '{print $1;}')"
+  if test -f $FIRST_FILE; then
+    HUB_WORKDIR="$(dirname "$FIRST_FILE")"
+  else
+    HUB_WORKDIR="$(pwd)"
+  fi
+  export HUB_WORKDIR
+fi
+
+HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
+mkdir -p "$(dirname "$HISTORY_FILE")"
+touch "$HISTORY_FILE"
+history="$(dirname "$0")/dotenv -f $HISTORY_FILE"
+
 if test $VERBOSE = "true"; then
   set -x
 fi
@@ -50,9 +63,9 @@ fi
 echo "Configuring environment variables"
 ALL_ENVS=
 for f in $HUB_FILES; do
-  test -f $f || continue;
+  test -f "$f" || continue;
   envs=$(
-    yq e -o=json $f | jq -cr \
+    yq e $f -o=json | jq -cr \
       '.. | objects | with_entries(select(.key=="fromEnv")).fromEnv? | select(.!=null)'
   )
   ALL_ENVS="$ALL_ENVS $envs"
@@ -87,7 +100,7 @@ getParamNameByEnvVar() {
   for f in $HUB_FILES; do
     test -f $f || continue;
     result=$(
-      yq e -o=json $f \
+      yq e "$f" -o=json \
         | jq -r \
           "[ \
             .parameters | walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \
