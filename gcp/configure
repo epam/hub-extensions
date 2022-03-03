@@ -45,7 +45,7 @@ dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
 if gsutil du gs://"$STATE_BUCKET"; then
     echo "Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"
 else
-    gsutil mb -c standard gs://"$STATE_BUCKET"
+    gsutil mb -c standard -b on gs://"$STATE_BUCKET"
     echo "Bucket gs://$STATE_BUCKET has been created"
 fi
 
