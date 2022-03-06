@@ -1,0 +1,160 @@
+#!/bin/bash -e
+
+usage() {
+  cat << EOF
+Reads parameterы value from one or multiple hubfiles
+
+$(basename $0) <subcommand> ARG -f HUB_FILE
+
+Subcommands:
+  json  PARAM_NAME        Return json string of the parameter
+  value PARAM_NAME        Return only value of the parameter
+
+Parameters:
+  -f --file               Path to hubfile (this parameter can repeat, default HUB_FILES env var)
+  -V --verbose            For debug purpose
+  -h --help               Show this message
+
+EOF
+}
+
+
+subcommand=""
+hub_files=""
+HUB_PARAM_NAME=""
+while test -n "$1"; do
+  ARG="$1"; shift
+  case $ARG in
+    value | json)
+      subcommand="$ARG"
+      HUB_PARAM_NAME="$1"
+      shift
+      continue
+      ;;
+    -V | --verbose )
+      VERBOSE=true
+      continue
+      ;;
+    -f | --file )
+      unset HUB_FILES
+      hub_files="$hub_files $1"
+      shift
+      continue
+      ;;
+    -h | --help )
+      usage
+      exit
+      ;;
+
+    * )
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
+HUB_FILES="$(echo $HUB_FILES $hub_files | xargs)"
+if test -z "$HUB_FILES" -o -z "$subcommand"; then
+  usage
+  exit 1
+fi
+
+getParamNameByEnvVar() {
+  local f result
+  for f in $HUB_FILES; do
+    test -f $f || continue;
+    result=$(
+      yq e -o=json "$f" | jq "[.parameters]"
+    )
+
+            #  walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \
+            # | walk(if type==\"object\" and .name then {(.name):.} else . end) \
+            # | path(..)|[.[]|tostring] | select(.[] | contains(\"fromEnv\")) \
+            # | [ .[] | select(.!=\"fromEnv\" and .!=\"parameters\") | tonumber? //. \
+            # | select(type==\"string\")] | join(\".\") \
+
+    if test -n "$result"; then
+      echo "$result"
+      break
+    fi
+  done
+}
+
+toJson() {
+  cat "$1" | yq e -o=json
+}
+
+flattened() {
+  jq -cMr " \
+    .parameters \
+    | walk(if type==\"object\" and .parameters? then .name as \$pref | .parameters[] | select(.name == .name) | del(.name) + {name: (\$pref+\".\"+.name)} else . end) \
+    | walk(if type==\"object\" and .name then {(.name): . | del(.name)} else . end) \
+  "
+}
+
+withName() {
+  jq -cMr ".[] | select(.\"$1\") | .\"$1\""
+}
+
+readField() {
+  jq -cMr --arg field "$1" '. | select(.[$field]) | .[$field]'
+}
+
+getParamValue() {
+  local hubfile value envvar env default
+  for hubfile in $HUB_FILES; do
+    result="$(toJson "$hubfile" | flattened | withName "$1")"
+    if test -n "$result"; then
+      value="$(echo "$result" | readField "value")"
+      if test -z "$value"; then
+        env="$(echo "$result" | readField "fromEnv")"
+        if test -z "$env"; then
+          envvar="$(printenv "$env")"
+        fi
+        if test -z "$envvar"; then
+          default="$(echo "$result" | readField "default")"
+          if test -n "$default"; then
+            echo "$default"
+          fi
+        else
+          echo "$envvar"
+        fi
+      else
+        echo "$value"
+      fi
+      break
+    fi
+  done
+}
+
+getParamJson() {
+  for hubfile in $HUB_FILES; do
+    result="$(toJson "$hubfile" | flattened | withName "$1")"
+    if test -n "$result"; then
+      echo "$result"
+      break
+    fi
+  done
+}
+
+case $subcommand in
+  value )
+    getParamValue "$HUB_PARAM_NAME"
+  ;;
+  json )
+    getParamJson "$HUB_PARAM_NAME"
+  ;;
+esac
+
+# for hubfile in $HUB_FILES; do
+#   toJson "$hubfile" \
+#   | withFlatParams \
+#   | withName "component.anthosServiceMesh.zone" \
+#   | get "value"
+# done
+
+# walk(if type=="object" and .parameters? then .name as $pref | .parameters[] | select(.name == .name) | del(.name) + {name: ($pref + "." + .name)} else . end) | walk(if type=="object" and .name then {(.name): . | del(.name)} else . end)
