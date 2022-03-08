@@ -40,7 +40,7 @@ fi
 echo "Setting GCP project to $GCP_PROJECT_ID"
 gcloud config set project "$GCP_PROJECT_ID"
 
-dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
+dotenv="dotenv -f $DOT_ENV"
 
 if gsutil du gs://"$STATE_BUCKET"; then
     echo "Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"

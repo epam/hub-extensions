@@ -1,6 +1,12 @@
 #!/bin/bash -e
 # shellcheck disable=SC2068,SC2086,SC2155
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
+
 usage() {
   echo "Check Kubernetes cluster is reachable"
 }
@@ -47,10 +53,9 @@ checkClusterAndSave() {
   fi
 }
 
-dotenv="$(dirname "$(dirname "$0")")/env/dotenv -f .env"
-if test -f ".env"; then
+if test -f "$HUB_WORKDIR/.env"; then
   set +a
-  eval "$($dotenv "export")"
+  eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
   set -a
 fi
 

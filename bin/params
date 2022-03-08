@@ -149,12 +149,3 @@ case $subcommand in
     getParamJson "$HUB_PARAM_NAME"
   ;;
 esac
-
-# for hubfile in $HUB_FILES; do
-#   toJson "$hubfile" \
-#   | withFlatParams \
-#   | withName "component.anthosServiceMesh.zone" \
-#   | get "value"
-# done
-
-# walk(if type=="object" and .parameters? then .name as $pref | .parameters[] | select(.name == .name) | del(.name) + {name: ($pref + "." + .name)} else . end) | walk(if type=="object" and .name then {(.name): . | del(.name)} else . end)

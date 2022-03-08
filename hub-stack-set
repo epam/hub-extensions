@@ -1,11 +1,13 @@
 #!/bin/bash -e
 
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+
 usage() {
   cat << EOF
 Set or change currently active stack
 
 Usage: hub stack set STACK
-  
+
   where STACK is the name of the stack to set as an active
 
 Note: to see list of available stacks run
@@ -20,6 +22,12 @@ if test -z "$1"; then
   exit 1
 fi
 
+if test "$1" = "unconfigured"; then
+  dotfile="$HUB_WORKDIR/.hub/env/.env"
+else
+  dotfile="$HUB_WORKDIR/.hub/env/$1.env"
+fi
+
 echo "Setting $1 as current"
 
 if test ! -d .hub/env; then
@@ -27,7 +35,7 @@ if test ! -d .hub/env; then
   exit 2
 fi
 
-if test ! -f ".hub/env/$1.env"; then
+if test ! -f "$dotfile"; then
   cat << EOF
 Error: cannot find $1 stack
 
@@ -49,8 +57,6 @@ elif test -f ".env"; then
 fi
 
 if test ! -f ".env"; then
-  echo "* Setting .env link to .hub/env/$1.env"
-  ln -sf ".hub/env/$1.env" ".env"
+  echo "* Setting .env link to $1"
+  ln -sf "$dotfile" ".env"
 fi
-
-echo "* Your current stack is $1"

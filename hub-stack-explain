@@ -1,5 +1,11 @@
 #!/bin/bash -e
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
+
 usage() {
 cat << EOF
 
@@ -34,7 +40,6 @@ if test ! -f .env; then
     echo "* Error: configuration '.env' not found"
     exit 1
 fi
-dotenv=$(dirname "$0")/env/dotenv
-eval "$($dotenv export -f ".env" )"
+eval "$(dotenv export -f "$HUB_WORKDIR/.env" )"
 
 hub explain "$HUB_ELABORATE" "$HUB_STATE" $HUB_OPTS | less -R

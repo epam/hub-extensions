@@ -14,10 +14,8 @@ Parameters:
 EOF
 }
 
-# shellcheck disable=SC2046
-dotenv="$(dirname $(dirname $(dirname "$0")))/env/dotenv -f .env"
 if test -f ".env"; then
-  eval "$($dotenv export -f ".env" )"
+  eval "$(dotenv -f $HUB_WORKDIR/.env export -f ".env" )"
 fi
 
 TOOLBOX_NAMESPACE=${TOOLBOX_NAMESPACE:-automation-tasks}

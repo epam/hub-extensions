@@ -49,7 +49,7 @@ fi
 HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
 mkdir -p "$(dirname "$HISTORY_FILE")"
 touch "$HISTORY_FILE"
-history="$(dirname "$0")/dotenv -f $HISTORY_FILE"
+history="dotenv -f $HISTORY_FILE"
 
 if test $VERBOSE = "true"; then
   set -x

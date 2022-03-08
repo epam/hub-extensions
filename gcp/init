@@ -1,0 +1,60 @@
+#!/bin/bash -ex
+
+usage() {
+  cat <<EOF
+
+Setup GCP credentials:
+
+    --gcp-project-id ARG    Override GCP project ID
+EOF
+}
+
+while [ "$1" != "" ]; do
+  case $1 in
+  --defaults )
+    INTERACTIVE=false
+    ;;
+  --gcp-project-id)
+      shift
+      GCP_PROJECT_ID="$1"
+      INTERACTIVE=false
+      ;;
+  esac
+  shift
+done
+
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
+dotenv="dotenv -f $HUB_WORKDIR/.env"
+
+VAl_envvar="$GCP_PROJECT_ID"
+VAL_gcloud="$(gcloud config get-value project)"
+
+echo "* Setting GCP project ID"
+
+for tag in "env" "gcloud"; do
+  val=$(eval echo "\$VAL_$tag")
+  if test -n "$val"; then
+    hashtag="$tag"
+    break;
+  fi
+done
+
+if ! $INTERACTIVE; then
+  VALUE="$val"
+elif test "$val" = "$(echo $val | cut -c1-31)"; then
+  read -rp "  Enter value ($val #$hashtag): " VALUE
+else
+  read -rp "  Enter value ($(echo $val | cut -c1-31)... #$hashtag): " VALUE
+fi
+if test -z "$VALUE"; then
+  VALUE="$val"
+fi
+
+# TODO: implement check if project id enterred correctly
+# project_ids="$(gcloud projects list --format='json' | jq -r '[.[]][].projectId' | xargs)"
+
+$dotenv set "GCP_PROJECT_ID=\"$VALUE\""
+echo "  saved as GCP_PROJECT_ID to .env file"

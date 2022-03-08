@@ -1,0 +1,261 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2068,SC2064,SC2086
+
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+
+export HUB_HOME PATH HUB_HOME HUB_WORKDIR
+
+usage() {
+  cat << EOF
+Creates a new stack configuration
+
+Usage:
+  $HUB_EXTENSION -f <path-or-url-hub.yaml>
+
+Common parameters:
+  -f  --file              Path to stack definition file (can be repeated multiple times)
+  -i  --id                Assign unique identifier to the stack (default value from parameter: dns.domain)
+      --force             Force to overwrite .env file
+  -s  --silent            Suppress console outputs in favor of result codes
+  -V  --verbose           Verbose outputs for debug purposes
+  -h  --help              Print this message
+
+EOF
+}
+
+find_in_path() {
+  local _file _path rv
+  _file="$(echo "$1" | sed -e 's/^\///')"
+  ( IFS=:
+    for _path in $PATH; do
+      if test -f "$_path/$_file"; then
+        rv="$_path/$_file"
+        echo "$rv"
+        break;
+      fi
+    done
+    if test -z "$rv"; then
+      >&2 echo "Error: command not found: $1"
+      exit 404
+    fi
+  )
+}
+
+TEMP_FILES=""
+temp_file(){
+  local temp
+  temp=$(mktemp) || exit 1
+  TEMP_FILES="$TEMP_FILES $temp"
+  echo $temp
+}
+
+trap 'finalize $?' EXIT
+
+finalize() {
+  local rv="$1"
+  if test "$rv" != "0"; then
+    echo "Finished wih error!"
+  fi
+  shift
+  rm -rf "$TEMP_FILES"
+  exit $rv
+}
+
+VERBOSE=false
+SILENT=false
+HELP=false
+ARGS=$*
+HUB_FILES=""
+
+
+while [ "$1" != "" ]; do
+  case $1 in
+    -f | --file )
+      shift
+      HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
+      ;;
+    --force )
+      HUB_USE_FORCE="1"
+      ;;
+    -i | --id )
+      shift
+      HUB_STACK_ID="$1"
+      ;;
+    --profile )
+      shift
+      HUB_DEPLOY_PROFILE="$1"
+      ;;
+    -S | --silent )
+      SILENT=true
+      ;;
+    -V | --verbose )
+      VERBOSE=true
+      ;;
+    -h | --help )
+      HELP=true
+      ARGS="--help"
+      ;;
+  esac
+  shift
+done
+
+if $VERBOSE; then
+  set -x
+fi
+
+if test -z "$HUB_FILES" -a -f "hub.yaml"; then
+  HUB_FILES="hub.yaml"
+fi
+
+if test -f "$HUB_WORKDIR/.env" -a -z "$HUB_USE_FORCE"; then
+  cat << EOF
+
+Error: Stack has been already initialized
+Reason: .env file already exists
+
+If this is your intention: try to run the same command with --force flag
+
+EOF
+    exit 1
+fi
+
+if test -z "$HUB_FILES"; then
+  cat << EOF
+
+Error: cannot find hub definition files
+
+Example:
+  $HUB_EXTENSION -f hub.yaml
+
+EOF
+  exit 1
+fi
+
+
+TEMP_FILES=""
+
+temp_file(){
+  local temp
+  temp=$(mktemp) || exit 1
+  TEMP_FILES="$TEMP_FILES $temp"
+  echo $temp
+}
+
+download_file() {
+  local temp http_code
+  temp=$(temp_file)
+  echo "  Downloading $(basename $2) from: $1"
+  http_code=$(
+    curl -sLo "$temp" -w "%{http_code}" "$1"
+  )
+  if test "$(echo $http_code | cut -c1-1)" != "2"; then
+    echo "Error downloading url: $http_code"
+    cat $temp
+    return $http_code
+  fi
+  if test ! -s "$temp"; then
+    echo "Error: have got empty file (url: $temp)"
+    return 1
+  fi
+  echo -n "  Saving to $(pwd): "
+  copy "$temp" "$2"
+}
+
+KNOWN_URLS=""
+EXPANDED=""
+
+expand_hub_files() {
+  local f included local_file
+  for f in $@; do
+    if grep -q "$f" <<< "$EXPANDED"; then
+      continue
+    fi
+    if test -f "$f"; then
+      EXPANDED=$(echo "$EXPANDED $f" | xargs)
+      echo "* Checking $f"
+      included="$(cat "$f" | yq e '.extensions.include.[]' -)"
+      if test -n "$included"; then
+        expand_hub_files $included
+      fi
+      continue
+    fi
+    # is url
+    if echo "$f" | grep -e '^https\?://' >/dev/null 2>&1; then
+      local_file="$HUB_WORKDIR/$(basename "$f")"
+      if test ! -f "$local_file"; then
+        download_file "$f" "$local_file"
+        KNOWN_URLS=$(dirname $f | xargs)
+      fi
+      expand_hub_files "$local_file"
+      continue
+    fi
+
+    for url in $KNOWN_URLS; do
+      # shellcheck disable=SC2001
+      if download_file "$url/$1" "$HUB_WORKDIR/$1"; then
+        expand_hub_files "$HUB_WORKDIR/$1"
+        break
+      fi
+    done
+
+    if test ! -f "$f"; then
+      echo "Error: $f not found!"
+      exit 1
+    fi
+  done
+}
+
+update_symlink() {
+  if test -L "$2" -a $(readlink -n "$2") != "$1"; then
+    unlink "$2"
+  fi
+  if test ! -f "$2"; then
+    echo "* Updating symlink: .env"
+    ln -sf "$1" "$2"
+  fi
+}
+
+toJson() {
+  cat "$1" | yq e -o=json
+}
+
+echo "Initializing a new stack"
+if test ! -L "$HUB_WORKDIR/.env"; then
+  if test -f "$HUB_WORKDIR/.env" ; then
+    "* Removing .env"
+    rm -rf "$HUB_WORKDIR/.env"
+  fi
+fi
+
+
+expand_hub_files $HUB_FILES
+HUB_FILES="$EXPANDED"
+
+mkdir -p "$HUB_WORKDIR/.hub/env"
+DOTENV_FILE="$HUB_WORKDIR/.hub/env/.env"
+if test -n "$HUB_USE_FORCE"; then
+  rm -rf "dotenv_FILE"
+fi
+
+temp1="$(temp_file)"
+dotenv -f "$temp1" set "HUB_FILES=\"$HUB_FILES\""
+
+temp2="$(temp_file)"
+dotenv merge -f "dotenv_FILE" -f "$temp1"  > "$temp2"
+copy "$temp2" "dotenv_FILE"
+update_symlink "dotenv_FILE" "$HUB_WORKDIR/.env"
+
+for hubfile in $HUB_FILES; do
+  HUB_STACK_REQUIRES="$HUB_STACK_REQUIRES $(toJson $hubfile | jq -Mr 'select(.requires).requires[]' -)"
+done
+
+for req in $HUB_STACK_REQUIRES; do
+  init=$(find_in_path "$req/init")
+  echo "* Running $req init"
+  $init $ARGS
+done
+# dotenv -f "dotenv_FILE"
+# ln -al ""

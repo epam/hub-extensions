@@ -1,5 +1,11 @@
 #!/bin/bash -e
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
+
 usage() {
 cat << EOF
 Remove configuration from current stack
@@ -48,7 +54,7 @@ To see list of available stacks run
 EOF
   exit 1
 fi
-dotenv="$(dirname "$0")/env/dotenv -f $DOTENV"
+dotenv="dotenv -f $DOTENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
 if test -z "$HUB_DOMAIN_NAME"; then
   echo "Error: 'HUB_DOMAIN_NAME' has not been defined!"

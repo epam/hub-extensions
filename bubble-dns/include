@@ -3,10 +3,11 @@
 # TODO untangle global vars into function args
 configureBubbleDNS() {
   echo "Configuring Bubble DNS"
+  # FIXME: write posix compatible code
   $(dirname "${BASH_SOURCE[0]}")/new --output "$DOT_ENV" $BUBBLES_FLAGS
   # Reading newly generated domain name by script above
-  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME")
-  HUB_DOMAIN_SECRET=$($dotenv get "HUB_DOMAIN_SECRET")
+  HUB_DOMAIN_NAME=$(dotenv get "HUB_DOMAIN_NAME")
+  HUB_DOMAIN_SECRET=$(dotenv get "HUB_DOMAIN_SECRET")
   if test -z "$HUB_DOMAIN_NAME" -o -z "$HUB_DOMAIN_SECRET"; then
     echo "Error: cannot allocate domain name"
     exit 1

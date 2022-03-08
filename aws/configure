@@ -1,6 +1,12 @@
 #!/bin/bash -e
 # shellcheck disable=SC2046,SC2086
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
+
 usage() {
   cat << EOF
 AWS parameters:
@@ -75,7 +81,7 @@ fi
 
 source $(dirname "$0")/../bubble-dns/include
 
-dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
+dotenv="dotenv -f $DOT_ENV"
 
 if test "$DNS_ACTION" = "update"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"

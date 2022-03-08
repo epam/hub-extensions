@@ -100,10 +100,9 @@ if test -z "$*"; then
   exit 1
 fi
 
-dotenv=$(dirname "$0")/env/dotenv
 if test -f ".env"; then
   set +a
-  eval "$($dotenv export -f ".env" )"
+  eval "$(dotenv export -f ".env" )"
   set -a
 fi
 

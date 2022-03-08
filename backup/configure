@@ -27,9 +27,8 @@ done
 
 WORKDIR=${WORKDIR:-$(pwd)}
 DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
-dotenv="$(dirname "$0")/../env/dotenv -f $DOT_ENV"
 if test -z "$HUB_BACKUP_DIR"; then
   HUB_BACKUP_DIR="$WORKDIR/.hub/backups"
 fi
-$dotenv set "HUB_BACKUP_DIR=\"$HUB_BACKUP_DIR\""
+dotenv -f "$DOT_ENV" set "HUB_BACKUP_DIR=\"$HUB_BACKUP_DIR\""
 mkdir -p "$HUB_BACKUP_DIR"

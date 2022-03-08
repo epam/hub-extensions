@@ -32,7 +32,7 @@ http_ping() {
   fi
 }
 
-dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"s
+dotenv="dotenv -f $DOT_ENV)"
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
 SERVICEACCOUNT="/var/run/secrets/kubernetes.io/serviceaccount"
 CLUSTER="this-cluster"

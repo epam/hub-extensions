@@ -14,7 +14,7 @@ EOF
 
 
 while test -n "$1"; do
-  case $FROM in               
+  case $FROM in
     -h | --help )
       usage
       exit ;;
@@ -22,14 +22,14 @@ while test -n "$1"; do
       VERBOSE="true" ;;
     * )
       FROM="$1"
-      DEST="$2" 
+      DEST="$2"
       shift
       ;;
   esac
   shift
 done
 
-if test "$VERBOSE" = "true"; then 
+if test "$VERBOSE" = "true"; then
   set -x
 fi
 
@@ -54,4 +54,4 @@ if test -f "$DEST"; then
   cat "$DEST" > "$DEST.bak"
 fi
 cat "$FROM" > "$DEST"
-echo "Done"
+# echo "Done"

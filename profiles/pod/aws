@@ -20,10 +20,8 @@ if test -z "$POD"; then
   exit 1
 fi
 
-# shellcheck disable=SC2046
-dotenv="$(dirname "$0")/../../env/dotenv -f .env"
 if test -f ".env"; then
-  eval "$($dotenv export)"
+  eval "$(dotenv -f $HUB_WORKDIR/.env export)"
 fi
 
 # these AWS_* vars are passed into pod by ./template as we may copy files to the non-default locations

@@ -1,6 +1,12 @@
 #!/bin/bash -e
 # shellcheck disable=SC2086,SC2064,SC2046
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
+
 usage() {
 cat << EOF
 Kubernetes parameters:
@@ -46,7 +52,7 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-dotenv="$(dirname $(dirname $0))/env/dotenv -f $DOT_ENV)"
+dotenv="dotenv -f $DOT_ENV"
 
 if test -z "$HUB_DOMAIN_NAME"; then
   HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME" --default "cluster.local")

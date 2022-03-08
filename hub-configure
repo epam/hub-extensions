@@ -1,7 +1,11 @@
 #!/bin/bash -e
 # shellcheck disable=SC2046,SC2068,SC2064,SC2086
 
-HUB_HOME=${HUB_HOME:-$(dirname "$0")}
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
 
 usage() {
   cat << EOF
@@ -55,10 +59,9 @@ SILENT=false
 HELP=false
 ARGS=$*
 HUB_FILES=""
-dotenv=$HUB_HOME/env/dotenv
 
 if test -f ".env"; then
-  eval $($dotenv export -f ".env" )
+  eval $(dotenv export -f ".env" )
 fi
 
 while [ "$1" != "" ]; do
@@ -223,8 +226,8 @@ cat << EOF >> $TEMP2
 EOF
   MERGE_FILES="$MERGE_FILES -f $TEMP2"
   # shellcheck disable=SC2001
-  $dotenv merge $MERGE_FILES > $TEMP1
-  HUB_DOMAIN_NAME=$($dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
+  dotenv merge $MERGE_FILES > $TEMP1
+  HUB_DOMAIN_NAME=$(dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
   echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
   $HUB_HOME/env/copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
   update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
@@ -309,13 +312,13 @@ MERGE_FILES=""
 
 if test -n "$INIT_DOTENV"; then
   echo "Using $INIT_DOTENV as initial configuration"
-  eval $($dotenv export -f "$INIT_DOTENV")
+  eval $(dotenv export -f "$INIT_DOTENV")
   MERGE_FILES="$MERGE_FILES -f $INIT_DOTENV"
 fi
 
 if test -f "$HUB_WORKDIR/.env"; then
   echo "Configuration .env file: exist"
-  eval $($dotenv export -f "$HUB_WORKDIR/.env")
+  eval $(dotenv export -f "$HUB_WORKDIR/.env")
   if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
   if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$HUB_WORKDIR/.env"; then
@@ -354,7 +357,7 @@ EOF
     exit 4
   fi
   if test -s "$TEMP"; then
-    eval $($dotenv export -f "$TEMP")
+    eval $(dotenv export -f "$TEMP")
     MERGE_FILES="$MERGE_FILES -f $TEMP"
   fi
 done
