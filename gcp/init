@@ -1,11 +1,10 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 usage() {
   cat <<EOF
+GCP access parameters:
+      --gcp-project-id ARG    Override GCP project ID
 
-Setup GCP credentials:
-
-    --gcp-project-id ARG    Override GCP project ID
 EOF
 }
 
@@ -14,10 +13,14 @@ while [ "$1" != "" ]; do
   --defaults )
     INTERACTIVE=false
     ;;
-  --gcp-project-id)
+  --gcp-project-id )
       shift
       GCP_PROJECT_ID="$1"
       INTERACTIVE=false
+      ;;
+  -h | --help )
+      usage
+      exit 0
       ;;
   esac
   shift

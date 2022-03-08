@@ -8,30 +8,12 @@ HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 
 export HUB_HOME PATH HUB_HOME HUB_WORKDIR
 
-usage() {
-  cat << EOF
-Creates a new stack configuration
-
-Usage:
-  $HUB_EXTENSION -f <path-or-url-hub.yaml>
-
-Common parameters:
-  -f  --file              Path to stack definition file (can be repeated multiple times)
-  -i  --id                Assign unique identifier to the stack (default value from parameter: dns.domain)
-      --force             Force to overwrite .env file
-  -s  --silent            Suppress console outputs in favor of result codes
-  -V  --verbose           Verbose outputs for debug purposes
-  -h  --help              Print this message
-
-EOF
-}
-
 find_in_path() {
   local _file _path rv
   _file="$(echo "$1" | sed -e 's/^\///')"
   ( IFS=:
     for _path in $PATH; do
-      if test -f "$_path/$_file"; then
+      if test -x "$_path/$_file"; then
         rv="$_path/$_file"
         echo "$rv"
         break;
@@ -42,6 +24,39 @@ find_in_path() {
       exit 404
     fi
   )
+}
+
+
+toJson() {
+  cat "$1" | yq e -o=json
+}
+
+usage() {
+  cat << EOF
+Initializes a brand new stack from existing hub file
+
+Usage:
+  $HUB_EXTENSION -f <path-or-url-hub.yaml>
+
+EOF
+
+  if test -n "$@"; then
+    for req in $@; do
+      local init
+      init=$(find_in_path "$req/init")
+      if test -n "$init"; then
+        $init --help
+      fi
+    done
+  fi
+
+cat <<EOF
+Common parameters:
+  -f  --file                  Path to stack definition file (can be repeated multiple times)
+      --force                 Force to overwrite .env file
+  -V  --verbose               Verbose outputs for debug purposes
+  -h  --help                  Print this message
+EOF
 }
 
 TEMP_FILES=""
@@ -80,16 +95,9 @@ while [ "$1" != "" ]; do
     --force )
       HUB_USE_FORCE="1"
       ;;
-    -i | --id )
-      shift
-      HUB_STACK_ID="$1"
-      ;;
     --profile )
       shift
       HUB_DEPLOY_PROFILE="$1"
-      ;;
-    -S | --silent )
-      SILENT=true
       ;;
     -V | --verbose )
       VERBOSE=true
@@ -108,6 +116,18 @@ fi
 
 if test -z "$HUB_FILES" -a -f "hub.yaml"; then
   HUB_FILES="hub.yaml"
+fi
+
+for hubfile in $HUB_FILES; do
+  if test ! -f "$hubfile"; then
+    continue
+  fi
+  HUB_STACK_REQUIRES="$HUB_STACK_REQUIRES $(toJson $hubfile | jq -Mr 'select(.requires).requires[]' -)"
+done
+
+if $HELP; then
+  usage $HUB_STACK_REQUIRES
+  exit 0
 fi
 
 if test -f "$HUB_WORKDIR/.env" -a -z "$HUB_USE_FORCE"; then
@@ -218,10 +238,6 @@ update_symlink() {
   fi
 }
 
-toJson() {
-  cat "$1" | yq e -o=json
-}
-
 echo "Initializing a new stack"
 if test ! -L "$HUB_WORKDIR/.env"; then
   if test -f "$HUB_WORKDIR/.env" ; then
@@ -229,7 +245,6 @@ if test ! -L "$HUB_WORKDIR/.env"; then
     rm -rf "$HUB_WORKDIR/.env"
   fi
 fi
-
 
 expand_hub_files $HUB_FILES
 HUB_FILES="$EXPANDED"
@@ -247,10 +262,6 @@ temp2="$(temp_file)"
 dotenv merge -f "dotenv_FILE" -f "$temp1"  > "$temp2"
 copy "$temp2" "dotenv_FILE"
 update_symlink "dotenv_FILE" "$HUB_WORKDIR/.env"
-
-for hubfile in $HUB_FILES; do
-  HUB_STACK_REQUIRES="$HUB_STACK_REQUIRES $(toJson $hubfile | jq -Mr 'select(.requires).requires[]' -)"
-done
 
 for req in $HUB_STACK_REQUIRES; do
   init=$(find_in_path "$req/init")
