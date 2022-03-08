@@ -4,17 +4,20 @@ usage() {
   cat << EOF
 Usage: hub stack <sub command>
 
-Parameters:
+Management commands:
     init            Initialize a brand new stack
     configure       Update stack configuration
     deploy          Deploy current stack
     undeploy        Undeploy current stack
+    ls              List of available stacks
+    set             Setting active stack
+    unconfigure     Delete current stack configuration
+
+Deployment commands:
     elaborate       Reconcile deployment plan for this stack
     explain         Display stack outputs, component's parameters, outputs, and capabilities
     backup          Backup operations
     invoke          Invoke stack component's verb
-    ls              List of available stacks
-    set             Setting active stack
 EOF
 }
 
