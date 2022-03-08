@@ -252,21 +252,19 @@ HUB_FILES="$EXPANDED"
 mkdir -p "$HUB_WORKDIR/.hub/env"
 DOTENV_FILE="$HUB_WORKDIR/.hub/env/.env"
 if test -n "$HUB_USE_FORCE"; then
-  rm -rf "dotenv_FILE"
+  rm -rf "$DOTENV_FILE"
 fi
 
 temp1="$(temp_file)"
 dotenv -f "$temp1" set "HUB_FILES=\"$HUB_FILES\""
 
 temp2="$(temp_file)"
-dotenv merge -f "dotenv_FILE" -f "$temp1"  > "$temp2"
-copy "$temp2" "dotenv_FILE"
-update_symlink "dotenv_FILE" "$HUB_WORKDIR/.env"
+dotenv merge -f "$DOTENV_FILE" -f "$temp1"  > "$temp2"
+copy "$temp2" "$DOTENV_FILE"
+update_symlink "$DOTENV_FILE" "$HUB_WORKDIR/.env"
 
 for req in $HUB_STACK_REQUIRES; do
   init=$(find_in_path "$req/init")
   echo "* Running $req init"
   $init $ARGS
 done
-# dotenv -f "dotenv_FILE"
-# ln -al ""

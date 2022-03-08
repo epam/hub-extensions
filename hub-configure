@@ -15,10 +15,9 @@ The result of configuration is saved under ".hub/env/" with a symlink ".env" poi
 to the current configuration.
 
 Usage:
-  hub configure -f hub.yaml <parameters>
+  hub configure <parameters>
 
 Common parameters:
-  -f  --file              Path to stack definition file (can be repeated multiple times)
   -r  --requirement       Configure one requirement (can be repeated multiple times)
   -i  --init-dotenv FILE  Start with initial values from the .env FILE
   -s  --silent            Suppress console outputs in favor of result codes
@@ -102,21 +101,6 @@ done
 
 if $VERBOSE; then
   set -x
-fi
-
-if test -z "$HUB_FILES"; then
-  cat << EOF
-
-Error: cannot find hub definition files
-
-Full usage info:
-  hub configure -f hub.yaml --help
-
-Example:
-  hub configure -f hub.yaml
-
-EOF
-  exit 1
 fi
 
 if test -n "$INIT_DOTENV" -a ! -f "$INIT_DOTENV"; then
@@ -209,6 +193,15 @@ update_symlink() {
   fi
 }
 
+abspath() {
+  if test -d "$1"; then
+    (cd "$1" && pwd)
+  elif test -f "$1"; then
+    # shellcheck disable=SC2086,SC2046
+    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
+  fi
+}
+
 finalize() {
   # shellcheck disable=SC2046
   local rv=$?
@@ -224,12 +217,25 @@ cat << EOF >> $TEMP2
   # deploy profiles are: $(echo "$profiles" | xargs)
   HUB_DEPLOY_PROFILE="$HUB_DEPLOY_PROFILE"
 EOF
+  unconfigured=false
+  if test -L "$HUB_WORKDIR/.env"; then
+    dotenv1=$(abspath $(readlink -n "$HUB_WORKDIR/.env"))
+    dotenv2=$(abspath "$HUB_WORKDIR/.hub/env/.env")
+    if test "$dotenv1" = "$dotenv2"; then
+      unconfigured=true
+    fi
+  fi
+
   MERGE_FILES="$MERGE_FILES -f $TEMP2"
   # shellcheck disable=SC2001
   dotenv merge $MERGE_FILES > $TEMP1
   HUB_DOMAIN_NAME=$(dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
   echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
   copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+  if test -n "$HUB_DOMAIN_NAME" && $unconfigured; then
+    echo "* Removing old: .hub/env/.env"
+    rm -rf "$HUB_WORKDIR/.hub/env/.env"
+  fi
   update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
   echo
   if test "$rv" = "0"; then
@@ -254,13 +260,9 @@ if test ! -d $HUB_WORKDIR; then
 fi
 
 export HUB_WORKDIR
-
-$HELP || echo "Checking hub files:"
-expand_hub_files $HUB_FILES
-HUB_FILES="$EXPANDED"
 if test -z "$HUB_FILES"; then
   cat << EOF
-Cannot find hub files! Please run "hub stack init"
+Cannot find hub files! Please run "hub stack initt"
 
 Example:
   hub stack init -f hub.yaml
@@ -268,7 +270,7 @@ or
   hub stack init -f https://raw.githubusercontent.com/agilestacks/stack-ml-eks/master/hub.yaml
 
 EOF
-  exit 0
+  exit 1
 fi
 
 mkdir -p "$HUB_WORKDIR/.hub/env"
@@ -297,7 +299,7 @@ if test -z "$HUB_DEPLOY_PROFILE"; then
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
     for f in $HUB_FILES; do
       test -f $f || continue;
-      r=$(yq e -o=json . hub.yaml | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
+      r=$(yq e -o=json . $f | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
       if test "$r" = "kubernetes"; then
         HUB_DEPLOY_PROFILE="pod"
         break

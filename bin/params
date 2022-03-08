@@ -70,13 +70,6 @@ getParamNameByEnvVar() {
     result=$(
       yq e -o=json "$f" | jq "[.parameters]"
     )
-
-            #  walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \
-            # | walk(if type==\"object\" and .name then {(.name):.} else . end) \
-            # | path(..)|[.[]|tostring] | select(.[] | contains(\"fromEnv\")) \
-            # | [ .[] | select(.!=\"fromEnv\" and .!=\"parameters\") | tonumber? //. \
-            # | select(type==\"string\")] | join(\".\") \
-
     if test -n "$result"; then
       echo "$result"
       break

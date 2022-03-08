@@ -21,9 +21,9 @@ EOF
 }
 
 if test -f ".env"; then
-  DOTENV=".env"
+  DOT_ENV=".env"
 elif test -L ".env"; then
-  DOTENV=$(readlink ".env")
+  DOT_ENV=$(readlink ".env")
 fi
 
 while [ "$1" != "" ]; do
@@ -33,15 +33,21 @@ while [ "$1" != "" ]; do
     -h | --help )       usage
                         exit
                         ;;
-    * )                 DOTENV=".hub/env/$1.env"
+    * )                 DOT_ENV=".hub/env/$1.env"
                         ;;
     esac
     shift
 done
 
-if test ! -f "$DOTENV"; then
+if test -L "$HUB_WORKDIR/.env" -a ! -e "$HUB_WORKDIR/.env"; then
+  echo "* Unlinking: .env"
+  unlink "$HUB_WORKDIR/.env"
+  exit
+fi
+
+if test ! -f "$DOT_ENV"; then
   cat <<EOF
-* Error: configuration '.env' has not been found"
+* Nothing to unconfigure
 
 EOF
   usage
@@ -54,20 +60,20 @@ To see list of available stacks run
 EOF
   exit 1
 fi
-dotenv="dotenv -f $DOTENV"
+dotenv="dotenv -f $DOT_ENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Error: 'HUB_DOMAIN_NAME' has not been defined!"
-  echo "Error:  is $DOTENV is a stack you want to unconfigure?"
-  exit 2
+  HUB_DOMAIN_NAME="unconfigured"
+  FILES=$(ls .hub/env/.env)
+else
+  FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
 fi
 
 echo "Unconfiguring: $HUB_DOMAIN_NAME"
 
-FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
 FILES="$FILES $($dotenv get "HUB_STATE" | sed "s/,/ /g")"
 FILES="$FILES $($dotenv get "HUB_ELABORATE" | sed "s/,/ /g")"
-FILES="$FILES $DOTENV"
+FILES="$FILES $DOT_ENV"
 for f in $FILES; do
   test -f "$f" || continue
   echo "* Removing $f"
@@ -75,11 +81,8 @@ for f in $FILES; do
 done
 
 if test -L ".env"; then
-  envfile=$(readlink ".env")
-  if "$envfile" -ef ".env"; then
-    echo "* Removing .env: "
-    unlink ".env"
-  fi
+  echo "* Unlinking: .env"
+  unlink "$HUB_WORKDIR/.env"
 fi
 
 echo "Unconfigured!"
