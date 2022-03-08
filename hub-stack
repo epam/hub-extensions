@@ -5,6 +5,8 @@ usage() {
 Usage: hub stack <sub command>
 
 Parameters:
+    init            Initialize a brand new stack
+    configure       Update stack configuration
     deploy          Deploy current stack
     undeploy        Undeploy current stack
     elaborate       Reconcile deployment plan for this stack
