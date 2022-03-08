@@ -153,7 +153,7 @@ download_file() {
     return 1
   fi
   echo -n "  Saving to $(pwd): "
-  $HUB_HOME/env/copy "$temp" "$2"
+  copy "$temp" "$2"
 }
 
 KNOWN_URLS=""
@@ -229,7 +229,7 @@ EOF
   dotenv merge $MERGE_FILES > $TEMP1
   HUB_DOMAIN_NAME=$(dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
   echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
-  $HUB_HOME/env/copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+  copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
   update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
   echo
   if test "$rv" = "0"; then
@@ -260,23 +260,24 @@ expand_hub_files $HUB_FILES
 HUB_FILES="$EXPANDED"
 if test -z "$HUB_FILES"; then
   cat << EOF
-Cannot find hub files! Please same command with -f option
+Cannot find hub files! Please run "hub stack init"
 
 Example:
-  hub configure -f hub.yaml
+  hub stack init -f hub.yaml
 or
-  hub configure -f https://raw.githubusercontent.com/agilestacks/stack-ml-eks/master/hub.yaml
+  hub stack init -f https://raw.githubusercontent.com/agilestacks/stack-ml-eks/master/hub.yaml
 
 EOF
-  usage
+  exit 0
 fi
 
 mkdir -p "$HUB_WORKDIR/.hub/env"
 
+WORKDIR="$HUB_WORKDIR"
 
 # common environment variables that
 # will be used by exact extensions
-export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG
+export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG HUB_WORKDIR
 if test -z "$REQS"; then
   for f in $HUB_FILES; do
     test -f $f || continue;
@@ -320,7 +321,6 @@ if test -f "$HUB_WORKDIR/.env"; then
   echo "Configuration .env file: exist"
   eval $(dotenv export -f "$HUB_WORKDIR/.env")
   if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
-  if test -n "$HUB_DOMAIN_NAME"; then echo "* Stack domain name: $HUB_DOMAIN_NAME"; fi
   if test -L "$HUB_WORKDIR/.env"; then
     MERGE_FILES="-f $(readlink -n "$HUB_WORKDIR/.env") $MERGE_FILES"
   else
@@ -341,8 +341,9 @@ for req in $(echo "$REQS" | xargs -n1); do
     echo "* Cannot find configure script for \"$req\": skipping"
     continue
   fi
-  TEMP=$(temp_file)
-  if ! $configure --output "$TEMP" $ARGS; then
+  DOT_ENV=$(temp_file)
+  export DOT_ENV
+  if ! $configure --output "$DOT_ENV" $ARGS; then
     cat << EOF
 
 Error: "$req" completed with error!
@@ -356,8 +357,8 @@ For additional options:
 EOF
     exit 4
   fi
-  if test -s "$TEMP"; then
-    eval $(dotenv export -f "$TEMP")
-    MERGE_FILES="$MERGE_FILES -f $TEMP"
+  if test -s "$DOT_ENV"; then
+    eval $(dotenv export -f "$DOT_ENV")
+    MERGE_FILES="$MERGE_FILES -f $DOT_ENV"
   fi
 done

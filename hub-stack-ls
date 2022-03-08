@@ -12,8 +12,8 @@ if test ! -d .hub/env; then
   exit 1
 fi
 
-echo "ACTIVE  ACCOUNT"
-for f in $HUB_WORKDIR.hub/env/*.env $HUB_WORKDIR/.hub/env/.env; do
+echo "ACTIVE  STACK"
+for f in $HUB_WORKDIR/.hub/env/*.env $HUB_WORKDIR/.hub/env/.env; do
   STACK=$(basename $f .env)
   if test "$STACK" = "*"; then
     continue
