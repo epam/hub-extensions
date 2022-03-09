@@ -219,8 +219,10 @@ expand_hub_files() {
 }
 
 update_symlink() {
-  if test -L "$2" -a $(readlink -n "$2") != "$1"; then
-    unlink "$2"
+  if test -L "$2"; then
+    if test $(readlink -n "$2") != "$1"; then
+      unlink "$2"
+    fi
   fi
   if test ! -f "$2"; then
     echo "* Updating symlink: .env"
