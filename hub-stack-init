@@ -234,12 +234,16 @@ componentDir() {
   jq -cMr --arg 'comp' "$1" '.[] | select(.name==$comp).source?.dir | select(.)'
 }
 
-componentGcpRepo() {
-  jq -cMr --arg 'comp' "$1" '.[] | select(.name==$comp).source?.gcp?.repo | select(.)'
+componentSourceRepo() {
+  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.repo | select(.)'
 }
 
-componentGcpSubdir() {
-  jq -cMr --arg 'comp' "$1" '.[] | select(.name==$comp).source?.gcp?.subDir | select(.)'
+componentSourceSubdir() {
+  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.subDir | select(.)'
+}
+
+componentSourceRef() {
+  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["master"] | [ .[] | select(.!= "")][0]'
 }
 
 echo "Initializing a new stack"
@@ -289,16 +293,32 @@ for hubfile in $HUB_FILES; do
       continue
     fi
 
-    gcp_repo=$(echo $components | componentGcpRepo "$comp")
+    git_repo=$(echo $components | componentSourceRepo "git" "$comp")
+    if test -n "$git_repo"; then
+      subdir=$(echo $components | componentSourceSubdir "git" "$comp")
+      ref=$(echo $components | componentSourceRef "git" "$comp")
+      echo "  Retrieving from git source repository"
+      echo "  Running: git clone $git_repo"
+      temp_dir=$(temp_file)
+      git clone --depth 1 "$git_repo" "$temp_dir" > /dev/null
+      (cd "$temp_dir" && ["$(git rev-parse --abbrev-ref HEAD)" = "$ref"] || git checkout "$ref")
+      echo "  Saving component: $comp_dir"
+      mkdir -p "$HUB_WORKDIR/$comp_dir"
+      cp -rf "$temp_dir/$subdir/" "$HUB_WORKDIR/$comp_dir"
+      continue
+    fi
+
+    gcp_repo=$(echo $components | componentSourceRepo "gcp" "$comp")
     if test -n "$gcp_repo"; then
-      echo "  Retrieving from GCP source code repository"
+      subdir=$(echo $components | componentSourceSubdir "gcp" "$comp")
+      echo "  Retrieving from gcp source repository"
       echo "  Running: gcloud source repos clone "$gcp_repo""
       temp_dir=$(temp_file)
       gcloud --no-user-output-enabled source repos clone "$gcp_repo" "$temp_dir"
       echo "  Saving component: $comp_dir"
-      subdir=$(echo $components | componentGcpSubdir "$comp")
       mkdir -p "$HUB_WORKDIR/$comp_dir"
       cp -rf "$temp_dir/$subdir/" "$HUB_WORKDIR/$comp_dir"
+      continue
     fi
   done
 done
