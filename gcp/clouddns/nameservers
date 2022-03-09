@@ -1,0 +1,30 @@
+#!/bin/bash -e
+# shellcheck disable=SC2086
+
+set -o pipefail
+
+while [ "$1" != "" ]; do
+    case $1 in
+        --domain-name )  shift
+                         HUB_DOMAIN_NAME="$1"
+                         ;;
+        --verbose )      set -x
+                         ;;
+    esac
+    shift
+done
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  echo "Flag --domain-name VALUE not defined"
+  exit 1
+fi
+
+ZONE_NAME=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
+  --format json | jq '.[].name' | xargs)
+
+if gcloud dns managed-zones describe "$ZONE_NAME"\
+    --format json | jq '.nameServers'; then
+  exit
+fi
+
+echo '[]'

@@ -1,7 +1,7 @@
 #!/bin/bash -e
 # shellcheck disable=SC2046,SC2086
 
-HUB_PARENT_DOMAIN="bubble.superhub.io"
+HUB_PARENT_DOMAIN="epam.devops.delivery"
 while [ "$1" != "" ]; do
   case $1 in
     --parent-domain )   shift
@@ -24,7 +24,7 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 trap "rm -f $TEMP" EXIT
 
 echo -n "* Resolving new domain name: "
-HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://api.agilestacks.io/dns/"}
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://bubbles.stuff.epam.superhub.io/"}
 HTTP_CODE=$( \
   curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
       -w "%{http_code}" \

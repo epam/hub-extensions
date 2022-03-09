@@ -56,7 +56,7 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 # shellcheck disable=SC2064
 trap "rm -f $TEMP" EXIT
 
-HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://api.agilestacks.io/dns"}
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://bubbles.stuff.epam.superhub.io"}
 
 set +e
 HTTP_CODE=$(curl -sLo $TEMP -w "%{http_code}" -X PUT \

@@ -1,18 +1,14 @@
 #!/bin/bash -e
+# shellcheck disable=SC1091
 
 usage() {
     cat <<EOF
 GCP parameters:
   --gcp-project-id               GCP project ID (default to GCP_PROJECT_ID)
-  --gcs-bucket-name              GCS bucket name (defaults to STATE_BUCKET)
-
+  --gcs-bucket-name              GCS bucket name (defaults to GCP_PROJECT_ID_superhub_state)
+  --hub-domain-name              Domain name of the stack (we get one from bubble dns if not set)
 EOF
 }
-
-# Is the right way to guess the .env file location?
-if test -z "$DOT_ENV"; then
-    DOT_ENV=.hub/env/"$HUB_DOMAIN_NAME".env
-fi
 
 while [ "$1" != "" ]; do
     case $1 in
@@ -24,6 +20,10 @@ while [ "$1" != "" ]; do
         shift
         GCP_PROJECT_ID="$1"
         ;;
+    --hub-domain-name)
+        shift
+        HUB_DOMAIN_NAME="$1"
+        ;;        
     esac
     shift
 done
@@ -32,23 +32,41 @@ if test "$VERBOSE" = "true"; then
     set -x
 fi
 
-if test -z "$STATE_BUCKET"; then
-    STATE_BUCKET="$GCP_PROJECT_ID"_superhub_state
+CURRENT_DIR=$(dirname "$0")
+source "$CURRENT_DIR"/../bubble-dns/include
+
+if test -z "$HUB_DOMAIN_NAME"; then
+    configureBubbleDNS
 fi
 
-### Setting current project to GCP_PROJECT_ID
-echo "Setting GCP project to $GCP_PROJECT_ID"
-gcloud config set project "$GCP_PROJECT_ID"
+### Create DNS Zone
+FOUND=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
+    --format json | jq '. | length' | xargs)
 
-dotenv="dotenv -f $DOT_ENV"
+export HUB_CLOUD_PROVIDER=gcp
+if test "$FOUND" == "0"; then
+    echo "Cloud DNS Zone $HUB_DOMAIN_NAME has not been found. Creating.."
+    gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
+        --description="Managed by Superhub" \
+        --dns-name="$HUB_DOMAIN_NAME"
+    updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"   
+else
+    echo "Cloud DNS Zone $HUB_DOMAIN_NAME found"
+fi
 
-if gsutil du gs://"$STATE_BUCKET"; then
+if test -z "$STATE_BUCKET"; then
+    STATE_BUCKET="superhub-$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
+fi
+
+if gsutil du gs://"$STATE_BUCKET" > /dev/null 2>&1; then
     echo "Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"
 else
     gsutil mb -c standard -b on gs://"$STATE_BUCKET"
     echo "Bucket gs://$STATE_BUCKET has been created"
 fi
 
-# If vars were overridenin the extension, make sure the env file is updated
+dotenv="dotenv -f $DOT_ENV"
+$dotenv set "HUB_CLOUD_PROVIDER=\"$HUB_CLOUD_PROVIDER\""
 $dotenv set "STATE_BUCKET=\"$STATE_BUCKET\""
 $dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
+$dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
