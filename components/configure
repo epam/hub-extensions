@@ -38,5 +38,5 @@ if test -z "$HUB_FILES"; then
   exit 1
 fi
 
-echo "Configuring components:"
-$(dirname $(dirname $0))/hub-component-download $ARGS
+# echo "Configuring components:"
+# $(dirname $(dirname $0))/hub-component-download $ARGSin

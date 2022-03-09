@@ -6,6 +6,8 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 
+# HUB_STACK_REQUIRES="components"
+
 export HUB_HOME PATH HUB_HOME HUB_WORKDIR
 
 find_in_path() {
@@ -59,23 +61,12 @@ Common parameters:
 EOF
 }
 
-TEMP_FILES=""
-temp_file(){
-  local temp
-  temp=$(mktemp) || exit 1
-  TEMP_FILES="$TEMP_FILES $temp"
-  echo $temp
-}
-
-trap 'finalize $?' EXIT
-
 finalize() {
-  local rv="$1"
+  local rv="$?"
+  rm -rf $@
   if test "$rv" != "0"; then
     echo "Finished wih error!"
   fi
-  shift
-  rm -rf "$TEMP_FILES"
   exit $rv
 }
 
@@ -154,26 +145,24 @@ EOF
   exit 1
 fi
 
+TEMP_DIR=$(mktemp -d || exit 2)
+mkdir -p "$TEMP_DIR"
+trap 'finalize $TEMP_DIR' EXIT
 
-TEMP_FILES=""
-
-temp_file(){
-  local temp
-  temp=$(mktemp) || exit 1
-  TEMP_FILES="$TEMP_FILES $temp"
-  echo $temp
+temp_file() {
+  echo "$TEMP_DIR/$(cat /dev/urandom | head -c 32 | base64 | tr -dc 'a-z')"
 }
 
 download_file() {
   local temp http_code
-  temp=$(temp_file)
   echo "  Downloading $(basename $2) from: $1"
+  temp="$TEMP_DIR/$(basename $2)"
   http_code=$(
     curl -sLo "$temp" -w "%{http_code}" "$1"
   )
   if test "$(echo $http_code | cut -c1-1)" != "2"; then
     echo "Error downloading url: $http_code"
-    cat $temp
+    cat "$temp"
     return $http_code
   fi
   if test ! -s "$temp"; then
@@ -182,6 +171,7 @@ download_file() {
   fi
   echo -n "  Saving to $(pwd): "
   copy "$temp" "$2"
+  rm -f "$temp"
 }
 
 KNOWN_URLS=""
@@ -238,6 +228,18 @@ update_symlink() {
   fi
 }
 
+componentDir() {
+  jq -cMr --arg 'comp' "$1" '.[] | select(.name==$comp).source?.dir | select(.)'
+}
+
+componentGcpRepo() {
+  jq -cMr --arg 'comp' "$1" '.[] | select(.name==$comp).source?.gcp?.repo | select(.)'
+}
+
+componentGcpSubdir() {
+  jq -cMr --arg 'comp' "$1" '.[] | select(.name==$comp).source?.gcp?.subDir | select(.)'
+}
+
 echo "Initializing a new stack"
 if test ! -L "$HUB_WORKDIR/.env"; then
   if test -f "$HUB_WORKDIR/.env" ; then
@@ -249,8 +251,11 @@ fi
 expand_hub_files $HUB_FILES
 HUB_FILES="$EXPANDED"
 
+export HUB_FILES
+
 mkdir -p "$HUB_WORKDIR/.hub/env"
 DOTENV_FILE="$HUB_WORKDIR/.hub/env/.env"
+
 if test -n "$HUB_USE_FORCE"; then
   rm -rf "$DOTENV_FILE"
 fi
@@ -267,4 +272,31 @@ for req in $HUB_STACK_REQUIRES; do
   init=$(find_in_path "$req/init")
   echo "* Running $req init"
   $init $ARGS
+done
+
+for hubfile in $HUB_FILES; do
+  if test ! -f $hubfile; then
+    echo "* Waring: skipping $hubfile due to not found"
+    continue
+  fi
+  components="$(toJson "$hubfile" | jq -cMr '.components' -)"
+  for comp in $(echo "$components" | jq -cMr '.[].name'); do
+    echo "* Checking component: $comp"
+    comp_dir=$(echo $components | componentDir "$comp")
+    if test -d "$comp_dir"; then
+      continue
+    fi
+
+    gcp_repo=$(echo $components | componentGcpRepo "$comp")
+    if test -n "$gcp_repo"; then
+      echo "  Retrieving from GCP source code repository"
+      echo "  Running: gcloud source repos clone "$gcp_repo""
+      temp_dir=$(temp_file)
+      gcloud --no-user-output-enabled source repos clone "$gcp_repo" "$temp_dir"
+      echo "  Saving component: $comp_dir"
+      subdir=$(echo $components | componentGcpSubdir "$comp")
+      mkdir -p "$HUB_WORKDIR/$comp_dir"
+      cp -rf "$temp_dir/$subdir/" "$HUB_WORKDIR/$comp_dir"
+    fi
+  done
 done
