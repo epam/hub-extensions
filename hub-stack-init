@@ -297,9 +297,9 @@ for hubfile in $HUB_FILES; do
     if test -n "$git_repo"; then
       subdir=$(echo $components | componentSourceSubdir "git" "$comp")
       ref=$(echo $components | componentSourceRef "git" "$comp")
+      temp_dir=$(temp_file)
       echo "  Retrieving from git source repository"
       echo "  Running: git clone $git_repo"
-      temp_dir=$(temp_file)
       git clone --depth 1 "$git_repo" "$temp_dir" > /dev/null
       (cd "$temp_dir" && ["$(git rev-parse --abbrev-ref HEAD)" = "$ref"] || git checkout "$ref")
       echo "  Saving component: $comp_dir"
@@ -311,10 +311,12 @@ for hubfile in $HUB_FILES; do
     gcp_repo=$(echo $components | componentSourceRepo "gcp" "$comp")
     if test -n "$gcp_repo"; then
       subdir=$(echo $components | componentSourceSubdir "gcp" "$comp")
+      ref=$(echo $components | componentSourceRef "gcp" "$comp")
+      temp_dir=$(temp_file)
       echo "  Retrieving from gcp source repository"
       echo "  Running: gcloud source repos clone "$gcp_repo""
-      temp_dir=$(temp_file)
       gcloud --no-user-output-enabled source repos clone "$gcp_repo" "$temp_dir"
+      (cd "$temp_dir" && ["$(git rev-parse --abbrev-ref HEAD)" = "$ref"] || git checkout "$ref")
       echo "  Saving component: $comp_dir"
       mkdir -p "$HUB_WORKDIR/$comp_dir"
       cp -rf "$temp_dir/$subdir/" "$HUB_WORKDIR/$comp_dir"
