@@ -63,7 +63,7 @@ fi
 ### State Bucket
 echo "Configuring state storage"
 if test -z "$STATE_BUCKET"; then
-  STATE_BUCKET="superhub-$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
+  STATE_BUCKET="superhub-$GCP_PROJECT_ID"
 fi
 if gsutil du "gs://$STATE_BUCKET" > /dev/null 2>&1; then
   echo "* Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"
