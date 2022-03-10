@@ -105,13 +105,13 @@ if test -z "$HUB_FILES"; then
   cat << EOF
 Error: cannot find hub definition files (HUB_FILES) in .env"
 
-Probably because stack has not been configured for deployment yet!
+Probably because stack has not been initialized for deployment yet!
 
 Example:
-  $ hub configure -f hub.yaml
+  $ hub stack init -f hub.yaml
 
 To explore more configuration options:
-  $ hub configure -f hub.yaml --help
+  $ hub stack init -f hub.yaml --help
 
 EOF
 
@@ -119,7 +119,19 @@ EOF
 fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Error: HUB_DOMAIN_NAME has not been defined"
+cat << EOF
+Error: cannot find hub definition files (HUB_DOMAIN_NAME) in .env"
+
+Probably because stack has not been configured for deployment yet!
+
+Example:
+  $ hub stack configure
+
+To explore more configuration options:
+  $ hub stack configure --help
+
+EOF
+
   exit 2
 fi
 
