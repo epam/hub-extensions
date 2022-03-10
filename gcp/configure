@@ -10,6 +10,9 @@ GCP parameters:
 EOF
 }
 
+JQ_ARGS="-cM"
+jq="jq $JQ_ARGS"
+
 while [ "$1" != "" ]; do
     case $1 in
     --gcs-bucket-name)
@@ -28,47 +31,58 @@ while [ "$1" != "" ]; do
     shift
 done
 
-gcloud config set project "$GCP_PROJECT_ID" -q
+
+echo "Setting current GCP project to $GCP_PROJECT_ID"
+echo "* $(gcloud config set project "$GCP_PROJECT_ID" -q 2>&1)"
 
 if test "$VERBOSE" = "true"; then
-    set -x
-fi
-
-CURRENT_DIR=$(dirname "$0")
-source "$CURRENT_DIR"/../bubble-dns/include
-
-if test -z "$HUB_DOMAIN_NAME"; then
-    configureBubbleDNS
+	set -x
 fi
 
 ### Create DNS Zone
+CURRENT_DIR=$(dirname "$0")
+source "$CURRENT_DIR/../bubble-dns/include"
+if test -z "$HUB_DOMAIN_NAME"; then
+  configureBubbleDNS
+else
+  echo "Configuring Bubble DNS"    
+fi
 FOUND=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
-    --format json | jq '. | length' | xargs)
-
+	--format json | $jq '. | length' | xargs)
 export HUB_CLOUD_PROVIDER=gcp
 if test "$FOUND" == "0"; then
-    echo "Cloud DNS Zone $HUB_DOMAIN_NAME has not been found. Creating.."
-    gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
-        --description="Managed by Superhub" \
-        --dns-name="$HUB_DOMAIN_NAME"
-    updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"   
+	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME has not been found. Creating.."
+	echo "* $(gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
+		--description="Managed by Superhub" \
+		--dns-name="$HUB_DOMAIN_NAME" 2>&1;)"
+	updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"   
 else
-    echo "Cloud DNS Zone $HUB_DOMAIN_NAME found"
+	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME found"
 fi
 
+### State Bucket
+echo "Configuring state storage"
 if test -z "$STATE_BUCKET"; then
-    STATE_BUCKET="superhub-$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
+  STATE_BUCKET="superhub-$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
+fi
+if gsutil du "gs://$STATE_BUCKET" > /dev/null 2>&1; then
+  echo "* Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"
+else
+	if gsutil mb -c standard -b on "gs://$STATE_BUCKET" > /dev/null 2>&1; then
+		echo "* Bucket gs://$STATE_BUCKET has been created"
+	else
+		echo "* Failed to create gs://$STATE_BUCKET bucket"
+	fi 
 fi
 
-if gsutil du gs://"$STATE_BUCKET" > /dev/null 2>&1; then
-    echo "Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"
-else
-    gsutil mb -c standard -b on gs://"$STATE_BUCKET"
-    echo "Bucket gs://$STATE_BUCKET has been created"
-fi
+echo "* Setting hub state file location"
+HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state,gs://$STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
+HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
 
 dotenv="dotenv -f $DOT_ENV"
 $dotenv set "HUB_CLOUD_PROVIDER=\"$HUB_CLOUD_PROVIDER\""
 $dotenv set "STATE_BUCKET=\"$STATE_BUCKET\""
 $dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
 $dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
+$dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
+$dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""

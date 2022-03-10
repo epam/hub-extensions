@@ -3,6 +3,9 @@
 
 set -o pipefail
 
+JQ_ARGS="-cM"
+jq="jq $JQ_ARGS"
+
 while [ "$1" != "" ]; do
     case $1 in
         --domain-name )  shift
@@ -20,10 +23,10 @@ if test -z "$HUB_DOMAIN_NAME"; then
 fi
 
 ZONE_NAME=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
-  --format json | jq '.[].name' | xargs)
+  --format json | $jq '.[].name' | xargs)
 
 if gcloud dns managed-zones describe "$ZONE_NAME"\
-    --format json | jq '.nameServers'; then
+    --format json | $jq '.nameServers'; then
   exit
 fi
 
