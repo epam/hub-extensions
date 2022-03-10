@@ -216,6 +216,7 @@ cat << EOF >> $TEMP2
   HUB_FILES="$NEW_HUB_FILES"
   # deploy profiles are: $(echo "$profiles" | xargs)
   HUB_DEPLOY_PROFILE="$HUB_DEPLOY_PROFILE"
+  HUB_TTY="${HUB_TTY:-false}"
 EOF
   unconfigured=false
   if test -L "$HUB_WORKDIR/.env"; then
