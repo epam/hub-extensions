@@ -301,7 +301,7 @@ for hubfile in $HUB_FILES; do
       echo "  Retrieving from git source repository"
       echo "  Running: git clone $git_repo"
       git clone --depth 1 "$git_repo" "$temp_dir" > /dev/null
-      (cd "$temp_dir" && ["$(git rev-parse --abbrev-ref HEAD)" = "$ref"] || git checkout "$ref")
+      (cd "$temp_dir"; if test "$(git rev-parse --abbrev-ref HEAD)" != "$ref"; then git checkout "$ref"; fi)
       echo "  Saving component: $comp_dir"
       mkdir -p "$HUB_WORKDIR/$comp_dir"
       cp -rf "$temp_dir/$subdir/" "$HUB_WORKDIR/$comp_dir"
