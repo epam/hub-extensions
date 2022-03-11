@@ -3,8 +3,8 @@
 usage() {
   cat <<EOF
 GCP access parameters:
-      --gcp-project-id ARG    Override GCP project ID
-
+      --gcp-project-id               ARG    Override GCP project ID
+      --gcp-application-credentials  ARG    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
 EOF
 }
 
@@ -17,6 +17,10 @@ while [ "$1" != "" ]; do
       shift
       GCP_PROJECT_ID="$1"
       INTERACTIVE=false
+      ;;
+  --gcp-application-credentials )
+      shift
+      GOOGLE_APPLICATION_CREDENTIALS="$1"
       ;;
   -h | --help )
       usage
@@ -56,8 +60,27 @@ if test -z "$VALUE"; then
   VALUE="$val"
 fi
 
-# TODO: implement check if project id enterred correctly
-# project_ids="$(gcloud projects list --format='json' | jq -r '[.[]][].projectId' | xargs)"
+GCLOUD_OPTS="$GCLOUD_OPTS --project $GCP_PROJECT_ID"
 
+if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
+  GOOGLE_APPLICATION_CREDENTIALS="~/.config/gcloud/application_default_credentials.json"
+  export GOOGLE_APPLICATION_CREDENTIALS
+
+  echo -n "* Checking default credentials: "
+  if test -f "$GOOGLE_APPLICATION_CREDENTIALS"; then
+    echo "found"
+  else
+    echo "not found "
+    echo "  Proceeding with user login: gcloud auth application-default login ..."
+    gcloud "$GCLOUD_OPTS" --no-user-output-enabled auth application-default login
+
+    echo "* Switching gcloud project config to: $PROJECT_ID"
+    gcloud "GCLOUD_OPTS" config set project PROJECT_ID
+  fi
+else
+  echo "* Using application credentials: $GOOGLE_APPLICATION_CREDENTIALS"
+fi
+
+$dotenv set "GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\""
 $dotenv set "GCP_PROJECT_ID=\"$VALUE\""
 echo "  saved as GCP_PROJECT_ID to .env file"
