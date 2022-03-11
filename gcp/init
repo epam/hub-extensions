@@ -55,36 +55,32 @@ done
 
 if ! $INTERACTIVE; then
   GCP_PROJECT_ID="$val"
-elif test "$val" = "$(echo $val | cut -c1-31)"; then
+elif test "$val" = "$(echo "$val" | cut -c1-31)"; then
   read -rp "  Enter value ($val #$hashtag): " GCP_PROJECT_ID
 else
-  read -rp "  Enter value ($(echo $val | cut -c1-31)... #$hashtag): " GCP_PROJECT_ID
+  read -rp "  Enter value ($(echo "$val" | cut -c1-31)... #$hashtag): " GCP_PROJECT_ID
 fi
 if test -z "$GCP_PROJECT_ID"; then
   GCP_PROJECT_ID="$val"
 fi
 
-GCLOUD_OPTS="$GCLOUD_OPTS --project $GCP_PROJECT_ID"
-
+echo "Setting up access"
+CREDS="$HOME/.config/gcloud/application_default_credentials.json"
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
-  GOOGLE_APPLICATION_CREDENTIALS="~/.config/gcloud/application_default_credentials.json"
-  export GOOGLE_APPLICATION_CREDENTIALS
-
-  echo -n "* Checking default credentials: "
-  if test -f "$GOOGLE_APPLICATION_CREDENTIALS"; then
-    echo "found"
+  if test -f "$CREDS"; then
+    echo "* $CREDS file exists, ADC (Application Default Credentials) will be used to authenticate requests to GCP"
   else
-    echo "not found "
-    echo "  Proceeding with user login: gcloud auth application-default login ..."
-    gcloud "$GCLOUD_OPTS" auth application-default login
-
-    echo "* Switching gcloud project config to: $PROJECT_ID"
-    gcloud config set project PROJECT_ID
+    echo "* GOOGLE_APPLICATION_CREDENTIALS is not set, using ADC (Application Default Credentials) to authenticate, please give consent."
+	  if gcloud auth application-default login > /dev/null 2>&1; then
+      echo "* Consent has been given. $CREDS created"
+    else 
+      echo "gcloud auth application-default login command failed. Do you have permissions to access $GCP_PROJECT_ID?"
+      exit 1 
+    fi
   fi
 else
   echo "* Using application credentials: $GOOGLE_APPLICATION_CREDENTIALS"
+  $dotenv set "GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\""
 fi
 
-$dotenv set "GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\""
 $dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
-echo "  saved as GCP_PROJECT_ID to .env file"
