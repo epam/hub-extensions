@@ -7,11 +7,13 @@ Reads parameterы value from one or multiple hubfiles
 $(basename $0) <subcommand> ARG -f HUB_FILE
 
 Subcommands:
-  json  PARAM_NAME        Return json string of the parameter
-  value PARAM_NAME        Return only value of the parameter
+  json   PARAM            Returns json string of the parameter
+  value  PARAM            Returns only value of the parameter
+  envvar ENVVAR           Returns param name by envvar
+  flat   ENVVAR           Returns flattended parameters
 
 Parameters:
-  -f --file               Path to hubfile (this parameter can repeat, default HUB_FILES env var)
+  -f --file               Path to hubfile (this parameter can repeat, default HUB_FILES envvar)
   -V --verbose            For debug purpose
   -h --help               Show this message
 
@@ -21,14 +23,18 @@ EOF
 
 subcommand=""
 hub_files=""
-HUB_PARAM_NAME=""
+COMMAND_ARG=""
 while test -n "$1"; do
   ARG="$1"; shift
   case $ARG in
-    value | json)
+    value | json | envvar)
       subcommand="$ARG"
-      HUB_PARAM_NAME="$1"
+      COMMAND_ARG="$1"
       shift
+      continue
+      ;;
+    flat)
+      subcommand="$ARG"
       continue
       ;;
     -V | --verbose )
@@ -134,11 +140,36 @@ getParamJson() {
   done
 }
 
+getParamByEnvvar() {
+    for hubfile in $HUB_FILES; do
+    result="$( \
+      toJson "$hubfile" | flattened | \
+      jq -cMr --arg var "$1" '.[] | to_entries[] | select(.value.fromEnv == $var) | {name: .key} + .value' \
+    )"
+    if test -n "$result"; then
+      echo "$result"
+      break
+    fi
+  done
+}
+
+getFlatParams() {
+  for hubfile in $HUB_FILES; do
+    toJson "$hubfile" | flattened
+  done
+}
+
 case $subcommand in
-  value )
-    getParamValue "$HUB_PARAM_NAME"
+  value)
+    getParamValue "$COMMAND_ARG"
   ;;
-  json )
-    getParamJson "$HUB_PARAM_NAME"
+  json)
+    getParamJson "$COMMAND_ARG"
+  ;;
+  envvar)
+    getParamByEnvvar "$COMMAND_ARG"
+  ;;
+  flat)
+    getFlatParams
   ;;
 esac
