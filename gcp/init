@@ -5,31 +5,27 @@ usage() {
 GCP access parameters:
       --gcp-project-id               ARG    Override GCP project ID
       --gcp-application-credentials  ARG    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
-      --gcp-no-browser-login         ARG    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
 EOF
 }
 
 while [ "$1" != "" ]; do
   case $1 in
-  --defaults )
+  --defaults)
     INTERACTIVE=false
     ;;
-  --gcp-project-id )
-      shift
-      GCP_PROJECT_ID="$1"
-      INTERACTIVE=false
-      ;;
-  --gcp-no-browser-login )
-      GCLOUD_OPTS="$GCLOUD_OPTS --no-browser"
-      ;;
-  --gcp-application-credentials )
-      shift
-      GOOGLE_APPLICATION_CREDENTIALS="$1"
-      ;;
-  -h | --help )
-      usage
-      exit 0
-      ;;
+  --gcp-project-id)
+    shift
+    GCP_PROJECT_ID="$1"
+    INTERACTIVE=false
+    ;;
+  --gcp-application-credentials)
+    shift
+    GOOGLE_APPLICATION_CREDENTIALS="$1"
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
   esac
   shift
 done
@@ -49,7 +45,7 @@ for tag in "env" "gcloud"; do
   val=$(eval echo "\$VAL_$tag")
   if test -n "$val"; then
     hashtag="$tag"
-    break;
+    break
   fi
 done
 
@@ -67,17 +63,17 @@ fi
 echo "Setting up access"
 CREDS="$HOME/.config/gcloud/application_default_credentials.json"
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
-  if curl metadata.google.internal -i > /dev/null 2>&1; then
+  if curl metadata.google.internal -i >/dev/null 2>&1; then
     echo "* Application runs inside a Google Cloud environment, using Environment-provided service account"
   elif test -f "$CREDS"; then
     echo "* $CREDS file exists, ADC (Application Default Credentials) will be used to authenticate requests to GCP"
   else
     echo "* GOOGLE_APPLICATION_CREDENTIALS is not set, using ADC (Application Default Credentials) to authenticate, please give consent."
-	  if gcloud auth application-default login > /dev/null 2>&1; then
+    if gcloud auth application-default login >/dev/null 2>&1; then
       echo "* Consent has been given. $CREDS created"
-    else 
+    else
       echo "gcloud auth application-default login command failed. Do you have permissions to access $GCP_PROJECT_ID?"
-      exit 1 
+      exit 1
     fi
   fi
 else
