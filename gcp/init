@@ -5,6 +5,7 @@ usage() {
 GCP access parameters:
       --gcp-project-id               ARG    Override GCP project ID
       --gcp-application-credentials  ARG    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
+      --gcp-no-browser-login         ARG    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
 EOF
 }
 
@@ -17,6 +18,9 @@ while [ "$1" != "" ]; do
       shift
       GCP_PROJECT_ID="$1"
       INTERACTIVE=false
+      ;;
+  --gcp-no-browser-login )
+      GCLOUD_OPTS="$GCLOUD_OPTS --no-browser"
       ;;
   --gcp-application-credentials )
       shift
@@ -50,14 +54,14 @@ for tag in "env" "gcloud"; do
 done
 
 if ! $INTERACTIVE; then
-  VALUE="$val"
+  GCP_PROJECT_ID="$val"
 elif test "$val" = "$(echo $val | cut -c1-31)"; then
-  read -rp "  Enter value ($val #$hashtag): " VALUE
+  read -rp "  Enter value ($val #$hashtag): " GCP_PROJECT_ID
 else
-  read -rp "  Enter value ($(echo $val | cut -c1-31)... #$hashtag): " VALUE
+  read -rp "  Enter value ($(echo $val | cut -c1-31)... #$hashtag): " GCP_PROJECT_ID
 fi
-if test -z "$VALUE"; then
-  VALUE="$val"
+if test -z "$GCP_PROJECT_ID"; then
+  GCP_PROJECT_ID="$val"
 fi
 
 GCLOUD_OPTS="$GCLOUD_OPTS --project $GCP_PROJECT_ID"
@@ -72,15 +76,15 @@ if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   else
     echo "not found "
     echo "  Proceeding with user login: gcloud auth application-default login ..."
-    gcloud "$GCLOUD_OPTS" --no-user-output-enabled auth application-default login
+    gcloud "$GCLOUD_OPTS" auth application-default login
 
     echo "* Switching gcloud project config to: $PROJECT_ID"
-    gcloud "GCLOUD_OPTS" config set project PROJECT_ID
+    gcloud config set project PROJECT_ID
   fi
 else
   echo "* Using application credentials: $GOOGLE_APPLICATION_CREDENTIALS"
 fi
 
 $dotenv set "GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\""
-$dotenv set "GCP_PROJECT_ID=\"$VALUE\""
+$dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
 echo "  saved as GCP_PROJECT_ID to .env file"
