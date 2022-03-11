@@ -67,7 +67,9 @@ fi
 echo "Setting up access"
 CREDS="$HOME/.config/gcloud/application_default_credentials.json"
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
-  if test -f "$CREDS"; then
+  if curl metadata.google.internal -i > /dev/null 2>&1; then
+    echo "* Application runs inside a Google Cloud environment, using Environment-provided service account"
+  elif test -f "$CREDS"; then
     echo "* $CREDS file exists, ADC (Application Default Credentials) will be used to authenticate requests to GCP"
   else
     echo "* GOOGLE_APPLICATION_CREDENTIALS is not set, using ADC (Application Default Credentials) to authenticate, please give consent."
