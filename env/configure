@@ -5,7 +5,7 @@ usage() {
   cat << EOF
 Environment variables parameters:
   -f --file               Path to hub.yaml or parameter files (can repeat multiple times; default: hub.yaml params.yaml)
-  --defaults              Do not ask for user input and accept default values instead
+  --defaults              Do not ask for usecr input and accept default values instead
 EOF
 }
 

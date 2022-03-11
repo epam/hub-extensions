@@ -34,7 +34,7 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-dotenv="dotenv -f $HUB_WORKDIR/.env"
+dotenv="dotenv -f $DOT_ENV"
 
 VAl_envvar="$GCP_PROJECT_ID"
 VAL_gcloud="$(gcloud config get-value project)"
@@ -66,13 +66,17 @@ if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   if curl -H "Metadata-Flavor: Google" "http://metadata.google.internal" -i >/dev/null 2>&1; then
     echo "* The Hub CLI runs inside a Google Cloud environment using Environment-provided service account to talk to GCP"
   elif test -f "$CREDS"; then
-    echo "* $CREDS file exists, ADC (Application Default Credentials) will be used to authenticate requests to GCP"
+    echo "* $CREDS file exists"
+    echo "  ADC (Application Default Credentials) will be used to authenticate requests to GCP"
   else
-    echo "* Since GOOGLE_APPLICATION_CREDENTIALS is not provided, trying ADC (Application Default Credentials) to authenticate, please give consent in the browser."
+    echo "* Since GOOGLE_APPLICATION_CREDENTIALS is not provided"
+    echo "  trying ADC (Application Default Credentials) to authenticate"
+    echo "  please give consent in the browser"
     if gcloud auth application-default login >/dev/null 2>&1; then
       echo "* Consent has been given. $CREDS created"
     else
-      echo "gcloud auth application-default login command failed. Do you have permissions to access $GCP_PROJECT_ID?"
+      echo "gcloud auth application-default login command failed"
+      echo "Do you have permissions to access $GCP_PROJECT_ID?"
       exit 1
     fi
   fi

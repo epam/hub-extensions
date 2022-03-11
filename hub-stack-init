@@ -5,10 +5,11 @@ HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+DOT_ENV="$HUB_WORKDIR/.hub/env/.env"
 
 # HUB_STACK_REQUIRES="components"
 
-export HUB_HOME PATH HUB_HOME HUB_WORKDIR
+export HUB_HOME PATH HUB_HOME HUB_WORKDIR DOT_ENV
 
 find_in_path() {
   local _file _path rv
@@ -39,6 +40,7 @@ Initializes a brand new stack from existing hub file
 
 Usage:
   $HUB_EXTENSION -f <path-or-url-hub.yaml>
+  $HUB_EXTENSION -f <path-or-url-hub.yaml> -s <path-or-url-to-hubstate>
 
 EOF
 
@@ -54,7 +56,8 @@ EOF
 
 cat <<EOF
 Common parameters:
-  -f  --file                  Path to stack definition file (can be repeated multiple times)
+  -f  --file                  URL (http) or path to stack definition file (can be repeated multiple times)
+  -s  --state                 URL (gs only) or path to state file
       --force                 Force to overwrite .env file
   -V  --verbose               Verbose outputs for debug purposes
   -h  --help                  Print this message
@@ -82,6 +85,10 @@ while [ "$1" != "" ]; do
     -f | --file )
       shift
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
+      ;;
+    -s | --state )
+      shift
+      SOURCE_HUB_STATE="$1"
       ;;
     --force )
       HUB_USE_FORCE="1"
@@ -169,7 +176,7 @@ download_file() {
     echo "Error: have got empty file (url: $temp)"
     return 1
   fi
-  echo -n "  Saving to $(pwd): "
+  echo -n "  Saving variable to $(pwd): "
   copy "$temp" "$2"
   rm -f "$temp"
 }
@@ -235,7 +242,7 @@ componentDir() {
 }
 
 componentSourceRepo() {
-  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.repo | select(.)'
+  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.remote | select(.)'
 }
 
 componentSourceSubdir() {
@@ -244,6 +251,10 @@ componentSourceSubdir() {
 
 componentSourceRef() {
   jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["master"] | [ .[] | select(.!= "")][0]'
+}
+
+getParamFromState() {
+  hub explain "$1" --json | jq --arg "param" "$2" -cMr '.stackParameters[$param] | select(.)'
 }
 
 echo "Initializing a new stack"
@@ -260,23 +271,68 @@ HUB_FILES="$EXPANDED"
 export HUB_FILES
 
 mkdir -p "$HUB_WORKDIR/.hub/env"
-DOTENV_FILE="$HUB_WORKDIR/.hub/env/.env"
 
-if test -n "$HUB_USE_FORCE"; then
-  rm -rf "$DOTENV_FILE"
+HUB_SATE=""
+if test -n "$SOURCE_HUB_STATE"; then
+  echo "Checking hub state"
+  for state in $(echo "$SOURCE_HUB_STATE" |tr ',' ' '); do
+    # temp="$TEMP_DIR/$(basename "$f")"
+    temp=".hub/hub.state"
+    if test -f "$state"; then
+      echo "* State file $state: already exists"
+      continue
+    fi
+
+    if echo "$state" | grep -e '^https\?://' >/dev/null 2>&1; then
+      echo "* Downloading from: $state"
+      if test ! -f "$temp"; then
+        download_file "$state" "$temp"
+      fi
+    elif echo "$state" | grep -e '^gs\?://' >/dev/null 2>&1; then
+      echo "* Downloading from: $state"
+      gsutil -q cp "$state" "$temp"
+    else
+      echo "Error: file not found $state"
+      exit 13
+    fi
+
+    HUB_DOMAIN_NAME=$(getParamFromState "$temp" "dns.domain")
+    if test -n "$HUB_DOMAIN_NAME"; then
+      DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+      export DOT_ENV
+      local_file="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
+      if test -f "$local_file"; then
+        echo "  State file already exists: .hub/$HUB_DOMAIN_NAME.state"
+      else
+        copy "$temp" "$local_file"
+      fi
+      HUB_STATE="$HUB_STATE $local_file $state"
+    fi
+  done
 fi
+export HUB_STATE
 
-temp1="$(temp_file)"
-dotenv -f "$temp1" set "HUB_FILES=\"$HUB_FILES\""
+if test -n "$HUB_STATE"; then
+  echo "* Checking environment variables from state"
+  for env in $(params listenv -f "$HUB_FILES"); do
+    param=$(params envvar "$env" | jq -cMr '.name')
+    for state in $HUB_STATE; do
+      if test ! -f $state; then
+        continue
+      fi
 
-temp2="$(temp_file)"
-dotenv merge -f "$DOTENV_FILE" -f "$temp1"  > "$temp2"
-copy "$temp2" "$DOTENV_FILE"
-update_symlink "$DOTENV_FILE" "$HUB_WORKDIR/.env"
+      state_val=$(getParamFromState "$state" "$param")
+      if test -n "$state_val"; then
+        dotenv -f "$DOT_ENV" set "$env=\"$state_val\""
+        echo "  Saving $env to .env file"
+      fi
+    done
+  done
+fi
 
 for req in $HUB_STACK_REQUIRES; do
   init=$(find_in_path "$req/init")
-  echo "* Running $req init"
+  echo "Initializing $req..."
   $init $ARGS
 done
 
@@ -304,7 +360,7 @@ for hubfile in $HUB_FILES; do
       (cd "$temp_dir"; if test "$(git rev-parse --abbrev-ref HEAD)" != "$ref"; then git checkout "$ref"; fi)
       echo "  Saving component: $comp_dir"
       mkdir -p "$HUB_WORKDIR/$comp_dir"
-      cp -rf "$temp_dir/$subdir/" "$HUB_WORKDIR/$comp_dir"
+      cp -rf "$temp_dir/$subdir/." "$HUB_WORKDIR/$comp_dir"
       continue
     fi
 
@@ -324,3 +380,19 @@ for hubfile in $HUB_FILES; do
     fi
   done
 done
+
+dotenv -f "$DOT_ENV" set "HUB_FILES=\"$HUB_FILES\""
+dotenv -f "$DOT_ENV" set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
+
+cat << EOF
+
+Stack has been initialized!
+
+Next step: apply deployment configuration
+
+Run:
+  hub stack configure
+
+For more details:
+  hub stack configure --help
+EOF

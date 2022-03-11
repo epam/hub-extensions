@@ -11,6 +11,7 @@ Subcommands:
   value  PARAM            Returns only value of the parameter
   envvar ENVVAR           Returns param name by envvar
   flat                    Returns flattended parameters
+  listenv                 Returns list of environment variables
 
 Parameters:
   -f --file               Path to hubfile (this parameter can repeat, default HUB_FILES envvar)
@@ -33,7 +34,7 @@ while test -n "$1"; do
       shift
       continue
       ;;
-    flat)
+    flat | listenv)
       subcommand="$ARG"
       continue
       ;;
@@ -140,23 +141,18 @@ getParamJson() {
   done
 }
 
-getParamByEnvvar() {
-    for hubfile in $HUB_FILES; do
-    result="$( \
-      toJson "$hubfile" | flattened | \
-      jq -cMr --arg var "$1" '.[] | to_entries[] | select(.value.fromEnv == $var) | {name: .key} + .value' \
-    )"
-    if test -n "$result"; then
-      echo "$result"
-      break
-    fi
+getFlatParams() {
+  for hubfile in $HUB_FILES; do
+    toJson "$hubfile" | flattened | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
   done
 }
 
-getFlatParams() {
-  for hubfile in $HUB_FILES; do
-    toJson "$hubfile" | flattened
-  done
+getParamByEnvvar() {
+  getFlatParams | jq -s add | jq -cMr --arg var "$1" '.[] | select(.fromEnv == $var)'
+}
+
+listEnvvars() {
+  getFlatParams | jq -s add | jq -cMr '[.[].fromEnv? | select(.)] | sort | .[]'
 }
 
 case $subcommand in
@@ -171,5 +167,8 @@ case $subcommand in
   ;;
   flat)
     getFlatParams
+  ;;
+  listenv)
+    listEnvvars
   ;;
 esac
