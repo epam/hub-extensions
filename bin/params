@@ -10,7 +10,7 @@ Subcommands:
   json   PARAM            Returns json string of the parameter
   value  PARAM            Returns only value of the parameter
   envvar ENVVAR           Returns param name by envvar
-  flat   ENVVAR           Returns flattended parameters
+  flat                    Returns flattended parameters
 
 Parameters:
   -f --file               Path to hubfile (this parameter can repeat, default HUB_FILES envvar)
