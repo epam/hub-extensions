@@ -49,6 +49,9 @@ for tag in "env" "gcloud"; do
   fi
 done
 
+# Should we pre-fill GCP_PROJECT_ID from the state if the state file
+# is provided during `hub stack init` without asking a user again?` 
+
 if ! $INTERACTIVE; then
   GCP_PROJECT_ID="$val"
 elif test "$val" = "$(echo "$val" | cut -c1-31)"; then
@@ -86,3 +89,9 @@ else
 fi
 
 $dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
+# Let's assume these default values already on init stage?
+# This will allow users to run `hub stack verb` after
+# hub `stack init -f .. -s state`` without `hub stack configure`` 
+$dotenv set "HUB_TTY=false"
+$dotenv set "HUB_DEPLOY_PROFILE=local"
+$dotenv set "HUB_CLOUD_PROVIDER=gcp"
