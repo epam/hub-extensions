@@ -36,10 +36,10 @@ fi
 dotenv="dotenv -f $DOT_ENV"
 
 echo "Setting up access"
-
 if test -n "$GCP_PROJECT_ID"; then
-  echo "  GCP_PROJECT_ID has been already defined"
+  echo "* Setting GCP project ID: defined via GCP_PROJECT_ID"
 else
+  echo "* Setting GCP project ID"
   gcloud_result="$(gcloud config list --format="json" | jq '.core.project | select(.)')"
   if test -z "$gcloud_result"; then
     read -rp "  Enter value: " GCP_PROJECT_ID
