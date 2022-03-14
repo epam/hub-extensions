@@ -7,6 +7,8 @@ PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 DOT_ENV="$HUB_WORKDIR/.hub/env/.env"
 
+jq="jq -cMr "
+
 # HUB_STACK_REQUIRES="components"
 
 export HUB_HOME PATH HUB_HOME HUB_WORKDIR DOT_ENV
@@ -120,7 +122,7 @@ for hubfile in $HUB_FILES; do
   if test ! -f "$hubfile"; then
     continue
   fi
-  HUB_STACK_REQUIRES="$HUB_STACK_REQUIRES $(toJson $hubfile | jq -Mr 'select(.requires).requires[]' -)"
+  HUB_STACK_REQUIRES="$HUB_STACK_REQUIRES $(toJson $hubfile | $jq 'select(.requires).requires[]' -)"
 done
 
 if $HELP; then
@@ -238,23 +240,23 @@ update_symlink() {
 }
 
 componentDir() {
-  jq -cMr --arg 'comp' "$1" '.[] | select(.name==$comp).source?.dir | select(.)'
+  $jq --arg 'comp' "$1" '.[] | select(.name==$comp).source?.dir | select(.)'
 }
 
 componentSourceRepo() {
-  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.remote | select(.)'
+  $jq--arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.remote | select(.)'
 }
 
 componentSourceSubdir() {
-  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.subDir | select(.)'
+  $jq --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.subDir | select(.)'
 }
 
 componentSourceRef() {
-  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["master"] | [ .[] | select(.!= "")][0]'
+  $jq --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["master"] | [ .[] | select(.!= "")][0]'
 }
 
 getParamFromState() {
-  hub explain "$1" --json | jq --arg "param" "$2" -cMr '.stackParameters[$param] | select(.)'
+  hub explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
 }
 
 echo "Initializing a new stack"
@@ -276,8 +278,7 @@ HUB_SATE=""
 if test -n "$SOURCE_HUB_STATE"; then
   echo "Checking hub state"
   for state in $(echo "$SOURCE_HUB_STATE" |tr ',' ' '); do
-    # temp="$TEMP_DIR/$(basename "$f")"
-    temp=".hub/hub.state"
+    temp="$(temp_file)"
     if test -f "$state"; then
       echo "* State file $state: already exists"
       continue
@@ -289,8 +290,17 @@ if test -n "$SOURCE_HUB_STATE"; then
         download_file "$state" "$temp"
       fi
     elif echo "$state" | grep -e '^gs\?://' >/dev/null 2>&1; then
-      echo "* Downloading from: $state"
+      echo -n "* Downloading from: $state... "
       gsutil -q cp "$state" "$temp"
+      echo "done"
+
+      state_name="$(hub explain "$temp" --json | $jq '.meta.name | select(.)')"
+      state_status="$(hub explain "$temp" --json | $jq '.status | select(.)')"
+      echo "  Downloaded state: $state_name (status: $state_status)"
+      state_msg="$(hub explain "$temp" --json | $jq '.message | select(.)')"
+      if test -n "$state_msg"; then
+        echo "  Message: $state_msg"
+      fi
     else
       echo "Error: file not found $state"
       exit 13
@@ -298,6 +308,7 @@ if test -n "$SOURCE_HUB_STATE"; then
 
     HUB_DOMAIN_NAME=$(getParamFromState "$temp" "dns.domain")
     if test -n "$HUB_DOMAIN_NAME"; then
+      echo "* Discovered parameter for domain name: $HUB_DOMAIN_NAME"
       DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
       export DOT_ENV
       local_file="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
@@ -307,15 +318,19 @@ if test -n "$SOURCE_HUB_STATE"; then
         copy "$temp" "$local_file"
       fi
       HUB_STATE="$HUB_STATE $local_file $state"
+    else
+      echo "  Moving on"
     fi
   done
+
+  eval $(dotenv export -f "$DOT_ENV")
 fi
 export HUB_STATE
 
 if test -n "$HUB_STATE"; then
   echo "* Checking environment variables from state"
   for env in $(params listenv -f "$HUB_FILES"); do
-    param=$(params envvar "$env" | jq -cMr '.name')
+    param=$(params envvar "$env" | $jq '.name')
     for state in $HUB_STATE; do
       if test ! -f $state; then
         continue
@@ -338,16 +353,18 @@ done
 
 for hubfile in $HUB_FILES; do
   if test ! -f $hubfile; then
-    echo "* Waring: skipping $hubfile due to not found"
+    echo "* Warning: skipping $hubfile due to not found"
     continue
   fi
-  components="$(toJson "$hubfile" | jq -cMr '.components' -)"
-  for comp in $(echo "$components" | jq -cMr '.[].name'); do
-    echo "* Checking component: $comp"
+  components="$(toJson "$hubfile" | $jq '.components' -)"
+  for comp in $(echo "$components" | $jq '.[].name'); do
+    echo -n "* Checking component $comp: "
     comp_dir=$(echo $components | componentDir "$comp")
     if test -d "$comp_dir"; then
+      echo "already exist"
       continue
     fi
+    echo "fetching"
 
     git_repo=$(echo $components | componentSourceRepo "git" "$comp")
     if test -n "$git_repo"; then
@@ -382,7 +399,9 @@ for hubfile in $HUB_FILES; do
 done
 
 dotenv -f "$DOT_ENV" set "HUB_FILES=\"$HUB_FILES\""
-dotenv -f "$DOT_ENV" set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
+if test -n "$HUB_STATE"; then
+  dotenv -f "$DOT_ENV" set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
+fi
 update_symlink "$DOT_ENV" "$HUB_WORKDIR/.env"
 
 cat << EOF
@@ -396,4 +415,5 @@ Run:
 
 For more details:
   hub stack configure --help
+
 EOF

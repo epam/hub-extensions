@@ -33,39 +33,42 @@ done
 if test "$VERBOSE" = "true"; then
   set -x
 fi
-
 dotenv="dotenv -f $DOT_ENV"
 
-VAl_envvar="$GCP_PROJECT_ID"
-VAL_gcloud="$(gcloud config get-value project)"
-
-echo "* Setting GCP project ID"
-
-for tag in "env" "gcloud"; do
-  val=$(eval echo "\$VAL_$tag")
-  if test -n "$val"; then
-    hashtag="$tag"
-    break
-  fi
-done
-
-# Should we pre-fill GCP_PROJECT_ID from the state if the state file
-# is provided during `hub stack init` without asking a user again?` 
-
-if ! $INTERACTIVE; then
-  GCP_PROJECT_ID="$val"
-elif test "$val" = "$(echo "$val" | cut -c1-31)"; then
-  read -rp "  Enter value ($val #$hashtag): " GCP_PROJECT_ID
-else
-  read -rp "  Enter value ($(echo "$val" | cut -c1-31)... #$hashtag): " GCP_PROJECT_ID
-fi
-if test -z "$GCP_PROJECT_ID"; then
-  GCP_PROJECT_ID="$val"
-fi
-
 echo "Setting up access"
-CREDS="$HOME/.config/gcloud/application_default_credentials.json"
+
+if test -n "$GCP_PROJECT_ID"; then
+  echo "  GCP_PROJECT_ID has been already defined"
+else
+  gcloud_result=""
+  # gcloud_result="$(gcloud config get-value project)"
+  if test -z "$gcloud_result"; then
+    read -rp "  Enter value: " GCP_PROJECT_ID
+  elif test "$gcloud_result" = "$(echo "$gcloud_result" | cut -c1-31)"; then
+    read -rp "  Enter value ($gcloud_result #gcloud): " GCP_PROJECT_ID
+  else
+    read -rp "  Enter value ($(echo "$gcloud_result" | cut -c1-31)... #gcloud): " GCP_PROJECT_ID
+  fi
+
+  if test -z "$GCP_PROJECT_ID"; then
+    GCP_PROJECT_ID="$gcloud_result"
+  fi
+fi
+
+if test -z "$GCP_PROJECT_ID"; then
+  cat << EOF
+
+Abort due: project ID has not been defined
+To correct this error run again:
+  $HUB_EXTENSION
+
+EOF
+  exit 2
+fi
+$dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
+
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
+  CREDS="$HOME/.config/gcloud/application_default_credentials.json"
   if curl -H "Metadata-Flavor: Google" "http://metadata.google.internal" -i >/dev/null 2>&1; then
     echo "* The Hub CLI runs inside a Google Cloud environment using Environment-provided service account to talk to GCP"
   elif test -f "$CREDS"; then
@@ -79,7 +82,6 @@ if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
       echo "* Consent has been given. $CREDS created"
     else
       echo "gcloud auth application-default login command failed"
-      echo "Do you have permissions to access $GCP_PROJECT_ID?"
       exit 1
     fi
   fi
@@ -87,11 +89,3 @@ else
   echo "* Using application credentials: $GOOGLE_APPLICATION_CREDENTIALS"
   $dotenv set "GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\""
 fi
-
-$dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
-# Let's assume these default values already on init stage?
-# This will allow users to run `hub stack verb` after
-# hub `stack init -f .. -s state`` without `hub stack configure`` 
-$dotenv set "HUB_TTY=false"
-$dotenv set "HUB_DEPLOY_PROFILE=local"
-$dotenv set "HUB_CLOUD_PROVIDER=gcp"
