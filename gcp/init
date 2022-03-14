@@ -40,7 +40,7 @@ echo "Setting up access"
 if test -n "$GCP_PROJECT_ID"; then
   echo "  GCP_PROJECT_ID has been already defined"
 else
-  gcloud_result="$(gcloud config get-value project)"
+  gcloud_result="$(gcloud config list --format="json" | jq '.core.project | select(.)')"
   if test -z "$gcloud_result"; then
     read -rp "  Enter value: " GCP_PROJECT_ID
   elif test "$gcloud_result" = "$(echo "$gcloud_result" | cut -c1-31)"; then
