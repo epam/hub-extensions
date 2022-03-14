@@ -31,13 +31,15 @@ while [ "$1" != "" ]; do
     shift
 done
 
-
 echo "Setting current GCP project to $GCP_PROJECT_ID"
 echo "* $(gcloud config set project "$GCP_PROJECT_ID" -q 2>&1)"
 
 if test "$VERBOSE" = "true"; then
 	set -x
 fi
+
+### Enable required APIs
+gcloud services enable dns.googleapis.com
 
 ### Create DNS Zone
 CURRENT_DIR=$(dirname "$0")
