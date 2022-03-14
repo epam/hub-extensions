@@ -40,8 +40,7 @@ echo "Setting up access"
 if test -n "$GCP_PROJECT_ID"; then
   echo "  GCP_PROJECT_ID has been already defined"
 else
-  gcloud_result=""
-  # gcloud_result="$(gcloud config get-value project)"
+  gcloud_result="$(gcloud config get-value project)"
   if test -z "$gcloud_result"; then
     read -rp "  Enter value: " GCP_PROJECT_ID
   elif test "$gcloud_result" = "$(echo "$gcloud_result" | cut -c1-31)"; then
@@ -65,6 +64,8 @@ To correct this error run again:
 EOF
   exit 2
 fi
+
+# TODO: Check and fail user made typo in project id
 $dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
 
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then

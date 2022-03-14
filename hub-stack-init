@@ -9,8 +9,6 @@ DOT_ENV="$HUB_WORKDIR/.hub/env/.env"
 
 jq="jq -cMr "
 
-# HUB_STACK_REQUIRES="components"
-
 export HUB_HOME PATH HUB_HOME HUB_WORKDIR DOT_ENV
 
 find_in_path() {
