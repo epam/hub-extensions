@@ -320,8 +320,6 @@ if test -n "$SOURCE_HUB_STATE"; then
       echo "  Moving on"
     fi
   done
-
-  eval $(dotenv export -f "$DOT_ENV")
 fi
 export HUB_STATE
 
@@ -341,6 +339,7 @@ if test -n "$HUB_STATE"; then
       fi
     done
   done
+  eval $(dotenv export -f "$DOT_ENV")
 fi
 
 for req in $HUB_STACK_REQUIRES; do
