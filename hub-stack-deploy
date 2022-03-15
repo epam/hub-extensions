@@ -176,6 +176,8 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
+script_dir=$(dirname "$0")
+
 if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
   hub-stack-elaborate
 elif test -n "$HUB_ELABORATE_FILE"; then
