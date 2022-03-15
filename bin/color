@@ -42,6 +42,7 @@ while test -n "$1"; do
     -c | --color )
       shift
       _tput setaf "$1"
+      shift
       continue
     ;;
     -n )
