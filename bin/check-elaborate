@@ -20,7 +20,7 @@ done
 if test -n "$newer"; then
     color -c 3 -b "Elaborate file $elaborate is older than:"
     for n in $newer; do
-        color -b "- $n"
+        color -c 3 -b "- $n"
     done
     exit 40
 fi
