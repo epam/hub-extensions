@@ -6,6 +6,7 @@ Print colored message (if terminal supports colorings)
 
 Parameters:
   -c --color COLOR_CODE   Use color with this code
+  -n                      Do not print the trailing newline character
   -V --verbose            For debug purpose
   -h --help               Show this message
 
@@ -14,7 +15,15 @@ EOF
 
 message=""
 color=""
-set -x
+
+finalize() {
+  if test -t 1; then
+    tput sgr0
+  fi
+}
+
+echo="echo"
+
 while test -n "$1"; do
   case $1 in
     -h | --help )
@@ -29,6 +38,11 @@ while test -n "$1"; do
       color="$1"
       continue
     ;;
+    -n )
+      shift
+      echo="echo -n"
+      continue
+    ;;
     * )
       message="$@"
       break
@@ -37,8 +51,8 @@ while test -n "$1"; do
   shift
 done
 
-
+trap finalize EXIT
 if test -t 1 -a -n "$color"; then
   tput setaf $color
 fi
-echo "$message"
+$echo "$message"
