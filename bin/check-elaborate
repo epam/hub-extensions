@@ -8,11 +8,6 @@ if test -z "$elaborate" -o -z "$sources"; then
     exit 1
 fi
 
-if test -t 1; then
-    color_start="\033[35;1m"
-    color_end="\033[0m"
-fi
-
 additional=$(yq -N e '.components[].source.dir | . + "/hub-component.yaml"' $sources | sort | uniq)
 
 newer=""
@@ -23,7 +18,7 @@ for s in $sources $additional; do
 done
 
 if test -n "$newer"; then
-    echo "${color_start}Elaborate file $elaborate is older than:${color_end}"
+    color -c 5 "Elaborate file $elaborate is older than:"
     for n in $newer; do
         echo "- $n"
     done

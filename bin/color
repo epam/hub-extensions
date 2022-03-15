@@ -1,0 +1,44 @@
+#!/bin/bash -e
+
+usage() {
+  cat << EOF
+Print colored message (if terminal supports colorings)
+
+Parameters:
+  -c --color COLOR_CODE   Use color with this code
+  -V --verbose            For debug purpose
+  -h --help               Show this message
+
+EOF
+}
+
+message=""
+color=""
+set -x
+while test -n "$1"; do
+  case $1 in
+    -h | --help )
+      usage
+      exit ;;
+    -V | --verbose )
+      set -x
+      continue
+    ;;
+    -c | --color )
+      shift
+      color="$1"
+      continue
+    ;;
+    * )
+      message="$@"
+      break
+      ;;
+  esac
+  shift
+done
+
+
+if test -t 1 -a -n "$color"; then
+  tput setaf $color
+fi
+echo "$message"
