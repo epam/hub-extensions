@@ -4,6 +4,7 @@
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
@@ -175,18 +176,19 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
-script_dir=$(dirname "$0")
-
 if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
-  "$script_dir"/hub-stack-elaborate
+  hub-stack-elaborate
 elif test -n "$HUB_ELABORATE_FILE"; then
-  if ! "$script_dir"/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
-    echo "Call:"
-    echo "    $ hub stack elaborate"
-    echo "or update elaborate file timestamp:"
-    echo "    $ touch $HUB_ELABORATE_FILE"
-    echo
-    exit 1
+  if ! check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
+    if test -z "$HUB_MANUAL_ELABORATE"; then
+      echo "Call:"
+      echo "    $ hub stack elaborate"
+      echo "or update elaborate file timestamp:"
+      echo "    $ touch $HUB_ELABORATE_FILE"
+      echo
+      exit 1
+    fi
+    hub-stack-elaborate
   fi
 fi
 
