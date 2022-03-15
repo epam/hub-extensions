@@ -8,6 +8,23 @@ GCP access parameters:
 EOF
 }
 
+contains() {
+  local pattern result
+  pattern="$1"
+  shift
+  for w in $@; do
+    if test "$w" = "$pattern"; then
+      result="$w"
+      break
+    fi
+  done
+  test -n "$result"
+}
+
+ident() {
+  sed 's/^/  /'
+}
+
 while [ "$1" != "" ]; do
   case $1 in
   --defaults)
@@ -40,8 +57,10 @@ if test -n "$GCP_PROJECT_ID"; then
   echo "* Setting GCP project ID: defined via GCP_PROJECT_ID"
 else
   echo "* Setting GCP project ID"
-  gcloud_result="$(gcloud config list --format="json" | jq '.core.project | select(.)')"
-  if test -z "$gcloud_result"; then
+  gcloud_result="$(gcloud config list --format="json" | jq -cMr '.core.project | select(.)')"
+  if ! $INTERACTIVE; then
+    GCP_PROJECT_ID="$gcloud_result"
+  elif test -z "$gcloud_result"; then
     read -rp "  Enter value: " GCP_PROJECT_ID
   elif test "$gcloud_result" = "$(echo "$gcloud_result" | cut -c1-31)"; then
     read -rp "  Enter value ($gcloud_result #gcloud): " GCP_PROJECT_ID
@@ -65,7 +84,19 @@ EOF
   exit 2
 fi
 
-# TODO: Check and fail user made typo in project id
+active_projects="$(gcloud projects list --format='json' | jq -cMr '[.[]][] | select(.lifecycleState == "ACTIVE").projectId | select(.)')"
+if ! contains "$GCP_PROJECT_ID" "$active_projects"; then
+    cat <<EOF | ident
+Warning: entered GCP project ID has not been listed in active projects.
+This may be a simiple typo or intentionally
+
+List of active projects:
+$active_projects
+
+Entered value: $GCP_PROJECT_ID
+EOF
+fi
+
 $dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
 
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
