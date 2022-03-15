@@ -1,0 +1,33 @@
+#!/bin/sh
+
+elaborate=$1
+sources=$2
+
+if test -z "$elaborate" -o -z "$sources"; then
+    echo "Usage: check-elaborate hub.yaml.elaborate 'hub.yaml params.yaml ...'"
+    exit 1
+fi
+
+if test -t 1; then
+    color_start="\033[35;1m"
+    color_end="\033[0m"
+fi
+
+additional=$(yq -N e '.components[].source.dir | . + "/hub-component.yaml"' $sources | sort | uniq)
+
+newer=""
+for s in $sources $additional; do
+    if test "$elaborate" -ot "$s"; then
+        newer="$newer $s"
+    fi
+done
+
+if test -n "$newer"; then
+    echo "${color_start}Elaborate file $elaborate is older than:${color_end}"
+    for n in $newer; do
+        echo "- $n"
+    done
+    exit 40
+fi
+
+exit 0
