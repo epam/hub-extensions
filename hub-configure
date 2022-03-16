@@ -231,10 +231,10 @@ EOF
   # shellcheck disable=SC2001
   dotenv merge $MERGE_FILES > $TEMP1
   HUB_DOMAIN_NAME=$(dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
-  echo -n "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env: "
+  echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
   copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
   if test -n "$HUB_DOMAIN_NAME" && $unconfigured; then
-    echo "* Removing old: .hub/env/.env"
+    echo "  Removing old: .hub/env/.env"
     rm -rf "$HUB_WORKDIR/.hub/env/.env"
   fi
   update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
