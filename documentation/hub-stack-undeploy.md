@@ -17,11 +17,11 @@ lifecycle:
 
 | Flag   | Description | Required
 | :-------- | :-------- | :-: |
-| `-c | --component <component>` | Start un-deployment for one  component or multiple (supplied as comma separated value) | |
-| `-o | --offset <component>` | Start un-deployment from specific component (handy when you want to restart un-deployment, and want to skip few from the beginning in the runlist)  | |
-| `-l | --limit <component>` | Stop un-deployment after desired (opposite to `--offset` flag)  | |
+| `-c --component <component>` | Start un-deployment for one  component or multiple (supplied as comma separated value) | |
+| `-o --offset <component>` | Start un-deployment from specific component (handy when you want to restart un-deployment, and want to skip few from the beginning in the runlist)  | |
+| `-l --limit <component>` | Stop un-deployment after desired (opposite to `--offset` flag)  | |
 | `--profile` | Choose a specific un-deployment provider (defaults to `HUB_PROFILE` in `.env` file)  | |
-| `--tty` or `--no-tty` | Instructs if user wants to group outputs per component ]
+| `--tty` <br> or `--no-tty` | Instructs if user wants to group outputs per component ]
 
 ## Common Parameters
 
@@ -29,8 +29,8 @@ These parameters applies across all extension commands
 
 | Flag   | Description | Required
 | :-------- | :-------- | :-: |
-| `-V | --verbose` | extra verbosity for diagnostics | |
-| `-h | --help` | print help and usage message | |
+| `-V --verbose` | extra verbosity for diagnostics | |
+| `-h --help` | print help and usage message | |
 
 ## Usage Example
 
