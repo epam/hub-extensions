@@ -17,11 +17,11 @@ lifecycle:
 
 | Flag   | Description | Required
 | :-------- | :-------- | :-: |
-| `-c | --component <component>` | Run deployment for one  component or multiple (supplied as comma separated value) | |
-| `-o | --offset <component>` | Start deployment from specific component (handy when you want to restart deployment, and want to skip few from the beginning in the runlist)  | |
-| `-l | --limit <component>` | Stop deployment after desired (opposite to `--offset` flag)  | |
+| `-c --component <component>` | Run deployment for one  component or multiple (supplied as comma separated value) | |
+| `-o --offset <component>` | Start deployment from specific component (handy when you want to restart deployment, and want to skip few from the beginning in the runlist)  | |
+| `-l --limit <component>` | Stop deployment after desired (opposite to `--offset` flag)  | |
 | `--profile` | Choose a specific deployment provider (defaults to `HUB_PROFILE` in `.env` file)  | |
-| `--tty` or `--no-tty` | Instructs if user wants to group deployment outputs per component ]
+| `--tty` or `--no-tty` | Instructs if user wants to group deployment outputs per component | |
 
 ## Common Parameters
 
@@ -65,7 +65,7 @@ Example above will run a kubernetes extension before the deployment to check con
 At the moment there are few extensions that supports before deployment or after deployemnt
 
 | Extension  | Description | Before | After |
-| :-------- | | :-------- | :-: | :-: |
+| :-------- | :-------- | :-: | :-: |
 | `kubernetes` | Checks connectivity to existing kubernetes cluster before actual deployment (helps with deployment success rate) | x | x |
 | `aws-metering` | Provides integration to aws marketplace metering | x | |
 | `inventory-configmap` | Save a copy of a deployment state in the configmap of a kubernetes cluster. Adds some extra persistence for on-prem deployments as they might not have object storage bucket access to store state there | | x |
@@ -82,7 +82,7 @@ Q: Which shell hooks I can build?
 A: Make sure you follow the naming convention for file name
 
 | Script | Description |
-| :-------- | | :-------- |
+| :-------- | :-------- |
 | `before-deploy` | Executed before deployment operation, fail with error code non 0 to stop deployment from happening |
 | `after-deploy` | Executed before deployment operation, fail with error code non 0 to mark deployment as failed. Useful when you apply some deployment tests |
 | `before-undeploy` | Executed before un-deployment operation, fail with error code non 0 to stop un-deployment from happening |
