@@ -107,8 +107,8 @@ Please use new command: `hub stack init` instead
 
 | Flag   | Description | Required
 | :-------- | :-------- | :-: |
-| `-f | --file <arg>` | Instructs to use specific hubfiles (defaults to `HUB_FILES` variable in `.env` file,  can repeat multiple time) | |
-| `-c | --component <arg>` | Ask to download a specific component only (can repeat multiple times, defaults to all components defined in hubfiles) | |
+| `-f --file <arg>` | Instructs to use specific hubfiles (defaults to `HUB_FILES` variable in `.env` file,  can repeat multiple time) | |
+| `-c --component <arg>` | Ask to download a specific component only (can repeat multiple times, defaults to all components defined in hubfiles) | |
 | `--override` | Write over files if component already exists | |
 
 > Note: If you want to run configure from the pod (inside kubernetes). This extension configure stack to rely on service account of the pod
