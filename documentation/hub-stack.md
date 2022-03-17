@@ -48,3 +48,13 @@ hub stack init \
 hub stack configure
 hub stack undeploy
 ```
+
+## Common Parameters
+
+These parameters applies across all extension commands
+
+| Flag   | Description | Required
+| :-------- | :-------- | :-: |
+| `-V --verbose` | extra verbosity for diagnostics | |
+| `-h --help` | print help and usage message | |
+
