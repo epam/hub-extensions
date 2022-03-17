@@ -12,7 +12,7 @@ Extensions provides following commands:
 | [`hub stack configure`](hub-stack-configure.md) | Manage configuration before the deployment |
 | [`hub stack deploy`](hub-stack-deploy.md) | Apply deployment to target infrastructure |
 | [`hub stack undeploy`](hub-stack-undeploy.md) | Reverse deployment action |
-| `hub stack ls` | See other stacks that has been initialized for working directory |
+| [`hub stack ls`](hub-stack-ls.md) | See other stacks that has been initialized for working directory |
 | `hub stack set` | Change a different current stack |
 | `hub stack unconfigure` | Delete configuration of a stack from working directory. This commands is irreversive, and __doesn't run `undeploy`__
 
@@ -22,10 +22,10 @@ These commands intended for advanced usage
 
 | Command   | Description
 | --------- | ---------
-| `hub stack backup <subcommand>` | Stack backup/restore management (*if "backup" verb supported by at least one component in the stack)|
+| <nobr>`hub stack backup <subcommand>`</nobr> | Stack backup/restore management (*if "backup" verb supported by at least one component in the stack)|
 | `hub stack elaborate` | Reconsile defined parameters and a state |
 | `hub stack deploy` | Apply deployment to target infrastructure |
-| `hub stack invoke <berb>` | Execute other verb rather than `deploy`, `undeploy` or `backup`. (*if verb supported by at least one component in the stack)|
+| <nobr>`hub stack invoke <verb>` </nobr> | Execute other verb rather than `deploy`, `undeploy` or `backup`. (*if verb supported by at least one component in the stack)|
 | `hub stack explain` | Command reserved for state and parameters diagnostics |
 
 ## Usage examples
