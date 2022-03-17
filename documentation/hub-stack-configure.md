@@ -1,4 +1,4 @@
-## Hub Stack Configure
+# Command: hub stack configure
 
 Reads configuration information in one or multiple hubfiles referenced by the command `hub stack init` and applies configuration before the stack deployment.
 

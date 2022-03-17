@@ -1,4 +1,4 @@
-## Hub Stack Init
+# Command: hub stack init
 
 Initialize a new stack configuration in the user working directory
 

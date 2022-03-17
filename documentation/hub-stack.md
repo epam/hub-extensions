@@ -1,4 +1,4 @@
-## Hub Stack Commands
+# Command: hub stack
 
 Helps you to manage your stack deployments
 
@@ -9,8 +9,8 @@ Extensions provides following commands:
 | Command   | Description
 | --------- | ---------
 | `[hub stack init -f <hubfile>](hub-stack-init.md)` | Initialize a new stack deployment in the working directory |
-| `hub stack configure` | Manage configuration before the deployment |
-| `hub stack deploy` | Apply deployment to target infrastructure |
+| `[hub stack configure](hub-stack-configure.md)` | Manage configuration before the deployment |
+| `[hub stack deploy](hub-stack-deploy.md)` | Apply deployment to target infrastructure |
 | `hub stack undeploy` | Reverse deployment action |
 | `hub stack ls` | See other stacks that has been initialized for working directory |
 | `hub stack set` | Change a different current stack |
