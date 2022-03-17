@@ -33,3 +33,4 @@ hub stack init -f "https://raw.githubusercontent.com/agilestacks/google-stacks/m
 
 * [`hub stack configure`](hub-stack-configure.md)
 * [`hub stack depoy`](hub-stack-deploy.md)
+* [`hub stack unconfiugre`](hub-stack-unconfiugre.md)

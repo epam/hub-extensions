@@ -160,3 +160,4 @@ hub stack configure -r "kubernetes"
 
 * [`hub stack init`](hub-stack-init.md)
 * [`hub stack depoy`](hub-stack-deploy.md)
+* [`hub stack unconfiugre`](hub-stack-unconfiugre.md)
