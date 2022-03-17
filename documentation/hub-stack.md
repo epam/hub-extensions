@@ -34,7 +34,7 @@ Deploy a new GKE cluster with External DNS
 
 ```bash
 hub stack init \
-    -f https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml
+    -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml"
 hub stack configure
 hub stack deploy
 ```
