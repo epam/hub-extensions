@@ -15,7 +15,6 @@ Extensions provides following commands:
 | `hub stack ls` | See other stacks that has been initialized for working directory |
 | `hub stack set` | Change a different current stack |
 | `hub stack unconfigure` | Delete configuration of a stack from working directory. This commands is irreversive, and __doesn't run `undeploy`__
-|
 
 ## Advanced Commands
 
