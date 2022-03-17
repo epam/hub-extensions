@@ -86,7 +86,7 @@ Flags specific to `env` parameters
 
 | Flag   | Description | Required
 | :-------- | :-------- | :-: |
-| `-f | --file <arg>` | Ask for variables from only specific hubfiles (defaults to `HUB_FILES` variable in `.env` file,  can repeat multiple time) | |
+| `-f --file <arg>` | Ask for variables from only specific hubfiles (defaults to `HUB_FILES` variable in `.env` file,  can repeat multiple time) | |
 | `--defaults` | Instructs not to confirm user input for environment variables (reserved for non-interactive usage, such as CI server) | |
 
 ### Kubernetes
@@ -97,7 +97,7 @@ Flags specific to `kubernetes` parameters
 | :-------- | :-------- | :-: |
 | `--kubeconfig <arg>` | Path to kubeconfig. Otherwise `KUBECONFIG` environment variable will be used. | |
 | `--kubecontext <arg>` | Use specific context inside kubeconfig. Otherwise current will be used | |
-| `--current-kubecontext` or `--kubecontext _` | Explicitly says to use current kubecontext | |
+| `--current-kubecontext` <br> or `--kubecontext _` | Explicitly says to use current kubecontext | |
 
 > Note: If you want to run configure from the pod (inside kubernetes). This extension configure stack to rely on service account of the pod
 
