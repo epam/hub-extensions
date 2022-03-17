@@ -8,10 +8,10 @@ Extensions provides following commands:
 
 | Command   | Description
 | --------- | ---------
-| `[hub stack init -f <hubfile>](hub-stack-init.md)` | Initialize a new stack deployment in the working directory |
-| `[hub stack configure](hub-stack-configure.md)` | Manage configuration before the deployment |
-| `[hub stack deploy](hub-stack-deploy.md)` | Apply deployment to target infrastructure |
-| `hub stack undeploy` | Reverse deployment action |
+| [`hub stack init`](hub-stack-init.md) | Initialize a new stack deployment in the working directory |
+| [`hub stack configure`](hub-stack-configure.md) | Manage configuration before the deployment |
+| [`hub stack deploy`](hub-stack-deploy.md) | Apply deployment to target infrastructure |
+| [`hub stack undeploy`](hub-stack-undeploy.md) | Reverse deployment action |
 | `hub stack ls` | See other stacks that has been initialized for working directory |
 | `hub stack set` | Change a different current stack |
 | `hub stack unconfigure` | Delete configuration of a stack from working directory. This commands is irreversive, and __doesn't run `undeploy`__
