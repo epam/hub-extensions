@@ -113,6 +113,29 @@ Please use new command: `hub stack init` instead
 
 > Note: If you want to run configure from the pod (inside kubernetes). This extension configure stack to rely on service account of the pod
 
+## DYI Configuration
+
+Can I build my own configuration script for my custom case? Or override behaviour of existing one? Yes just follow couple of simple steps
+
+1. Create file: `<working-dir>/.hub/<requirement>/configure` and add execution rights
+2. Write your wcript using: `shell` (preferably), `bash` or general purpose language of your choice.
+3. Add reference to the hub.yaml
+
+```bash
+# example
+mkdir -p ".hub/mysuperextension"
+touch ".hub/mysuperextension/configure"
+chmod +x ".hub/mysuperextension/configure"
+```
+
+then feel free to add reference that looks like the following to the `hub.yaml`
+
+```yaml
+extensions:
+  configure:
+  - mysuperextension
+```
+
 ## Usage Example
 
 Configure stack before deployment
