@@ -14,7 +14,7 @@ Extensions provides following commands:
 | [`hub stack undeploy`](hub-stack-undeploy.md) | Reverse deployment action |
 | [`hub stack ls`](hub-stack-ls.md) | See other stacks that has been initialized for working directory |
 | [`hub stack set`](hub-stack-set.md) | Change a different current stack |
-| '`hub stack unconfigure`](hub-stack-uncfonfigure.md) | Delete configuration of a stack from working directory. This commands is irreversive, and __doesn't run `undeploy`__
+| [`hub stack unconfigure`](hub-stack-uncfonfigure.md) | Delete configuration of a stack from working directory. This commands is irreversive, and __doesn't run `undeploy`__
 
 ## Advanced Commands
 
