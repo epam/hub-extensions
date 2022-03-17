@@ -13,7 +13,7 @@ Display stack outputs, component's parameters, outputs, and capabilities.
 Parameters and outputs are read from state file.
 
 Usage:
-$ hub stack explain
+$ $HUB_EXTENSION
 
 Parameters:
     -l --op-log            Display operations log (only)

@@ -6,7 +6,7 @@ usage() {
 GCP parameters:
   --gcp-project-id               GCP project ID (default to GCP_PROJECT_ID)
   --gcs-bucket-name              GCS bucket name (defaults to GCP_PROJECT_ID_superhub_state)
-  --hub-domain-name              Domain name of the stack (we get one from bubble dns if not set)
+  --domain-name                  Domain name of the stack (we get one from bubble dns if not set)
 EOF
 }
 
@@ -23,10 +23,10 @@ while [ "$1" != "" ]; do
         shift
         GCP_PROJECT_ID="$1"
         ;;
-    --hub-domain-name)
+    --domain-name)
         shift
         HUB_DOMAIN_NAME="$1"
-        ;;        
+        ;;
     esac
     shift
 done
@@ -47,7 +47,7 @@ source "$CURRENT_DIR/../bubble-dns/include"
 if test -z "$HUB_DOMAIN_NAME"; then
   configureBubbleDNS
 else
-  echo "Configuring Bubble DNS"    
+  echo "Configuring Bubble DNS"
 fi
 FOUND=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
 	--format json | $jq '. | length' | xargs)
@@ -57,7 +57,7 @@ if test "$FOUND" == "0"; then
 	echo "* $(gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
 		--description="Managed by Superhub" \
 		--dns-name="$HUB_DOMAIN_NAME" 2>&1;)"
-	updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"   
+	updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
 else
 	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME found"
 fi
@@ -74,7 +74,7 @@ else
 		echo "* Bucket gs://$STATE_BUCKET has been created"
 	else
 		echo "* Failed to create gs://$STATE_BUCKET bucket"
-	fi 
+	fi
 fi
 
 echo "* Setting hub state file location"

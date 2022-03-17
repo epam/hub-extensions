@@ -24,7 +24,7 @@ find_in_path() {
     done
     if test -z "$rv"; then
       >&2 echo "Error: command not found: $1"
-      exit 404
+      exit 44
     fi
   )
 }
@@ -389,7 +389,7 @@ for hubfile in $HUB_FILES; do
       (cd "$temp_dir" && ["$(git rev-parse --abbrev-ref HEAD)" = "$ref"] || git checkout "$ref")
       echo "  Saving component: $comp_dir"
       mkdir -p "$HUB_WORKDIR/$comp_dir"
-      cp -rf "$temp_dir/$subdir/" "$HUB_WORKDIR/$comp_dir"
+      cp -rf "$temp_dir/$subdir/." "$HUB_WORKDIR/$comp_dir"
       continue
     fi
   done
