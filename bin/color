@@ -55,7 +55,7 @@ while test -n "$1"; do
       echo="echo -n"
       continue
     ;;
-    -b | --bold | bold )
+    -b | --bold | b | bold )
       shift
       _tput bold
       continue

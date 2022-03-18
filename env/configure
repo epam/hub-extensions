@@ -165,11 +165,11 @@ for ENV in $(params listenv); do
       read -rp "  Enter value: " VALUE
     elif test "$val" = "$(echo $val | cut -c1-31)"; then
       echo -n "  Enter value ("
-      color h -n "$val"
+      color b -n "$val"
       read -rp " #$hashtag): " VALUE
     else
       echo -n "  Enter value ("
-      color h -n "$(echo "$val" | cut -c1-31)..."
+      color b -n "$(echo "$val" | cut -c1-31)..."
       read -rp " #$hashtag): " VALUE
     fi
     if test -n "$VALUE"; then
@@ -182,5 +182,7 @@ for ENV in $(params listenv); do
     continue
   fi
   echo "$ENV=\"$VALUE\"" >> $DOT_ENV
-  echo "  saved as $ENV to .env file"
+  echo -n "  saved as"
+  color b -n "$ENV"
+  echo " to .env file"
 done
