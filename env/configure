@@ -9,6 +9,10 @@ Environment variables parameters:
 EOF
 }
 
+ident() {
+  sed 's/^/  /'
+}
+
 if test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
   INTERACTIVE=true
 else
@@ -134,7 +138,7 @@ for ENV in $(params listenv); do
     echo -n "* Parameter: "
     color h "$PARAM"
     if test -n "$BRIEF"; then
-      echo "  $BRIEF"
+      echo "$BRIEF" | ident
     fi
     VAL_default=$(getByEnvVar "default" "$ENV" "")
     VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
