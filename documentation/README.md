@@ -11,6 +11,6 @@ Extensions provides following commands:
 | Command   | Description
 | --------- | ---------
 | [`hub stack <subcommand>`](hub-stack.md) | Commands to manage your deployment |
-| `hub show` | Show parameters of a deployed stack |
+| [`hub show`](hub-show.md) | Show parameters of a deployed stack |
 | `hub toolbox` | Starts a local toolbox container and mounts current file system inside |
 
