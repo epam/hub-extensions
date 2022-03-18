@@ -13,6 +13,8 @@ lifecycle:
   - componentN
 ```
 
+Because `undeploy` is a reversive operation to `deploy`, you might want to check out article for [`hub stack deploy`](hub-stack-deploy.md) sections about __deployment profiles__ and __deployment hooks__.
+
 ## Command Parameters
 
 | Flag   | Description | Required
@@ -49,6 +51,6 @@ hub stack undeploy -c "external-dns,cert-manager"
 
 ## See also
 
+* [`hub stack deploy`](hub-stack-deploy.md)
 * [`hub stack init`](hub-stack-init.md)
 * [`hub stack configure`](hub-stack-configure.md)
-* [`hub stack deploy`](hub-stack-deploy.md)

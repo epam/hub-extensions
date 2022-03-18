@@ -2,7 +2,7 @@
 
 Runs deployment for entire stack or updates deployment of one or few components
 
-Order in which components has been deployed has been defined in the hubfile
+Component runlist order has been defined in hubfile. It looks like the following:
 
 ```yaml
 lifecycle:
@@ -88,6 +88,36 @@ A: Make sure you follow the naming convention for file name
 | `before-undeploy` | Executed before un-deployment operation, fail with error code non 0 to stop un-deployment from happening |
 | `after-undeploy` | Executed before un-deployment operation, fail with error code non 0. Useful if you want to check that all resources has been deleted and grab user attention on some cloud junk |
 
+## Deployment Profiles
+
+There are few ways how to run a deployment, It primarilly depends on if this is a desire of the user where they want to have all desired provisioning tools setup and keep updated periodically. User also might  want to run deployment from CI server etc. This is why we have got different deployment profiles
+
+Deployment profile has been configured in `.env` file via environment variable `HUB_DEPLOY_PROFILE`. This variable has been set during the `configure` time, but can be changed by editing `.env` file
+
+### Deployment profile: `local`
+
+This profile has been preferable when user wants to run all automation from their local workstation. User also have got all provisioning tools required by the stack (such as `terraform`, `helm` or `kustomize`) installed locally. This profile gives fastest feedback if something goes wrong and direct tools to troubleshoot
+
+### Deployment profile: `toolbox`
+
+If you have a docker locally then you may not want to install all provisioning tools. Instead `toolbox` profile will run a special Docker container with all tools installed and then mount your working diretory inside. This deployment profile is handy to work in a team and  address __works on my workstation__ issues as every team member will work with exactly the same toolchain that comes with toolbox container
+
+
+### Deployment profile: `pod`
+
+This is evolution of a toolbox profile. Instead, if you have a Kubernetes cluster at your disposal, you may want to run an automation task as a Kubernetes native pod. This pod will do the following
+
+1. Run a `toolbox` container in a Kubernetes namespace `automation-tasks`
+2. Copy a working directory inside of a `pod`
+3. Copy credentials such as `aws` or `kubernetes`
+4. Run automation task
+5. Collect the result and store locally state
+6. Shut down the container
+
+### DYI Deployment profile
+
+If you want to build your own deployment profile, then put a script into the `.hub/profiles/<profile-name>` directory and add execution rights. Then update environment vaiable `HUB_DEPLOY_PROFILE` in the `.env`
+
 ## Usage Example
 
 To deploy all components in the runlist:
@@ -105,6 +135,6 @@ hub stack deploy -c "external-dns,cert-manager"
 
 ## See also
 
-* [`hub stack init`](hub-stack-init.md)
-* [`hub stack configure`](hub-stack-configure.md)
 * [`hub stack undeploy`](hub-stack-undeploy.md)
+* [`hub stack configure`](hub-stack-configure.md)
+* [`hub stack init`](hub-stack-init.md)
