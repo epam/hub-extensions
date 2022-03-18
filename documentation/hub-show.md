@@ -1,53 +1,16 @@
-# Command: hub stack
+# Command: `hub show`
 
-Helps you to manage your stack deployments
+Helps to browse parameters for deployment
 
-## Useful Commands
+## Useful Parameters
 
-Extensions provides following commands:
-
-| Command   | Description
-| --------- | ---------
-| [`hub stack init`](hub-stack-init.md) | Initialise a new stack deployment in the working directory |
-| [`hub stack configure`](hub-stack-configure.md) | Manage configuration before the deployment |
-| [`hub stack deploy`](hub-stack-deploy.md) | Apply deployment to target infrastructure |
-| [`hub stack undeploy`](hub-stack-undeploy.md) | Reverse deployment action |
-| [`hub stack ls`](hub-stack-ls.md) | See other stacks that has been initialised for the working directory |
-| [`hub stack set`](hub-stack-set.md) | Change a different current stack |
-| [`hub stack unconfigure`](hub-stack-uncfonfigure.md) | Delete configuration of a stack from working directory. This commands is irreversive, and __doesn't run [`undeploy`](hub-stack-undeploy.md)__
-
-## Advanced Commands
-
-These commands intended for advanced usage
-
-| Command   | Description
-| --------- | ---------
-| `hub stack backup <subcommand>` | Stack backup/restore management (*if "backup" verb supported by at least one component in the stack)|
-| `hub stack elaborate` | Reconcile defined parameters and a state |
-| `hub stack deploy` | Apply deployment to target infrastructure |
-| `hub stack invoke verb>` | Execute other verb rather than `deploy`, `undeploy` or `backup`. (*if verb supported by at least one component in the stack)|
-| `hub stack explain` | Command reserved for state and parameters diagnostics |
-
-## Usage examples
-
-Deploy a new GKE cluster with External DNS
-
-```bash
-hub stack init \
-    -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml"
-hub stack configure
-hub stack deploy
-```
-
-Undeploy stack deployed by someone else
-
-```bash
-hub stack init \
-    -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml" \
-    -s "gs://<gs path to the state file>"
-hub stack configure
-hub stack undeploy
-```
+| Flag   | Description | Required
+| :-------- | :-------- | :-: |
+| `-q  -jq --query` | Apply a `jq` style filter query to the command results | |
+| `-o --split` | By default, input and output parameters of a stack has been merged. If you want to split them into two different group to view specifically input or output parameters, then use this flag | |
+| `-m --machine` | By default parameters exported in a flat manner as a Key-Value pair. Yet you may want instead to present parameters as a `.` (dot) delimited objects. This can significantly simplify scripting when you want to wire deployment outputs with your specific automation | |
+| `-c --component` | Show input and ouptut parameters of a specific component in the stack.  | |
+| `--` |  For advanced case: when you want to supply some `jq` native arguments to the `hub show` command. Check out `jq --help` for allowed values | |
 
 ## Common Parameters
 
@@ -58,3 +21,22 @@ These parameters applies across all extension commands
 | `-V --verbose` | extra verbosity for diagnostics | |
 | `-h --help` | print help and usage message | |
 
+## Usage Example
+
+To show all parameters of a stac
+
+```bash
+hub show
+```
+
+To show domain name of a stack
+
+```
+hub show -q '.parameters.dns.domain'
+```
+
+To show password of a `mysql` component in the stack
+
+```bash
+hub show -c 'mysql' -q '.outputs.component.mysql.password'
+```
