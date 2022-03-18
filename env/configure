@@ -124,7 +124,8 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
   BRIEF=$(getByEnvVar "brief" "$ENV")
   EMPTY="$(getByEnvVar "empty" "$ENV")"
   if test -z "$VALUE"; then
-    echo "* Parameter $PARAM"
+    echo -n "* Parameter: "
+    color -b "$PARAM"
     if test -n "$BRIEF"; then
       echo "  $BRIEF"
     fi
