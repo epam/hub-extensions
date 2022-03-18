@@ -161,10 +161,16 @@ for ENV in $(params listenv); do
 
     if ! $INTERACTIVE; then
       VALUE="$val"
+    elif test -z "$val"; then
+      read -rp "  Enter value: " VALUE
     elif test "$val" = "$(echo $val | cut -c1-31)"; then
-      read -rp "  Enter value ($val #$hashtag): " VALUE
+      echo -n "  Enter value ("
+      color h -n "$val"
+      read -rp " #$hashtag): " VALUE
     else
-      read -rp "  Enter value ($(echo $val | cut -c1-31)... #$hashtag): " VALUE
+      echo -n "  Enter value ("
+      color h -n "$(echo "$val" | cut -c1-31)..."
+      read -rp " #$hashtag): " VALUE
     fi
     if test -n "$VALUE"; then
       $history set "$ENV=\"$VALUE\""
