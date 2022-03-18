@@ -10,6 +10,11 @@ Parameters:
   -V --verbose            For debug purpose
   -h --help               Show this message
 
+Subcommands:
+  h or hightlight    MSG  Prints bold white
+  w, warn or warning MSG  Prints bold yellow
+  e, err or error    MSG  Prints bold red
+
 EOF
 }
 
@@ -50,10 +55,23 @@ while test -n "$1"; do
       echo="echo -n"
       continue
     ;;
-    -b | --bold )
+    -b | --bold | bold )
       shift
       _tput bold
       continue
+    ;;
+    w | warn | warning )
+      _tput setaf 3
+      _tput bold
+      continue
+    ;;
+    e | err | error )
+      _tput setaf 1
+      _tput bold
+    ;;
+    h | highlight )
+      _tput setaf 7
+      _tput bold
     ;;
     * )
       message="$@"

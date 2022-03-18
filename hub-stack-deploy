@@ -16,13 +16,13 @@ cat << EOF
 ${verb} the stack
 
 Usage:
-$ hub stack ${verb}
+$ $HUB_EXTENSION
 ${verb}s entire stack
 
-$ hub stack ${verb} -c component1,component2
+$ $HUB_EXTENSION -c component1,component2
 ${verb}s two components
 
-$ hub stack ${verb} -c component1,component2 --profile pod
+$ $HUB_EXTENSION -c component1,component2 --profile pod
 ${verb}s two components and executes deployment in a pod
 
 Parameters:
@@ -198,6 +198,16 @@ export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 
 BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$BEFORE" | xargs -n1); do
+  hook=$(files find-in-path "$i/after-${verb}");
+  if test -z "$hook"; then
+    color warn "  Warning! cannot find after hook: $i"
+  fi
+  echo -n "  Running before ${verb} hook:"
+  color h "$i"
+  $hook
+done
+
+for i in $(echo "$BEFORE" | xargs -n1); do
   if test -f "$WORKDIR/.hub/$i/before-${verb}"; then
     hook="$WORKDIR/.hub/$i/before-${verb}"
   elif test -f "$script_dir/$i/before-${verb}"; then
@@ -248,15 +258,12 @@ echo
 
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$AFTER" | xargs -n1); do
-  if test -f "$WORKDIR/.hub/$i/after-${verb}"; then
-    hook="$WORKDIR/.hub/$i/after-${verb}"
-  elif test -f "$script_dir/$i/after-${verb}"; then
-    hook="$script_dir/$i/after-${verb}"
-  else
-    echo "Warning! cannot find after hook: $i"
-    continue
+  hook=$(files find-in-path "$i/after-${verb}");
+  if test -z "$hook"; then
+    color warn "  Warning! cannot find after hook: $i"
   fi
-  echo "Running after ${verb} hook: $i"
+  echo -n "  Running after ${verb} hook:"
+  color h "$i"
   $hook
 done
 

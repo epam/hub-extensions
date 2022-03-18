@@ -38,13 +38,6 @@ if test ! -f .env; then
   exit 1
 fi
 
-abspath() {
-  if test -d "$1"; then
-    (cd "$1" && pwd)
-  elif test -f "$1"; then
-    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
-  fi
-}
 
 eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
 
@@ -145,7 +138,7 @@ fi
 hub_backup_dir="$HUB_BACKUP_DIR"
 HUB_BACKUP_DIR="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$(date +"%Y%m%d-%H%M%S")"
 mkdir -p "$HUB_BACKUP_DIR"
-HUB_BACKUP_DIR=$(abspath $HUB_BACKUP_DIR)
+HUB_BACKUP_DIR=$(files abspath "$HUB_BACKUP_DIR")
 export HUB_BACKUP_DIR
 
 rm_empty() {

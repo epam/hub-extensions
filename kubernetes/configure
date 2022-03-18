@@ -103,14 +103,6 @@ EOF
   exit 3
 fi
 
-abspath() {
-  if test -d "$1"; then
-    (cd "$1" && pwd)
-  elif test -f "$1"; then
-    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
-  fi
-}
-
 WORKDIR=${WORKDIR:-$(pwd)}
 echo -n "* Saving kubeconfig to .hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
 copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
@@ -118,5 +110,5 @@ chmod go-rw "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
 cat << EOF >> $DOT_ENV
 # Location of sandboxed kubeconfig
-HUB_KUBECONFIG="$(abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"
+HUB_KUBECONFIG="$(files abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"
 EOF

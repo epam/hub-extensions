@@ -210,15 +210,6 @@ update_symlink() {
   fi
 }
 
-abspath() {
-  if test -d "$1"; then
-    (cd "$1" && pwd)
-  elif test -f "$1"; then
-    # shellcheck disable=SC2086,SC2046
-    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
-  fi
-}
-
 finalize() {
   # shellcheck disable=SC2046
   local rv=$?
@@ -237,8 +228,8 @@ cat << EOF >> $TEMP2
 EOF
   unconfigured=false
   if test -L "$HUB_WORKDIR/.env"; then
-    dotenv1=$(abspath $(readlink -n "$HUB_WORKDIR/.env"))
-    dotenv2=$(abspath "$HUB_WORKDIR/.hub/env/.env")
+    dotenv1=$(files abspath $(readlink -n "$HUB_WORKDIR/.env"))
+    dotenv2=$(files abspath "$HUB_WORKDIR/.hub/env/.env")
     if test "$dotenv1" = "$dotenv2"; then
       unconfigured=true
     fi
@@ -363,12 +354,12 @@ echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 for req in $(echo "$REQS" | xargs -n1); do
   configure=$(find_in_path "$req/configure")
   if test -z "$configure"; then
-    color -c 3 -b "* Warning: cannot find configure script for \"$req\""
+    color warn "* Warning: cannot find configure script for \"$req\""
     continue
   fi
 
   echo -n "Running configuration for: "
-  color -c 7 -b "$req"
+  color h "$req"
 
   DOT_ENV=$(temp_file)
   export DOT_ENV

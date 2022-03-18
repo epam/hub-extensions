@@ -18,9 +18,9 @@ for s in $sources $additional; do
 done
 
 if test -n "$newer"; then
-    color -c 3 -b "Elaborate file $elaborate is older than:"
+    color warn "Elaborate file $elaborate is older than:"
     for n in $newer; do
-        color -c 3 -b "- $n"
+        color warn "- $n"
     done
     exit 40
 fi

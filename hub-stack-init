@@ -344,13 +344,14 @@ fi
 
 for req in $HUB_STACK_REQUIRES; do
   init=$(find_in_path "$req/init")
-  echo "Initializing $req..."
+  echo -n "Initializing "
+  color h "$req"
   $init $ARGS
 done
 
 for hubfile in $HUB_FILES; do
   if test ! -f $hubfile; then
-    echo "* Warning: skipping $hubfile due to not found"
+    color warn "* Warning: skipping $hubfile due to not found"
     continue
   fi
   components="$(toJson "$hubfile" | $jq '.components' -)"

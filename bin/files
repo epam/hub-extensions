@@ -1,0 +1,92 @@
+#!/bin/bash -e
+
+usage() {
+  cat << EOF
+commonly used operations with files
+
+Parameters:
+  -e --error --fail       Fail with error code instead (otherwise returns empty string)
+  --verbose               Verbose output for debugging
+  --help                  Print this message
+
+Subcommands:
+  $(basename "$0") find-in-path FILE    Returns file locatin in PATH (also can use subdirs)
+  $(basename "$0") abspath FILE         Returns returns absolute location for desired file
+EOF
+}
+
+err=false
+op=""
+arg=""
+while test -n "$1"; do
+  case $1 in
+    -h | --help )
+        usage
+        exit ;;
+    -e | --fail | --error )
+        err=true
+        continue
+        ;;
+    -V | --verbose )
+        set -x
+        continue
+    ;;
+    find-in-path | abspath )
+        op="$1"
+        shift
+        arg="$1"
+        shift
+        continue
+    ;;
+    * )
+      usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+abspath() {
+  if test -d "$1"; then
+    (cd "$1" && pwd)
+  elif test -f "$1"; then
+    # shellcheck disable=SC2086,SC2046
+    echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
+  fi
+}
+
+find_in_path() {
+  local _file _path rv
+  _file="$(echo "$1" | sed -e 's/^\///')"
+  ( IFS=:
+    for _path in $PATH; do
+      if test -x "$_path/$_file"; then
+        rv="$_path/$_file"
+        echo "$rv"
+        break;
+      fi
+    done
+    if test -z "$rv"; then
+      if $err; then
+        >&2 echo "Error: command not found: $1"
+        exit 44
+      fi
+    else
+      abspath "$rv"
+    fi
+  )
+}
+
+case "$op"  in
+  "find-in-path" )
+    PATH=".hub:.hub/bin:$PATH"
+    find_in_path "$arg"
+  ;;
+  "abspath" )
+    PATH=".hub:.hub/bin:$PATH"
+    abspath "$arg"
+  ;;
+  * )
+    usage
+    exit 1
+esac
