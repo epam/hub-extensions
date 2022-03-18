@@ -46,6 +46,8 @@ if test -z "$HUB_WORKDIR"; then
   export HUB_WORKDIR
 fi
 
+jq="jq -cMr"
+
 HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
 mkdir -p "$(dirname "$HISTORY_FILE")"
 touch "$HISTORY_FILE"
@@ -61,15 +63,15 @@ if test -z "$HUB_FILES"; then
 fi
 
 echo "Configuring environment variables"
-ALL_ENVS=
-for f in $HUB_FILES; do
-  test -f "$f" || continue;
-  envs=$(
-    yq e $f -o=json | jq -cr \
-      '.. | objects | with_entries(select(.key=="fromEnv")).fromEnv? | select(.!=null)'
-  )
-  ALL_ENVS="$ALL_ENVS $envs"
-done
+# ALL_ENVS=
+# for f in $HUB_FILES; do
+#   test -f "$f" || continue;
+#   envs=$(
+#     yq e $f -o=json | jq -cr \
+#       '.. | objects | with_entries(select(.key=="fromEnv")).fromEnv? | select(.!=null)'
+#   )
+#   ALL_ENVS="$ALL_ENVS $envs"
+# done
 
 if test -z "$DOT_ENV"; then
   echo "Error: please run with option: $(dirname "0")/$(basename "0") --output FILE "
@@ -118,11 +120,16 @@ getParamNameByEnvVar() {
 }
 
 touch $DOT_ENV
-for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
+for ENV in $(params listenv); do
+  json=$(params envvar "$ENV")
+  if test -z "$json"; then
+    color warn "* Warning: cannot find parameter for variable: $ENV"
+    continue
+  fi
+
   VALUE=$(printenv "$ENV" || echo "")
-  PARAM=$(getParamNameByEnvVar "$ENV")
-  BRIEF=$(getByEnvVar "brief" "$ENV")
-  EMPTY="$(getByEnvVar "empty" "$ENV")"
+  PARAM=$(echo "$json" | $jq '.name  | select (.)')
+  BRIEF=$(echo "$json" | $jq '.brief | select (.)')
   if test -z "$VALUE"; then
     echo -n "* Parameter: "
     color h "$PARAM"
@@ -134,6 +141,7 @@ for ENV in $(echo $ALL_ENVS | xargs -n 1 | sort -u); do
     VAL_history=$($history get $ENV)
     VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
     VAL_empty=""
+    EMPTY=$(echo "$json" | $jq '.empty | select (.)')
     if test "$EMPTY" = "allow"; then
       HASHTAGS="hubstate default empty"
     else

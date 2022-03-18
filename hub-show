@@ -11,7 +11,7 @@ usage()
 {
 cat << EOF
 Print info about stack in JSON format. Stack parameters and outputs are merged by default with the precedence to the outputs. Execute current script with parameter "-o" to see outputs separately
-Usage: $(basename "$0") -s STACK_DOMAIN [-o] [-t]
+Usage: $HUB_EXTENSION -s STACK_DOMAIN [-o] [-t]
 Parameters:
     -s --stack      domain name of the stack
     -o --split      split stack outpus from parameters
@@ -74,33 +74,40 @@ while [ "$1" != "" ]; do
 done
 
 if test -z "$HUB_TOKEN"; then
-  RESP=$(hub explain "${HUB_STATE:-.hub/$HUB_DOMAIN_NAME.state}" --json || true) # this will spill into stderr on error
+  RESP=$(hub explain "${HUB_STATE:-.hub/$HUB_DOMAIN_NAME.state}" --json || echo "") # this will spill into stderr on error
   if test -z "$RESP"; then
-    if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -e "$HUB_KUBECONFIG"; then
-      export KUBECONFIG=$HUB_KUBECONFIG
+    if test -z "$HUB_FILES"; then
+      HUB_FILES="$(dotenv get HUB_FILES)"
     fi
-    ns="kube-system"
-    cm="superhub"
-    kubectl="kubectl -n $ns -o json"
-    if ! $kubectl get configmap "superhub" > /dev/null 2>&1; then
-      echo "Error: no stack deployed" 1>&2
-      exit 5
-    fi
-    if test -z "$HUB_DOMAIN_NAME"; then
-      HUB_DOMAIN_NAME=$( \
-        $kubectl get configmap $cm \
-        | jq -r '.data|keys[0]|select(.)'
-      )
-      if test -z "$HUB_DOMAIN_NAME"; then
-        echo "Error: cannot find stack data" 1>&2
-        exit 4
+
+    has_inventory_configmap="$(yq -N e '[ .extensions.deploy.after ] | select(. == "inventory-configmap")' $HUB_FILES)"
+    if test -n "$has_inventory_configmap"; then
+      if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -e "$HUB_KUBECONFIG"; then
+        export KUBECONFIG=$HUB_KUBECONFIG
       fi
+      ns="kube-system"
+      cm="superhub"
+      kubectl="kubectl -n $ns -o json"
+      if ! $kubectl get configmap "superhub" > /dev/null 2>&1; then
+        >&2 echo "Error: no stack deployed"
+        exit 5
+      fi
+      if test -z "$HUB_DOMAIN_NAME"; then
+        HUB_DOMAIN_NAME=$( \
+          $kubectl get configmap $cm \
+          | jq -r '.data|keys[0]|select(.)'
+        )
+        if test -z "$HUB_DOMAIN_NAME"; then
+          >&2 echo "Error: cannot find stack data"
+          exit 4
+        fi
+      fi
+      RESP=$( \
+        $kubectl get configmap $cm | \
+        jq -r ".data[\"$HUB_DOMAIN_NAME\"] | select(.)" | \
+        base64 -d
+      )
     fi
-    RESP=$( \
-      $kubectl get configmap $cm | \
-      jq -r ".data[\"$HUB_DOMAIN_NAME\"] | select(.)" | \
-      base64 -d
-    )
   fi
 else
   RESP=$(hub api instance get -j \

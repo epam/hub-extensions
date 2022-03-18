@@ -4,7 +4,7 @@ usage() {
   cat << EOF
 Reads parameterы value from one or multiple hubfiles
 
-$(basename $0) <subcommand> ARG -f HUB_FILE
+$(basename "$0") <subcommand> PARAM -f HUB_FILE
 
 Subcommands:
   json   PARAM            Returns json string of the parameter
@@ -30,8 +30,6 @@ while test -n "$1"; do
   case $ARG in
     value | json | envvar)
       subcommand="$ARG"
-      COMMAND_ARG="$1"
-      shift
       continue
       ;;
     flat | listenv)
@@ -54,18 +52,23 @@ while test -n "$1"; do
       ;;
 
     * )
-      usage
-      exit 1
+      COMMAND_ARG="$ARG"
+      continue;
       ;;
   esac
 done
+
 
 if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-HUB_FILES="$(echo $HUB_FILES $hub_files | xargs)"
-if test -z "$HUB_FILES" -o -z "$subcommand"; then
+HUB_FILES="$(echo "$HUB_FILES $hub_files" | xargs)"
+if test -z "$HUB_FILES"; then
+  HUB_FILES="$(dotenv -f ".env" get HUB_FILES)"
+fi
+
+if test -z "$subcommand" -o -z "$HUB_FILES"; then
   usage
   exit 1
 fi
@@ -105,26 +108,29 @@ readField() {
 }
 
 getParamValue() {
-  local hubfile value envvar env default
+  local hubfile value envval envname default
   for hubfile in $HUB_FILES; do
     result="$(toJson "$hubfile" | flattened | withName "$1")"
     if test -n "$result"; then
       value="$(echo "$result" | readField "value")"
-      if test -z "$value"; then
-        env="$(echo "$result" | readField "fromEnv")"
-        if test -z "$env"; then
-          envvar="$(printenv "$env")"
+      if test -n "$value"; then
+        echo "$value"
+      else
+        envname="$(echo "$result" | readField "fromEnv")"
+        if test -n "$envname"; then
+          envval="$(dotenv get "$envname")"
+          if test -z "$envval"; then
+            envval="$(printenv "$envname")"
+          fi
         fi
-        if test -z "$envvar"; then
+        if test -n "$envval"; then
+          echo "$envval"
+        else
           default="$(echo "$result" | readField "default")"
           if test -n "$default"; then
             echo "$default"
           fi
-        else
-          echo "$envvar"
         fi
-      else
-        echo "$value"
       fi
       break
     fi

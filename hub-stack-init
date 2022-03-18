@@ -272,7 +272,6 @@ export HUB_FILES
 
 mkdir -p "$HUB_WORKDIR/.hub/env"
 
-HUB_SATE=""
 if test -n "$SOURCE_HUB_STATE"; then
   echo "Checking hub state"
   for state in $(echo "$SOURCE_HUB_STATE" |tr ',' ' '); do
@@ -385,9 +384,9 @@ for hubfile in $HUB_FILES; do
       ref=$(echo $components | componentSourceRef "gcp" "$comp")
       temp_dir=$(temp_file)
       echo "  Retrieving from gcp source repository"
-      echo "  Running: gcloud source repos clone "$gcp_repo""
+      echo "  Running: gcloud source repos clone $gcp_repo"
       gcloud --no-user-output-enabled source repos clone "$gcp_repo" "$temp_dir"
-      (cd "$temp_dir" && ["$(git rev-parse --abbrev-ref HEAD)" = "$ref"] || git checkout "$ref")
+      (cd "$temp_dir" && test "$(git rev-parse --abbrev-ref HEAD)" = "$ref" || git checkout "$ref")
       echo "  Saving component: $comp_dir"
       mkdir -p "$HUB_WORKDIR/$comp_dir"
       cp -rf "$temp_dir/$subdir/." "$HUB_WORKDIR/$comp_dir"
