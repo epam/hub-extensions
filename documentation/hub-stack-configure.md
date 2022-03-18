@@ -38,6 +38,7 @@ These parameters applies across all extension commands. If hubfile contains addi
 | Flag   | Description | Required
 | :-------- | :-------- | :-: |
 | `-r --requirement <arg>` | Specific one or multiple (this parameter can repeat) requirements to apply for reconfiguration. If no requirements provided, then this means all requirements as specified in hubfile | |
+| `--profile <arg>` | Set specific deployment profile | |
 | `-V --verbose` | extra verbosity for diagnostics | |
 | `-h --help` | print help and usage message | |
 

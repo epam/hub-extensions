@@ -18,11 +18,12 @@ Usage:
   $HUB_EXTENSION [-r requirement]
 
 Common parameters:
+      --profile           Set specific deployment profile
   -V  --verbose           Verbose outputs for debug purposes
   -h  --help              Print this message
 
-Use: hub configure
-     hub configure -r env # to reconfigure only environment variables
+Use: $HUB_EXTENSION
+     $HUB_EXTENSION -r env # to reconfigure only environment variables
 
 Usage for stack requirements: [$(echo "$1" | xargs)]
 
@@ -323,6 +324,14 @@ if test -z "$HUB_DEPLOY_PROFILE"; then
       fi
     done
   fi
+  echo "* Setting deployment profile: $HUB_DEPLOY_PROFILE"
+else
+  echo "* Setting deployment profile: $HUB_DEPLOY_PROFILE"
+fi
+
+if test -z "$(find_in_path "profiles/$HUB_DEPLOY_PROFILE")"; then
+  echo "  Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE"
+  exit 44
 fi
 
 NEW_HUB_FILES="$HUB_FILES"
@@ -352,11 +361,14 @@ fi
 echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 
 for req in $(echo "$REQS" | xargs -n1); do
-  configure=$(find_in_path "$req/init")
+  configure=$(find_in_path "$req/configure")
   if test -z "$configure"; then
     color -c 3 -b "* Warning: cannot find configure script for \"$req\""
     continue
   fi
+
+  echo -n "Running configuration for: "
+  color -c 7 -b "$req"
 
   DOT_ENV=$(temp_file)
   export DOT_ENV
@@ -366,10 +378,10 @@ for req in $(echo "$REQS" | xargs -n1); do
 Error: "$req" completed with error!
 
 For troubleshooting:
-  hub configure -r "$req" --verbose
+  $HUB_EXTENSION -r "$req" --verbose
 
 For additional options:
-  hub configure -r "$req" --help
+  $HUB_EXTENSION -r "$req" --help
 
 EOF
     exit 4
