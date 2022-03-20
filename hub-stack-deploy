@@ -1,5 +1,5 @@
 #!/bin/bash -e
- # shellcheck disable=SC2086
+# shellcheck disable=SC2086
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"

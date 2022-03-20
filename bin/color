@@ -8,6 +8,7 @@ Parameters:
   -c --color COLOR_CODE   Use color with this code
   -n                      Do not print the trailing newline character
   -V --verbose            For debug purpose
+  --                      STDIN pipe
   -h --help               Show this message
 
 Subcommands:
@@ -19,11 +20,11 @@ EOF
 }
 
 message=""
-color=""
 
 _tput() {
   if test -t 1; then
-    tput $@
+    # shellcheck disable=SC2086,SC2048
+    tput $*
   fi
 }
 
@@ -33,7 +34,7 @@ finalize() {
   fi
 }
 
-echo="echo"
+echo="${echo:-"echo"}"
 
 while test -n "$1"; do
   case $1 in
@@ -42,43 +43,45 @@ while test -n "$1"; do
       exit ;;
     -V | --verbose )
       set -x
-      continue
+      shift; continue
     ;;
     -c | --color )
-      shift
       _tput setaf "$1"
       shift
-      continue
+      shift; continue
     ;;
     -n )
-      shift
       echo="echo -n"
-      continue
+      shift; continue
     ;;
     -b | --bold | b | bold )
-      shift
       _tput bold
-      continue
+      shift; continue
     ;;
     w | warn | warning )
       _tput setaf 3
       _tput bold
-      continue
+      shift; continue
     ;;
     e | err | error )
       _tput setaf 1
       _tput bold
+      shift; continue
     ;;
     h | highlight )
       _tput setaf 7
       _tput bold
+      shift; continue
+    ;;
+    -- )
+      message="$(< /dev/stdin)"
+      break
     ;;
     * )
-      message="$@"
+      message="$*"
       break
-      ;;
+    ;;
   esac
-  shift
 done
 
 trap finalize EXIT
