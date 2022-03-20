@@ -137,8 +137,9 @@ for ENV in $(params listenv); do
       VALUE="$val"
     fi
   else
-    echo "* Parameter $PARAM"
-    color b -n "  $ENV"
+    echo -n "* Parameter: "
+    color h "$PARAM"
+    color h -n "  $ENV"
     echo " already exist"
     continue
   fi
