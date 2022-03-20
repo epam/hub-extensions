@@ -1,4 +1,5 @@
 #!/bin/bash -e
+# shellcheck disable=SC2086
 
 usage() {
   cat << EOF
@@ -10,7 +11,7 @@ Subcommands:
   json   PARAM            Returns json string of the parameter
   value  PARAM            Returns only value of the parameter
   envvar ENVVAR           Returns param name by envvar
-  flat                    Returns flattended parameters
+  flatten                 Returns flattended parameters
   listenv                 Returns list of environment variables
 
 Parameters:
@@ -32,7 +33,7 @@ while test -n "$1"; do
       subcommand="$ARG"
       continue
       ;;
-    flat | listenv)
+    flat | flatten | listenv)
       subcommand="$ARG"
       continue
       ;;
@@ -65,7 +66,7 @@ fi
 
 HUB_FILES="$(echo "$HUB_FILES $hub_files" | xargs)"
 if test -z "$HUB_FILES"; then
-  HUB_FILES="$(dotenv -f ".env" get HUB_FILES)"
+  HUB_FILES="$(dotenv get HUB_FILES)"
 fi
 
 if test -z "$subcommand" -o -z "$HUB_FILES"; then
@@ -87,11 +88,12 @@ getParamNameByEnvVar() {
   done
 }
 
-toJson() {
-  cat "$1" | yq e -o=json
+json() {
+  # shellcheck disable=SC2048
+  yq eval-all -o=json 'select(.parameters)' $*
 }
 
-flattened() {
+flatten() {
   jq -cMr " \
     .parameters \
     | walk(if type==\"object\" and .parameters? then .name as \$pref | .parameters[] | select(.name == .name) | del(.name) + {name: (\$pref+\".\"+.name)} else . end) \
@@ -109,48 +111,37 @@ readField() {
 
 getParamValue() {
   local hubfile value envval envname default
-  for hubfile in $HUB_FILES; do
-    result="$(toJson "$hubfile" | flattened | withName "$1")"
-    if test -n "$result"; then
-      value="$(echo "$result" | readField "value")"
-      if test -n "$value"; then
-        echo "$value"
-      else
-        envname="$(echo "$result" | readField "fromEnv")"
-        if test -n "$envname"; then
-          envval="$(dotenv get "$envname")"
-          if test -z "$envval"; then
-            envval="$(printenv "$envname")"
-          fi
-        fi
-        if test -n "$envval"; then
-          echo "$envval"
-        else
-          default="$(echo "$result" | readField "default")"
-          if test -n "$default"; then
-            echo "$default"
-          fi
+  result="$(json $HUB_FILES | flatten | withName "$1")"
+  if test -n "$result"; then
+    value="$(echo "$result" | readField "value")"
+    if test -n "$value"; then
+      echo "$value"
+    else
+      envname="$(echo "$result" | readField "fromEnv")"
+      if test -n "$envname"; then
+        envval="$(dotenv get "$envname")"
+        if test -z "$envval"; then
+          envval="$(printenv "$envname")"
         fi
       fi
-      break
+      if test -n "$envval"; then
+        echo "$envval"
+      else
+        default="$(echo "$result" | readField "default")"
+        if test -n "$default"; then
+          echo "$default"
+        fi
+      fi
     fi
-  done
+  fi
 }
 
 getParamJson() {
-  for hubfile in $HUB_FILES; do
-    result="$(toJson "$hubfile" | flattened | withName "$1")"
-    if test -n "$result"; then
-      echo "$result"
-      break
-    fi
-  done
+  json $HUB_FILES | flatten | withName "$1" | jq -cMr --arg n "$1" '. + {name: $n}'
 }
 
 getFlatParams() {
-  for hubfile in $HUB_FILES; do
-    toJson "$hubfile" | flattened | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
-  done
+  json $HUB_FILES | flatten | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
 }
 
 getParamByEnvvar() {
@@ -171,7 +162,7 @@ case $subcommand in
   envvar)
     getParamByEnvvar "$COMMAND_ARG"
   ;;
-  flat)
+  flat | flatten)
     getFlatParams
   ;;
   listenv)
