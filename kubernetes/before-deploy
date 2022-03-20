@@ -1,12 +1,6 @@
 #!/bin/bash -e
 # shellcheck disable=SC2068,SC2086,SC2155
 
-HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
-HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
-PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH
-
 usage() {
   cat << EOF
 Check if kubernetes cluster has been reachable
@@ -14,24 +8,36 @@ EOF
 }
 
 if test ! -f ".env"; then
-  echo "Error: cannot find .env file. Please run 'hub configure'"
+  color err "Error: cannot find .env file. Please run 'hub configure'"
   exit 1
 fi
 
+dotenv="dotenv -f $HUB_WORKDIR/.env"
 set +a
-eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
+eval "$($dotenv "export")"
 set -a
 
 hub_kubeconfig=$($dotenv get "HUB_KUBECONFIG")
 if test -n "$hub_kubeconfig"; then
   KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
   export KUBECONFIG
-  echo "* Using kubeconfig: $KUBECONFIG"
+  echo -n "* Using kubeconfig:"
+  color bold "$KUBECONFIG"
+else
+  color warn "* Warning: expected variable HUB_KUBECONFIG has not been found in .env file"
+  color warn "  This may lead to invalid deployment of the kubenretes components"
 fi
 
 echo -n "* Checking connectivity to cluster: "
 if kubectl cluster-info > /dev/null; then
-  echo "Connected"
+  color bold "Connected"
 else
   exit 2
+fi
+
+if test "$(kubectl config current-context)" != "$HUB_DOMAIN_NAME"; then
+  echo -n "* Setting $HUB_DOMAIN_NAME kube-context to: "
+  if ! kubectl config set-context "$HUB_DOMAIN_NAME"; then
+    color warn "* Warning: encountered error setting kubectontext to $HUB_DOMAIN_NAME"
+  fi
 fi

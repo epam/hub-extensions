@@ -6,7 +6,9 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH
+export PATH HUB_WORKDIR
+DOT_ENV="$(files abspath .env)"
+export DOT_ENV
 
 verb=deploy/undeploy
 
@@ -176,17 +178,15 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
-script_dir=$(dirname "$0")
-
 if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
   hub-stack-elaborate
 elif test -n "$HUB_ELABORATE_FILE"; then
   if ! check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
     if test -z "$HUB_MANUAL_ELABORATE"; then
-      echo "Call:"
-      echo "    $ hub stack elaborate"
-      echo "or update elaborate file timestamp:"
-      echo "    $ touch $HUB_ELABORATE_FILE"
+      echo    "Run this command:"
+      color h "    hub stack elaborate"
+      echo    "or update elaborate file timestamp:"
+      echo    "    touch $HUB_ELABORATE_FILE"
       echo
       exit 1
     fi
@@ -198,44 +198,19 @@ export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 
 BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$BEFORE" | xargs -n1); do
-  hook=$(files find-in-path "$i/after-${verb}");
+  hook=$(files find-in-path "$i/before-${verb}");
   if test -z "$hook"; then
-    color warn "  Warning! cannot find after hook: $i"
+    color warn "  Warning! cannot find before hook: $i"
   fi
-  echo -n "  Running before ${verb} hook:"
-  color h "$i"
+  echo -n "  Running before ${verb} hook: "
+  color bold "$i"
   $hook
 done
 
-for i in $(echo "$BEFORE" | xargs -n1); do
-  if test -f "$WORKDIR/.hub/$i/before-${verb}"; then
-    hook="$WORKDIR/.hub/$i/before-${verb}"
-  elif test -f "$script_dir/$i/before-${verb}"; then
-    hook="$script_dir/$i/before-${verb}"
-  else
-    echo "Warning! cannot find before ${verb} hook: $i"
-    continue
-  fi
-  echo "Running before ${verb}: $i"
-  $hook
-done
-
-if test -f "$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}"; then
-  lifecycle="$WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}"
-elif test -f "$script_dir/profiles/$HUB_DEPLOY_PROFILE/${verb}"; then
-  lifecycle="$script_dir/profiles/$HUB_DEPLOY_PROFILE/${verb}"
-else
-  if test -d "$WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$WORKDIR/.hub/profiles")"; fi
-  if test -d "$script_dir/profiles"; then profiles="$profiles $(ls "$script_dir/profiles")"; fi
-  cat << EOF
-
-Error! Cannot find deployment profile $HUB_DEPLOY_PROFILE
-* Not found: $WORKDIR/.hub/profiles/$HUB_DEPLOY_PROFILE/${verb}
-* Not found: $script_dir/profiles/$HUB_DEPLOY_PROFILE/${verb}
-
-Deployment profile configured via .env variable HUB_DEPLOY_PROFILE
-
-Currently supported profiles: $(echo "$profiles" | xargs)
+lifecycle=$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE/${verb}");
+if test -z "$lifecycle"; then
+ cat << EOF
+Cannot find deployment profile: $HUB_DEPLOY_PROFILE
 
 Completed with errors!
 EOF

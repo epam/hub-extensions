@@ -62,7 +62,6 @@ find_in_path() {
     for _path in $PATH; do
       if test -x "$_path/$_file"; then
         rv="$_path/$_file"
-        echo "$rv"
         break;
       fi
     done
