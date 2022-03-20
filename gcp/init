@@ -64,11 +64,11 @@ else
     read -rp "  Enter value: " GCP_PROJECT_ID
   elif test "$gcloud_result" = "$(echo "$gcloud_result" | cut -c1-31)"; then
     echo -n "  Enter value ("
-    color b -n "$gcloud_result"
+    color -n b "$gcloud_result"
     read -rp " #gcloud): " GCP_PROJECT_ID
   else
     echo -n "  Enter value ("
-    color b -n "$(echo "$gcloud_result" | cut -c1-31)..."
+    color -n b "$(echo "$gcloud_result" | cut -c1-31)..."
     read -rp " #gcloud): " GCP_PROJECT_ID
   fi
   if test -z "$GCP_PROJECT_ID"; then
