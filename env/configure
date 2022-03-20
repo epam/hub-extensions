@@ -82,47 +82,6 @@ if test -z "$DOT_ENV"; then
   exit 2
 fi
 
-getByEnvVar() {
-  local f result
-  for f in $HUB_FILES; do
-    test -f $f || continue;
-    result=$(
-      yq e -o=json $f | jq -cr \
-        "[ .. | objects | select(.fromEnv==\"$2\").$1 | select(.) ] | first | select(.)"
-    )
-    if test -n "$result"; then
-      echo "$result"
-      break
-    fi
-  done
-  if test -z "$result"; then
-    # default value
-    echo "$3"
-  fi
-}
-
-getParamNameByEnvVar() {
-  local f result
-  for f in $HUB_FILES; do
-    test -f $f || continue;
-    result=$(
-      yq e "$f" -o=json \
-        | jq -r \
-          "[ \
-            .parameters | walk(if type==\"object\" and .fromEnv and .fromEnv!=\"$1\"  then null else . end) \
-            | walk(if type==\"object\" and .name then {(.name):.} else . end) \
-            | path(..)|[.[]|tostring] | select(.[] | contains(\"fromEnv\")) \
-            | [ .[] | select(.!=\"fromEnv\" and .!=\"parameters\") | tonumber? //. \
-            | select(type==\"string\")] | join(\".\") \
-          ] | first | select(.)"
-    )
-    if test -n "$result"; then
-      echo "$result"
-      break
-    fi
-  done
-}
-
 touch $DOT_ENV
 for ENV in $(params listenv); do
   json=$(params envvar "$ENV")
@@ -140,7 +99,7 @@ for ENV in $(params listenv); do
     if test -n "$BRIEF"; then
       echo "$BRIEF" | ident
     fi
-    VAL_default=$(getByEnvVar "default" "$ENV" "")
+    VAL_default=$(echo "$json" | $jq '.default | select (.)')
     VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
     VAL_history=$($history get $ENV)
     VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
@@ -178,11 +137,13 @@ for ENV in $(params listenv); do
       VALUE="$val"
     fi
   else
-    echo "* Parameter $PARAM: already configured"
+    echo "* Parameter $PARAM"
+    color b -n "  $ENV"
+    echo " already exist"
     continue
   fi
   echo "$ENV=\"$VALUE\"" >> $DOT_ENV
-  echo -n "  saved as"
+  echo -n "  saved as "
   color b -n "$ENV"
   echo " to .env file"
 done
