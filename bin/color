@@ -56,22 +56,30 @@ while test -n "$1"; do
     ;;
     -b | --bold | b | bold )
       _tput bold
-      shift; continue
+      shift
+      message="$*"
+      break
     ;;
     w | warn | warning )
       _tput setaf 3
       _tput bold
-      shift; continue
+      shift
+      message="$*"
+      break
     ;;
     e | err | error )
       _tput setaf 1
       _tput bold
-      shift; continue
+      shift
+      message="$*"
+      break
     ;;
     h | highlight )
       _tput setaf 7
       _tput bold
-      shift; continue
+      shift
+      message="$*"
+      break
     ;;
     -- )
       message="$(< /dev/stdin)"
