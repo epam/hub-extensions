@@ -179,7 +179,12 @@ case $ACTION  in
   "export" | "keys" )
     dotenv::$ACTION $FIRST_FILE ;;
   "get"    )
-    echo "$(dotenv::$ACTION $KEY $FIRST_FILE) $DEFAULTS" | awk '{print $1;}'
+    rv="$(dotenv::$ACTION $KEY $FIRST_FILE)"
+    if test -n "$rv"; then
+      echo "$rv"
+    else
+      echo "$DEFAULTS"
+    fi
   ;;
   "set" )
     dotenv::$ACTION $ARG;;
