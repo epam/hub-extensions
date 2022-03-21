@@ -91,7 +91,7 @@ fi
 
 active_projects="$(gcloud projects list --format='json' | jq -cMr '[.[]][] | select(.lifecycleState == "ACTIVE").projectId | select(.)')"
 if ! contains "$GOOGLE_PROJECT" "$active_projects"; then
-    cat <<EOF | ident
+    cat <<EOF | ident | color warn
 Warning: entered GCP project ID has not been listed in active projects.
 This may be a simiple typo or intentionally
 
@@ -99,6 +99,7 @@ List of active projects:
 $active_projects
 
 Entered value: $GOOGLE_PROJECT
+
 EOF
 fi
 
