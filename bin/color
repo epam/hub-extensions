@@ -8,7 +8,7 @@ Parameters:
   -c --color COLOR_CODE   Use color with this code
   -n                      Do not print the trailing newline character
   -b --bold               Use bold text
-  --                      STDIN pipe
+  -e --stderr             Write output to stderr instead of stdout
   -V --verbose            For debug purpose
   -h --help               Show this message
 
@@ -72,6 +72,10 @@ while test -n "$1"; do
       message="$*"
       break
     ;;
+    -e | --stderr )
+      stderr="1"
+      shift; continue
+    ;;
     e | err | error )
       _tput setaf 1
       _tput bold
@@ -99,6 +103,10 @@ while test -n "$1"; do
 done
 
 trap finalize EXIT
+
+if test -z "$message" -a ! -t 0; then
+    message=$(< /dev/stdin)
+fi
 
 if test -z "$stderr"; then
   $echo "$message"
