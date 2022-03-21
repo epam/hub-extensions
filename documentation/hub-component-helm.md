@@ -26,9 +26,9 @@ As every script, helm deployment scripts has been controlled via set off well-kn
 
 | Variable   | Description | Required
 | :-------- | :-------- | :-: |
-| `DOMAIN_NAME` | Hub will use a kubecontext that corresponds to FQDN of a stack | x |
-| `NAMESPACE` | Target kubernetes namespace | x |
+| `DOMAIN_NAME` | [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name) of a stack. We use this parameter as a natural id of the deployment | x |
 | `COMPONENT_NAME` | Corresponds to parameter `hub.componentName` parameter, however can be overriden in `hub-component.yaml`. Hub will use this variable as a helm release name | x |
+| `NAMESPACE` | Target kubernetes namespace | x |
 | `HELM_CHART` | This can have multiple values, that corresponds to the helm chart location. Corresponds to the helm chart tarball, directory or a chart name in the repository | x |
 | `HELM_REPO` | Instructs hub to download helm chart from the helm repository | |
 | `HELM_CHART_VERSION` | Addes a version constraint to the helm chart install. This variable works in conjunction with `HELM_REPO` | |
