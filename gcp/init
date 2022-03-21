@@ -34,7 +34,7 @@ while [ "$1" != "" ]; do
     ;;
   --gcp-project-id)
     shift
-    GCP_PROJECT_ID="$1"
+    GOOGLE_PROJECT="$1"
     INTERACTIVE=false
     ;;
   --gcp-application-credentials)
@@ -55,30 +55,30 @@ fi
 dotenv="dotenv -f $DOT_ENV"
 
 echo "Setting up access"
-if test -n "$GCP_PROJECT_ID"; then
-  echo "* Setting GCP project ID: defined via GCP_PROJECT_ID"
+if test -n "$GOOGLE_PROJECT"; then
+  echo "* Setting GCP project ID: defined via GOOGLE_PROJECT"
 else
   echo "* Setting GCP project ID"
   gcloud_result="$(gcloud config list --format="json" | jq -cMr '.core.project | select(.)')"
   if ! $INTERACTIVE; then
-    GCP_PROJECT_ID="$gcloud_result"
+    GOOGLE_PROJECT="$gcloud_result"
   elif test -z "$gcloud_result"; then
-    read -rp "  Enter value: " GCP_PROJECT_ID
+    read -rp "  Enter value: " GOOGLE_PROJECT
   elif test "$gcloud_result" = "$(echo "$gcloud_result" | cut -c1-31)"; then
     echo -n "  Enter value ("
     color -n b "$gcloud_result"
-    read -rp " #gcloud): " GCP_PROJECT_ID
+    read -rp " #gcloud): " GOOGLE_PROJECT
   else
     echo -n "  Enter value ("
     color -n b "$(echo "$gcloud_result" | cut -c1-31)..."
-    read -rp " #gcloud): " GCP_PROJECT_ID
+    read -rp " #gcloud): " GOOGLE_PROJECT
   fi
-  if test -z "$GCP_PROJECT_ID"; then
-    GCP_PROJECT_ID="$gcloud_result"
+  if test -z "$GOOGLE_PROJECT"; then
+    GOOGLE_PROJECT="$gcloud_result"
   fi
 fi
 
-if test -z "$GCP_PROJECT_ID"; then
+if test -z "$GOOGLE_PROJECT"; then
   cat << EOF
 
 Abort due: project ID has not been defined
@@ -90,7 +90,7 @@ EOF
 fi
 
 active_projects="$(gcloud projects list --format='json' | jq -cMr '[.[]][] | select(.lifecycleState == "ACTIVE").projectId | select(.)')"
-if ! contains "$GCP_PROJECT_ID" "$active_projects"; then
+if ! contains "$GOOGLE_PROJECT" "$active_projects"; then
     cat <<EOF | ident
 Warning: entered GCP project ID has not been listed in active projects.
 This may be a simiple typo or intentionally
@@ -98,11 +98,14 @@ This may be a simiple typo or intentionally
 List of active projects:
 $active_projects
 
-Entered value: $GCP_PROJECT_ID
+Entered value: $GOOGLE_PROJECT
 EOF
 fi
 
-$dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
+$dotenv set "GOOGLE_PROJECT=\"$GOOGLE_PROJECT\""
+# deprecated variable as not recognized by Terraform
+# see: https://registry.terraform.io/providers/hashicorp/google/3.29.0/docs/guides/provider_reference
+$dotenv set "GCP_PROJECT_ID=\"$GOOGLE_PROJECT\""
 
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   CREDS="$HOME/.config/gcloud/application_default_credentials.json"

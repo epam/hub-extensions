@@ -4,8 +4,8 @@
 usage() {
     cat <<EOF
 GCP parameters:
-  --gcp-project-id               GCP project ID (default to GCP_PROJECT_ID)
-  --gcs-bucket-name              GCS bucket name (defaults to GCP_PROJECT_ID_superhub_state)
+  --gcp-project-id               GCP project ID (default to GOOGLE_PROJECT)
+  --gcs-bucket-name              GCS bucket name (defaults to GOOGLE_PROJECT_superhub_state)
   --domain-name                  Domain name of the stack (we get one from bubble dns if not set)
 EOF
 }
@@ -21,7 +21,7 @@ while [ "$1" != "" ]; do
         ;;
     --gcp-project-id)
         shift
-        GCP_PROJECT_ID="$1"
+        GOOGLE_PROJECT="$1"
         ;;
     --domain-name)
         shift
@@ -31,12 +31,13 @@ while [ "$1" != "" ]; do
     shift
 done
 
-echo "Setting current GCP project to $GCP_PROJECT_ID"
-echo "* $(gcloud config set project "$GCP_PROJECT_ID" -q 2>&1)"
-
 if test "$VERBOSE" = "true"; then
 	set -x
 fi
+
+echo "Setting current GCP project to $GOOGLE_PROJECT"
+echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
+
 
 ### Enable required APIs
 gcloud services enable dns.googleapis.com
@@ -65,10 +66,10 @@ fi
 ### State Bucket
 echo "Configuring state storage"
 if test -z "$STATE_BUCKET"; then
-  STATE_BUCKET="superhub-$GCP_PROJECT_ID"
+  STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
-if gsutil du "gs://$STATE_BUCKET" > /dev/null 2>&1; then
-  echo "* Bucket gs://$STATE_BUCKET already exist in $GCP_PROJECT_ID"
+if gsutil -q ls -b gs://superhub-superhub > /dev/null 2>&1; then
+  echo "* Bucket gs://$STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
 	if gsutil mb -c standard -b on "gs://$STATE_BUCKET" > /dev/null 2>&1; then
 		echo "* Bucket gs://$STATE_BUCKET has been created"
@@ -84,7 +85,10 @@ HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$STATE_BUCKET/$HUB_DOMA
 dotenv="dotenv -f $DOT_ENV"
 $dotenv set "HUB_CLOUD_PROVIDER=\"$HUB_CLOUD_PROVIDER\""
 $dotenv set "STATE_BUCKET=\"$STATE_BUCKET\""
-$dotenv set "GCP_PROJECT_ID=\"$GCP_PROJECT_ID\""
+$dotenv set "GOOGLE_PROJECT=\"$GOOGLE_PROJECT\""
+# deprecated variable as not recognized by Terraform
+# see: https://registry.terraform.io/providers/hashicorp/google/3.29.0/docs/guides/provider_reference
+$dotenv set "GCP_PROJECT_ID=\"$GOOGLE_PROJECT\""
 $dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
 $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
 $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""
