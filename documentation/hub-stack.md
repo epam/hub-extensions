@@ -1,4 +1,4 @@
-# Command: hub stack
+# Command: `hub stack`
 
 Helps you to manage your stack deployments
 

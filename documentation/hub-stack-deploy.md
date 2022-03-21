@@ -1,4 +1,4 @@
-# Command: hub stack deploy
+# Command: `hub stack deploy`
 
 Runs deployment for entire stack or updates deployment of one or few components
 

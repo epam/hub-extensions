@@ -1,4 +1,4 @@
-# Command: hub stack set
+# Command: `hub stack set`
 
 Set stack by it's name as a current.
 

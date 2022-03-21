@@ -1,4 +1,4 @@
-# Command: hub stack ls
+# Command: `hub stack ls`
 
 Useful command when you have deployment multiple stacs from the one workdir it will help you to navigate across them
 

@@ -1,4 +1,4 @@
-# Command: hub stack undeploy
+# Command: `hub stack undeploy`
 
 Runs a reversive to un-deployment for operation for entire stack or one component
 

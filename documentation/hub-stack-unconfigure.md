@@ -1,4 +1,4 @@
-# Command: hub stack unconfigure
+# Command: `hub stack unconfigure`
 
 This command is basically deletes stack configuration created via `hub stack init` or `hub stack configure` commands.
 
