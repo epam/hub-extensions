@@ -12,7 +12,9 @@ contains() {
   local pattern result
   pattern="$1"
   shift
-  for w in $@; do
+
+  # shellcheck disable=SC2048
+  for w in $*; do
     if test "$w" = "$pattern"; then
       result="$w"
       break

@@ -11,7 +11,7 @@ cat << EOF
 Remove configuration from current stack
 
 Usage:
-$ hub stack unconfigure [DOMAIN_NAME]
+$ $HUB_EXTENSION [DOMAIN_NAME]
 
 Parameters:
     -V  --verbose          Verbose outputs for debug purpose
