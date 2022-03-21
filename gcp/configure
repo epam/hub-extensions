@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# shellcheck disable=SC1091
+# shellcheck disable=SC2090
 
 usage() {
     cat <<EOF
@@ -10,8 +10,11 @@ GCP parameters:
 EOF
 }
 
-JQ_ARGS="-cM"
-jq="jq $JQ_ARGS"
+jq='jq -cM'
+# shellcheck disable=SC2089
+curl='curl -isH "Metadata-Flavor: Google"'
+dotenv="dotenv -f $DOT_ENV"
+
 
 while [ "$1" != "" ]; do
     case $1 in
@@ -38,12 +41,23 @@ fi
 echo "Setting current GCP project to $GOOGLE_PROJECT"
 echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
 
+if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
+  echo "* The Hub CLI runs inside a Google Cloud environment"
+  GOOGLE_ZONE=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
+  GOOGLE_REGION="$(echo "$GOOGLE_ZONE" | cut -d- -f1-2)"
+  echo "  Setting region from metadata server: $GOOGLE_REGION"
+  $dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
+  echo "  Setting zone from metadata server: $GOOGLE_ZONE"
+  $dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
+fi
 
 ### Enable required APIs
+echo "* Enabling DNS API..."
 gcloud services enable dns.googleapis.com
 
 ### Create DNS Zone
 CURRENT_DIR=$(dirname "$0")
+# shellcheck disable=SC1091
 source "$CURRENT_DIR/../bubble-dns/include"
 if test -z "$HUB_DOMAIN_NAME"; then
   configureBubbleDNS
@@ -64,17 +78,18 @@ else
 fi
 
 ### State Bucket
-echo "Configuring state storage"
 if test -z "$STATE_BUCKET"; then
   STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
-if gsutil -q ls -b gs://superhub-superhub > /dev/null 2>&1; then
-  echo "* Bucket gs://$STATE_BUCKET already exist in $GOOGLE_PROJECT"
+echo -n "* Configuring state storage: "
+color h "gs://$STATE_BUCKET"
+if gsutil -q ls -b "gs://$STATE_BUCKET" > /dev/null 2>&1; then
+  echo "  Bucket gs://$STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
-	if gsutil mb -c standard -b on "gs://$STATE_BUCKET" > /dev/null 2>&1; then
-		echo "* Bucket gs://$STATE_BUCKET has been created"
+	if gsutil mb -c standard -b on "gs://$STATE_BUCKET" > /dev/null; then
+		echo "  Bucket gs://$STATE_BUCKET has been created"
 	else
-		echo "* Failed to create gs://$STATE_BUCKET bucket"
+		color err "  Failed to create gs://$STATE_BUCKET bucket"
 	fi
 fi
 
@@ -82,7 +97,6 @@ echo "* Setting hub state file location"
 HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state,gs://$STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
 HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
 
-dotenv="dotenv -f $DOT_ENV"
 $dotenv set "HUB_CLOUD_PROVIDER=\"$HUB_CLOUD_PROVIDER\""
 $dotenv set "STATE_BUCKET=\"$STATE_BUCKET\""
 $dotenv set "GOOGLE_PROJECT=\"$GOOGLE_PROJECT\""
