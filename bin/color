@@ -8,8 +8,8 @@ Parameters:
   -c --color COLOR_CODE   Use color with this code
   -n                      Do not print the trailing newline character
   -b --bold               Use bold text
-  -V --verbose            For debug purpose
   --                      STDIN pipe
+  -V --verbose            For debug purpose
   -h --help               Show this message
 
 Subcommands:
@@ -52,7 +52,7 @@ while test -n "$1"; do
       shift; continue
     ;;
     -n )
-      echo="echo -n"
+      echo="$echo -n"
       shift; continue
     ;;
     -b | --bold )
@@ -75,6 +75,7 @@ while test -n "$1"; do
     e | err | error )
       _tput setaf 1
       _tput bold
+      stderr="1"
       shift
       message="$*"
       break
@@ -99,4 +100,8 @@ done
 
 trap finalize EXIT
 
-$echo "$message"
+if test -z "$stderr"; then
+  $echo "$message"
+else
+  >&2 $echo "$message"
+fi

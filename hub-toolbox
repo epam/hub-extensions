@@ -1,24 +1,89 @@
 #!/bin/sh -e
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH HUB_WORKDIR
+DOT_ENV="$(files abspath .env)"
+export DOT_ENV
+
+usage() {
+cat << EOF
+Runs a toolbox as a container and mounts current working directory
+
+Usage:
+  $HUB_EXTENSION [DOMAIN_NAME]
+
+Parameters:
+    -i  --toolbox-image ARG  Toolbox docker image (default: HUB_TOOLBOX_IMAGE and agilestacks/toolbox:stable)
+    -V  --verbose            Verbose outputs for debug purpose
+    -h --help                Show this message
+
+EOF
+}
+
+TOOLBOX_SHELL="${TOOLBOX_SHELL:-"/bin/bash"}"
+
+while [ "$1" != "" ]; do
+    case $1 in
+    -i | --toolbox-image)
+        shift
+        HUB_TOOLBOX_IMAGE="$1"
+    ;;
+    -V | --verbose )
+        set -x
+    ;;
+    -h | --help )
+        usage
+        exit
+    ;;
+    * )
+        usage
+        exit 1
+    ;;
+    esac
+    shift
+done
+
 if test -z "$USER"; then
-    echo USER is not set
+    color err "Error: variable USER has not been defined"
     exit 1
 fi
 
 if test -z "$HOME"; then
-    echo HOME is not set
+    color err "Error: variable HOME has not been defined"
     exit 1
 fi
 
-BASEDIR="$(pwd)"
-if test "$BASEDIR" = "/"; then
-    echo "Toolbox doesn't support '/' as current directory"
+if test "$HUB_WORKDIR" = "/"; then
+    color err "Errror: cannot mount root (/) directory inside container"
     exit 1
 fi
 
-TOOLBOX_SHELL=${TOOLBOX_SHELL:-/bin/bash}
-IMAGE=${IMAGE:-agilestacks/toolbox}
-IMAGE_VERSION=${IMAGE_VERSION:-stable}
+if test -z "$HUB_TOOLBOX_IMAGE"; then
+    HUB_TOOLBOX_IMAGE=$(dotenv get "HUB_TOOLBOX_IMAGE" --default "docker.io/agilestacks/toolbox:stable")
+fi
+
+finalize() {
+  # shellcheck disable=SC2046
+  rv=$1
+
+  rm -rf "$envfile" "$pruned_docker_config_dir"
+
+  # shellcheck disable=SC2086
+  exit $rv
+}
+
+if test -z "$HUB_WORKDIR"; then
+  FIRST_FILE="$(echo "$HUB_FILES" | awk '{print $1;}')"
+  if test -f $FIRST_FILE; then
+    HUB_WORKDIR=$(dirname "$FIRST_FILE")
+  else
+    HUB_WORKDIR=$(pwd)
+  fi
+fi
 
 if  test -z "${AWS_PROFILE}" && \
     test -x "$(which aws)" && \
@@ -34,7 +99,9 @@ if test -s "$envfile"; then
     envadd="--env-file $envfile"
 fi
 
-docker_config=$HOME/.docker/config.json
+trap 'finalize $?' EXIT
+
+docker_config="$HOME/.docker/config.json"
 if test -f $docker_config && grep -E '(osxkeychain|desktop)"' $docker_config >/dev/null; then
     pruned_docker_config_dir=$(mktemp -d /tmp/docker.XXXXXX)
     sed -E -e 's/(osxkeychain|desktop)"/"/g' $docker_config > $pruned_docker_config_dir/config.json
@@ -62,13 +129,11 @@ docker run -ti --rm \
     -e "SHELL=${TOOLBOX_SHELL}" \
     -e 'PS1=\u@\e[92m\h\e[0m \w $ ' \
     -v "$HOME:$HOME" \
-    -v "$BASEDIR:$BASEDIR" \
+    -v "$HUB_WORKDIR:$HUB_WORKDIR" \
     $maybe_docker_socket \
     $maybe_docker_config \
     --privileged=true \
     --cap-add=NET_ADMIN \
-    -w "$BASEDIR" \
-    $envadd \
-    "$IMAGE:$IMAGE_VERSION" $args
-
-rm -f $envfile $pruned_docker_config
+    -w "$HUB_WORKDIR" \
+    "$HUB_TOOLBOX_IMAGE" \
+    $envadd $args
