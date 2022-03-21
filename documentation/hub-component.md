@@ -213,6 +213,6 @@ This article is not a reference guide, we do skip many things... Now we will jum
 
 At present we support following technologies
 
-1. Helm
-2. Kustomize
-3. Terraform
+* [Component Helm](hub-component-helm.md)
+* [Component Kustomize](hub-component-kustomize.md)
+* [Component Kustomize](hub-component-terraform.md)
