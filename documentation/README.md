@@ -14,9 +14,17 @@ Extensions provides following commands:
 | [`hub show`](hub-show.md) | Show parameters of a deployed stack |
 | [`hub toolbox`](hub-toolbox.md) | Starts a local toolbox container and mounts current file system inside |
 
+## Free form component
+
+Free form component provides maximum flexibility. There are no specific extension for that. However it will help to understand principles behind component specific extensions
+
+| Command   | Description | Selected when |
+| --------- | ----------- | --------- |
+| [`hub compoent`](hub-component.md) | Free form component. Can use any provisionoing tool or technology. Only one limietation, this tool must be delivered inside a toolbox (custom image ok) or be intalled on your workstation | `deploy` and `undeploy` or `deploy.sh` and `undeploy.sh` |
+
 ## Extensions for Component provisioning
 
-Extensions can be also used by the components automatically.
+Extensions can also provide an opinionated way on how to deploy a component using concrete technology
 
 | Command   | Description | Selected when |
 | --------- | ----------- | --------- |
