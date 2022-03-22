@@ -139,12 +139,9 @@ for ENV in $(params listenv); do
   else
     echo -n "* Parameter: "
     color h "$PARAM"
-    color -n h "  $ENV "
-    echo "already set"
+    echo "  $ENV already set"
     continue
   fi
   echo "$ENV=\"$VALUE\"" >> $DOT_ENV
-  echo -n "  saved as "
-  color -n b "$ENV"
-  echo " to .env file"
+  echo "  $ENV saved"
 done
