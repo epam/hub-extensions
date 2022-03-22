@@ -23,7 +23,7 @@ Then hub will be able detect this component as helm component and call provision
 
 As every script, helm deployment scripts has been controlled via set off well-known environment variables. These variables should be defined in parameters section of `hub-component.yaml`. List of expected environment variables
 
-| Variable   | Description | Required | Inherited `.env`
+| Variable   | Description | Required | Passed from `.env`
 | :-------- | :-------- | :-: | :--:
 | `COMPONENT_NAME` | Corresponds to parameter `hub.componentName` parameter, however can be overriden in `hub-component.yaml`. Hub will use this variable as a helm release name | x | |
 | `HUB_DOMAIN_NAME` | [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name) of a stack. We use this parameter as a natural id of the deployment | x | x |
