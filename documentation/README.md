@@ -12,5 +12,14 @@ Extensions provides following commands:
 | --------- | ---------
 | [`hub stack <subcommand>`](hub-stack.md) | Commands to manage your deployment |
 | [`hub show`](hub-show.md) | Show parameters of a deployed stack |
-| `hub toolbox` | Starts a local toolbox container and mounts current file system inside |
+| [`hub toolbox`](hub-toolbox.md) | Starts a local toolbox container and mounts current file system inside |
 
+## Extensions for Component provisioning
+
+Extensions can be also used by the components automatically.
+
+| Command   | Description | Selected when |
+| --------- | ----------- | --------- |
+| [`hub compoent terraform`](hub-component-terraform.md) | Deploys component using terraform | `*.tf` |
+| [`hub compoent helm`](hub-component-helm.md) | Deploys component with helm chart | `values.yaml` |
+| [`hub compoent kustomize`](hub-component-kustomize.md)| Deploys component with kustomize | `kustomization.yaml` |
