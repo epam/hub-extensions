@@ -15,7 +15,7 @@ Kubernetes parameters:
                           "_" reserved for "current context"
   --current-kubecontext   Use current kubecontext (this is the default)
 
-Use: hub configure [--kubecontext _] or [--current-kubecontext] for current kubecontext
+Use: $HUB_EXTENSION [--kubecontext _] or [--current-kubecontext] for current kubecontext
 
 EOF
 }

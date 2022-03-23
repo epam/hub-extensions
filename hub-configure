@@ -271,7 +271,7 @@ fi
 export HUB_WORKDIR
 if test -z "$HUB_FILES"; then
   cat << EOF
-Cannot find hub files! Please run "hub stack initt"
+Cannot find hub files! Please run "hub stack init"
 
 Example:
   hub stack init -f hub.yaml
