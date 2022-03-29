@@ -5,7 +5,9 @@ usage() {
     cat <<EOF
 GCP parameters:
   --gcp-project-id               GCP project ID (default to GOOGLE_PROJECT)
-  --gcs-bucket-name              GCS bucket name (defaults to GOOGLE_PROJECT_superhub_state)
+  --gcp-region                   GCP region (defaults to GOOGLE_REGION)
+  --gcp-zone                     GCP region (defaults to GOOGLE_ZONE)
+  --gcs-bucket-name              GCS bucket name (defaults to GOOGLE_PROJECT_superhub)
   --domain-name                  Domain name of the stack (we get one from bubble dns if not set)
 EOF
 }
@@ -20,11 +22,19 @@ while [ "$1" != "" ]; do
     case $1 in
     --gcs-bucket-name)
         shift
-        STATE_BUCKET="$1"
+        HUB_STATE_BUCKET="$1"
         ;;
     --gcp-project-id)
         shift
         GOOGLE_PROJECT="$1"
+        ;;
+    --gcp-region)
+        shift
+        GOOGLE_REGION="$1"
+        ;;
+    --gcp-zone)
+        shift
+        GOOGLE_ZONE="$1"
         ;;
     --domain-name)
         shift
@@ -38,17 +48,16 @@ if test "$VERBOSE" = "true"; then
 	set -x
 fi
 
-echo "Setting current GCP project to $GOOGLE_PROJECT"
+echo -n "Setting current GCP project to: "
+color h "$GOOGLE_PROJECT"
 echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
 
 if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
   echo "* The Hub CLI runs inside a Google Cloud environment"
-  GOOGLE_ZONE=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
-  GOOGLE_REGION="$(echo "$GOOGLE_ZONE" | cut -d- -f1-2)"
-  echo "  Setting region from metadata server: $GOOGLE_REGION"
-  $dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
-  echo "  Setting zone from metadata server: $GOOGLE_ZONE"
-  $dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
+  if test -z "$GOOGLE_REGION"; then
+    GOOGLE_ZONE=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
+    GOOGLE_REGION="$(echo "$GOOGLE_ZONE" | cut -d- -f1-2)"
+  fi
 fi
 
 ### Enable required APIs
@@ -68,37 +77,51 @@ FOUND=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
 	--format json | $jq '. | length' | xargs)
 export HUB_CLOUD_PROVIDER=gcp
 if test "$FOUND" == "0"; then
-	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME has not been found. Creating.."
+	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME has not been found. Creating (takes a minute)..."
 	echo "* $(gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
 		--description="Managed by Superhub" \
 		--dns-name="$HUB_DOMAIN_NAME" 2>&1;)"
+  # FIXME: bubble-dns/include should be implemented as CLI and available in bin directory
 	updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
 else
 	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME found"
 fi
 
 ### State Bucket
-if test -z "$STATE_BUCKET"; then
-  STATE_BUCKET="superhub-$GOOGLE_PROJECT"
+if test -z "$HUB_STATE_BUCKET"; then
+  HUB_STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
 echo -n "* Configuring state storage: "
-color h "gs://$STATE_BUCKET"
-if gsutil -q ls -b "gs://$STATE_BUCKET" > /dev/null 2>&1; then
-  echo "  Bucket gs://$STATE_BUCKET already exist in $GOOGLE_PROJECT"
+color h "gs://$HUB_STATE_BUCKET"
+if gsutil -q ls -b "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
+  echo "  Bucket gs://$HUB_STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
-	if gsutil mb -c standard -b on "gs://$STATE_BUCKET" > /dev/null; then
-		echo "  Bucket gs://$STATE_BUCKET has been created"
+	if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null; then
+		echo "  Bucket gs://$HUB_STATE_BUCKET has been created"
 	else
-		color err "  Failed to create gs://$STATE_BUCKET bucket"
+		color err "  Failed to create gs://$HUB_STATE_BUCKET bucket"
 	fi
 fi
 
-echo "* Setting hub state file location"
-HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state,gs://$STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
-HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
+HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
+HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
+
+if test -n "$GOOGLE_REGION"; then
+  echo -n "* Setting region: "
+  color h "$GOOGLE_REGION"
+  $dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
+fi
+
+if test -n "$GOOGLE_ZONE"; then
+  echo -n "* Setting zone: "
+  color h "$GOOGLE_ZONE"
+  $dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
+fi
 
 $dotenv set "HUB_CLOUD_PROVIDER=\"$HUB_CLOUD_PROVIDER\""
-$dotenv set "STATE_BUCKET=\"$STATE_BUCKET\""
+$dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
+# TODO: STATE_BUCKET is deprecated and will be removed in favour of HUB_STATE_BUCKET
+$dotenv set "STATE_BUCKET=\"$HUB_STATE_BUCKET\""
 $dotenv set "GOOGLE_PROJECT=\"$GOOGLE_PROJECT\""
 # deprecated variable as not recognized by Terraform
 # see: https://registry.terraform.io/providers/hashicorp/google/3.29.0/docs/guides/provider_reference

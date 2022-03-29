@@ -1,17 +1,55 @@
-#!/bin/bash
+#!/bin/bash -e
 
-verb=${1:-deploy}
+verb=${1:-"deploy"}
 
-if test -z "$COMPONENT_NAME" -o -z "$DOMAIN_NAME" -o -z "$CLOUD_KIND" -o -z "$STATE_BUCKET" -o -z "$STATE_REGION"; then
-    echo "COMPONENT_NAME, DOMAIN_NAME, CLOUD_KIND, STATE_BUCKET, STATE_REGION must be set"
+if test -n "$CLOUD_KIND"; then
+    color w "Environment variable: CLOUD_KIND has been deprecated"
+    color w "Use HUB_CLOUD_PROVIDER instead"
+    HUB_CLOUD_PROVIDER="$CLOUD_KIND"
+    export HUB_CLOUD_PROVIDER
+fi
+
+if test -n "$STATE_BUCKET"; then
+    color w "Environment variable: STATE_BUCKET has been deprecated"
+    color w "Use HUB_STATE_BUCKET instead"
+    HUB_STATE_BUCKET="$STATE_BUCKET"
+    export HUB_STATE_BUCKET
+fi
+
+if test -n "$DOMAIN_NAME"; then
+    color w "Environment variable: DOMAIN_NAME has been deprecated"
+    color w "Use HUB_DOMAIN_NAME instead"
+    HUB_DOMAIN_NAME="$DOMAIN_NAME"
+    export HUB_DOMAIN_NAME
+fi
+
+if test -z "$COMPONENT_NAME" -o -z "$HUB_DOMAIN_NAME" -o -z "$HUB_CLOUD_PROVIDER" -o -z "$HUB_STATE_BUCKET"; then
+    color e "COMPONENT_NAME, HUB_DOMAIN_NAME, HUB_CLOUD_PROVIDER, HUB_STATE_BUCKET must be set"
     exit 1
 fi
 
-STATE_PREFIX="$DOMAIN_NAME/$(basename $(pwd))/$(echo $COMPONENT_NAME | sed -e 's/[^a-zA-Z0-9_-]+/-/g')"
+if test -z "$STATE_PREFIX"; then
+    STATE_PREFIX=$(echo "$HUB_DOMAIN_NAME/$(basename "$(pwd)")/$COMPONENT_NAME" | sed -e 's/[^a-zA-Z0-9_-]+/-/g')
+    export STATE_PREFIX
+fi
 
-case "$CLOUD_KIND" in
+case "$HUB_CLOUD_PROVIDER" in
     aws )
-        STATE_BACKEND_CONFIG="-backend-config=bucket=$STATE_BUCKET -backend-config=region=$STATE_REGION -backend-config=key=$STATE_PREFIX/terraform.tfstate -backend-config=profile=$AWS_PROFILE"
+        if test -n "$STATE_REGION"; then
+            color w "Environment variable: STATE_REGION has been deprecated"
+            color w "Use HUB_STATE_REGION instead"
+            HUB_STATE_REGION="$STATE_REGION"
+            export HUB_STATE_REGION
+        fi
+        if test -z "$HUB_STATE_REGION"; then
+            HUB_STATE_REGION="$(
+                aws s3api get-bucket-location \
+                --bucket="$HUB_STATE_BUCKET" --query 'LocationConstraint' \
+                --output text \
+                | sed -e 's/None/us-east-1/g')"
+            export HUB_STATE_REGION
+        fi
+        STATE_BACKEND_CONFIG="-backend-config=bucket=$HUB_STATE_BUCKET -backend-config=region=$HUB_STATE_REGION -backend-config=key=$STATE_PREFIX/terraform.tfstate -backend-config=profile=$AWS_PROFILE"
         STATE_BACKEND_TYPE=s3
         ;;
     azure )
@@ -19,15 +57,15 @@ case "$CLOUD_KIND" in
             echo "STATE_CONTAINER, AZURE_RESOURCE_GROUP_NAME must be set"
             exit 1
         fi
-        STATE_BACKEND_CONFIG="-backend-config=storage_account_name=$STATE_BUCKET -backend-config=container_name=$STATE_CONTAINER -backend-config=resource_group_name=$AZURE_RESOURCE_GROUP_NAME -backend-config=key=$STATE_PREFIX/terraform.tfstate"
+        STATE_BACKEND_CONFIG="-backend-config=storage_account_name=$HUB_STATE_BUCKET -backend-config=container_name=$STATE_CONTAINER -backend-config=resource_group_name=$AZURE_RESOURCE_GROUP_NAME -backend-config=key=$STATE_PREFIX/terraform.tfstate"
         STATE_BACKEND_TYPE=azurerm
         ;;
     gcp )
-        STATE_BACKEND_CONFIG="-backend-config=bucket=$STATE_BUCKET -backend-config=prefix=$STATE_PREFIX -backend-config=credentials=$GOOGLE_APPLICATION_CREDENTIALS"
+        STATE_BACKEND_CONFIG="-backend-config=bucket=$HUB_STATE_BUCKET -backend-config=prefix=$STATE_PREFIX -backend-config=credentials=$GOOGLE_APPLICATION_CREDENTIALS"
         STATE_BACKEND_TYPE=gcs
         ;;
     * )
-        echo "cloud.kind / CLOUD_KIND must be one of: aws, azure, gcp"
+        echo "cloud.kind / HUB_CLOUD_PROVIDER must be one of: aws, azure, gcp"
         exit 1
 esac
 
@@ -45,21 +83,40 @@ if test -n "$TERRAFORM_VERSION"; then
     fi
 fi
 
+TF_DATA_DIR="${TF_DATA_DIR:-".terraform/$HUB_DOMAIN_NAME"}"
+TF_LOG_PATH="${TF_LOG_PATH:-"$TF_DATA_DIR/terraform.log"}"
+TF_LOG="${TF_LOG:-"trace"}"
+TF_INPUT="${TF_INPUT:-"0"}"
+export TF_INPUT TF_LOG TF_LOG_PATH TF_DATA_DIR
 
-export TF_DATA_DIR=.terraform/$DOMAIN_NAME
-export TF_LOG_PATH=$TF_DATA_DIR/terraform.log
-export TF_CLI_ARGS=${TF_CLI_ARGS:--input=false}
+TF_CLI_ARGS=${TF_CLI_ARGS:--input=false}
 TFPLAN=$TF_DATA_DIR/terraform.tfplan
 
 if test $verb == undeploy; then
     destroy=-destroy
 fi
 
-set -xe
+# for backwards compatibility
+if test -z "$DOMAIN_NAME"; then
+    DOMAIN_NAME="$HUB_DOMAIN_NAME"
+    export DOMAIN_NAME
+fi
 
-mkdir -p $TF_DATA_DIR
+if test -z "$STATE_BUCKET"; then
+    STATE_BUCKET="$HUB_STATE_BUCKET"
+    export STATE_BUCKET
+fi
+
+if test -z "$STATE_REGION"; then
+    STATE_REGION="$HUB_STATE_REGION"
+    export STATE_REGION
+fi
+
+mkdir -p "$TF_DATA_DIR"
 
 if test -x pre-init; then
+    echo "Running post init script..."
+    echo
     pre_init=$(./pre-init)
     tfvars=$(grep -E '^export ' <<<"$pre_init" || exit 0)
     if test -n "$tfvars"; then eval "$tfvars"; fi
@@ -69,18 +126,18 @@ if test ! -f _backend.tf && ! grep -E 'backend ".+" \{' *.tf >/dev/null; then
     echo -e "terraform {\n  backend \"$STATE_BACKEND_TYPE\" {}\n}" > _backend.tf
 fi
 
-if test "$CLOUD_KIND" == azure -a -z "$ARM_CLIENT_ID" -a -z "$ARM_ACCESS_KEY"; then
+if test "$HUB_CLOUD_PROVIDER" == azure -a -z "$ARM_CLIENT_ID" -a -z "$ARM_ACCESS_KEY"; then
     ARM_ACCESS_KEY=${AZURE_STORAGE_ACCESS_KEY:-$AZURE_STORAGE_KEY}
     if test -z "$ARM_ACCESS_KEY"; then
         if test -z "$AZURE_CLIENT_ID"; then
-            set +x
-            echo
-            echo "You may want to set AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID"
-            echo "    or ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_SUBSCRIPTION_ID ARM_TENANT_ID"
-            echo "    or ARM_ACCESS_KEY for Terraform Azure backend"
-            echo "https://www.terraform.io/docs/language/settings/backends/azurerm.html"
-            echo
-            set -x
+            cat << EOF | color w
+
+    You may want to set AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID"
+    or ARM_CLIENT_ID ARM_CLIENT_SECRET ARM_SUBSCRIPTION_ID ARM_TENANT_ID"
+    or ARM_ACCESS_KEY for Terraform Azure backend"
+    https://www.terraform.io/docs/language/settings/backends/azurerm.html"
+
+EOF
         else
             ARM_CLIENT_ID=$AZURE_CLIENT_ID
             ARM_CLIENT_SECRET=$AZURE_CLIENT_SECRET
@@ -93,18 +150,61 @@ if test "$CLOUD_KIND" == azure -a -z "$ARM_CLIENT_ID" -a -z "$ARM_ACCESS_KEY"; t
     fi
 fi
 
+cat << EOF
+
+Running:
+
+    terraform init -get=true $TF_CLI_ARGS -reconfigure -force-copy $STATE_BACKEND_CONFIG
+
+EOF
 $terraform init -get=true $TF_CLI_ARGS -reconfigure -force-copy $STATE_BACKEND_CONFIG
 
 if test -x pre-$verb; then
+    echo "Running pre $verb script..."
+    echo
     pre_verb=$(./pre-$verb)
     tfvars=$(grep -E '^export ' <<<"$pre_verb" || exit 0)
     if test -n "$tfvars"; then eval "$tfvars"; fi
 fi
 
+echo
+
+for filename in *.tfvars; do
+    if test ! -f "$filename"; then continue; fi
+    echo -n "* Using terraform variables from file:  "
+    color b "$filename"
+    TF_CLI_ARGS_plan="$TF_CLI_ARGS_plan -var-file=$filename"
+done
+
+for tfvar in $(printenv | awk 'BEGIN{for(v in ENVIRON) print v}' | grep '^TF_VAR_' | cat); do
+    echo -n "* Using terraform environemnt variable: "
+    color b "$tfvar"
+done
+
+export TF_CLI_ARGS TF_CLI_ARGS_plan
+
+cat << EOF
+
+Running:
+
+    terraform plan $destroy $TF_CLI_ARGS $TF_CLI_ARGS_plan -out=$TFPLAN
+
+EOF
 $terraform plan $destroy $TF_CLI_ARGS -out=$TFPLAN
+
+cat << EOF
+
+Running:
+
+    terraform apply $TF_CLI_ARGS -auto-approve $TFPLAN
+
+EOF
+
 $terraform apply $TF_CLI_ARGS -auto-approve $TFPLAN
 echo
 
 if test -x post-$verb; then
+    echo "Running post $verb script..."
+    echo
     ./post-$verb
 fi
