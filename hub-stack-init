@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# shellcheck disable=SC2046,SC2068,SC2064,SC2086
+# shellcheck disable=SC2016,SC2068,SC2086
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
@@ -157,7 +157,8 @@ mkdir -p "$TEMP_DIR"
 trap 'finalize $TEMP_DIR' EXIT
 
 temp_file() {
-  echo "$TEMP_DIR/$(cat /dev/urandom | head -c 32 | base64 | tr -dc 'a-z')"
+
+  echo "$TEMP_DIR/$(cat /dev/urandom | head -c 32 | base64 | tr -dc '[:lower:]')"
 }
 
 download_file() {
@@ -193,7 +194,8 @@ expand_hub_files() {
     if test -f "$f"; then
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
       echo "* Checking $f"
-      included="$(cat "$f" | yq e '.extensions.include.[]' -)"
+
+      included="$(yq e '.extensions.include.[]' "$f")"
       if test -n "$included"; then
         expand_hub_files $included
       fi
@@ -227,7 +229,7 @@ expand_hub_files() {
 
 update_symlink() {
   if test -L "$2"; then
-    if test $(readlink -n "$2") != "$1"; then
+    if test "$(readlink -n "$2")" != "$1"; then
       unlink "$2"
     fi
   fi
@@ -250,7 +252,7 @@ componentSourceSubdir() {
 }
 
 componentSourceRef() {
-  $jq --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["master"] | [ .[] | select(.!= "")][0]'
+  $jq --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["__auto__"] | [ .[] | select(.!= "")][0]'
 }
 
 getParamFromState() {
@@ -338,6 +340,7 @@ if test -n "$HUB_STATE"; then
       fi
     done
   done
+  # shellcheck disable=SC2046
   eval $(dotenv export -f "$DOT_ENV")
 fi
 
@@ -370,8 +373,18 @@ for hubfile in $HUB_FILES; do
       temp_dir=$(temp_file)
       echo "  Retrieving from git source repository"
       echo "  Running: git clone $git_repo"
+      mkdir -p "$temp_dir";
       git clone --depth 1 "$git_repo" "$temp_dir" > /dev/null
-      (cd "$temp_dir"; if test "$(git rev-parse --abbrev-ref HEAD)" != "$ref"; then git checkout "$ref"; fi)
+      (
+        cd "$temp_dir";
+        head="$(git rev-parse --abbrev-ref HEAD)";
+        if test "$ref" = "__auto__"; then
+          echo -n "  Using branch: ";
+          color b "$head";
+        elif test "$head" != "$ref"; then
+          git checkout "$ref";
+        fi
+      )
       echo "  Saving component: $comp_dir"
       mkdir -p "$HUB_WORKDIR/$comp_dir"
       cp -rf "$temp_dir/$subdir/." "$HUB_WORKDIR/$comp_dir"
@@ -386,7 +399,16 @@ for hubfile in $HUB_FILES; do
       echo "  Retrieving from gcp source repository"
       echo "  Running: gcloud source repos clone $gcp_repo"
       gcloud --no-user-output-enabled source repos clone "$gcp_repo" "$temp_dir"
-      (cd "$temp_dir" && test "$(git rev-parse --abbrev-ref HEAD)" = "$ref" || git checkout "$ref")
+      (
+        cd "$temp_dir";
+        head="$(git rev-parse --abbrev-ref HEAD)";
+        if test "$ref" = "__auto__"; then
+          echo -n "  Using branch: ";
+          color b "$head";
+        elif test "$head" != "$ref"; then
+          git checkout "$ref";
+        fi
+      )
       echo "  Saving component: $comp_dir"
       mkdir -p "$HUB_WORKDIR/$comp_dir"
       cp -rf "$temp_dir/$subdir/." "$HUB_WORKDIR/$comp_dir"
