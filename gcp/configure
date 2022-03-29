@@ -58,6 +58,18 @@ if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
     GOOGLE_ZONE=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
     GOOGLE_REGION="$(echo "$GOOGLE_ZONE" | cut -d- -f1-2)"
   fi
+else
+  if test -z "$GOOGLE_REGION"; then
+    echo -n "* Getting default region from project config: "
+    GOOGLE_REGION=$(gcloud config get-value "compute/region")
+    color b "$GOOGLE_REGION"
+  fi
+
+  if test -z "$GOOGLE_ZONE"; then
+    echo -n "* Getting default region from project config: "
+    GOOGLE_ZONE=$(gcloud config get-value "compute/zone")
+    color b "$GOOGLE_ZONE"
+  fi
 fi
 
 ### Enable required APIs
@@ -92,7 +104,7 @@ if test -z "$HUB_STATE_BUCKET"; then
   HUB_STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
 echo -n "* Configuring state storage: "
-color h "gs://$HUB_STATE_BUCKET"
+color b "gs://$HUB_STATE_BUCKET"
 if gsutil -q ls -b "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
   echo "  Bucket gs://$HUB_STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
@@ -108,13 +120,13 @@ HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$HUB_STATE_BUCKET/$HUB_
 
 if test -n "$GOOGLE_REGION"; then
   echo -n "* Setting region: "
-  color h "$GOOGLE_REGION"
+  color b "$GOOGLE_REGION"
   $dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
 fi
 
 if test -n "$GOOGLE_ZONE"; then
   echo -n "* Setting zone: "
-  color h "$GOOGLE_ZONE"
+  color b "$GOOGLE_ZONE"
   $dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
 fi
 
