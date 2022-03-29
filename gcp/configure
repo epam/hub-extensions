@@ -60,13 +60,13 @@ if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
   fi
 else
   if test -z "$GOOGLE_REGION"; then
-    echo -n "* Getting default region from project config: "
+    echo -n "* Getting default region from project: "
     GOOGLE_REGION=$(gcloud config get-value "compute/region")
     color b "$GOOGLE_REGION"
   fi
 
   if test -z "$GOOGLE_ZONE"; then
-    echo -n "* Getting default region from project config: "
+    echo -n "* Getting default zone from project: "
     GOOGLE_ZONE=$(gcloud config get-value "compute/zone")
     color b "$GOOGLE_ZONE"
   fi
