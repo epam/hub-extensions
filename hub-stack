@@ -9,7 +9,7 @@ Management commands:
     configure       Update stack configuration
     ls              List of available stacks
     set             Setting active stack
-    unconfigure     Delete current stack configuration
+    rm              Delete current stack configuration
 
 Deployment commands:
     deploy          Deploy current stack

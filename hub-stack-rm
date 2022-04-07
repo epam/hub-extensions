@@ -85,4 +85,10 @@ if test -L ".env"; then
   unlink "$HUB_WORKDIR/.env"
 fi
 
-echo "Unconfigured!"
+cat <<EOF
+
+State has been removed.
+
+Please not this does not affect the deployment of a stack
+
+EOF
