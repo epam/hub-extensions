@@ -66,6 +66,11 @@ while [ "$1" != "" ]; do
   case $1 in
     -f | --file )
       shift
+      cat << EOF | color w
+Warning: "$HUB_EXTENSION --file $1" has been deprecated. It will be removed in the future releases
+Please use:
+  hub stack init --file $1
+EOF
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
       continue
       ;;
