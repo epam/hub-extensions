@@ -121,6 +121,14 @@ EOF
   exit 2
 fi
 
+if test "$HUB_AUTOCONFIGURE" = "1"; then
+  echo -n "Proceeding with:"; color h "configure"
+  hub stack configure
+  echo "Reloading .env file"
+  eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
+  echo -n "Proceeding with:"; color h "$verb"
+fi
+
 if test -z "$HUB_DOMAIN_NAME"; then
 cat << EOF
 Error: cannot find hub definition files (HUB_DOMAIN_NAME) in .env"

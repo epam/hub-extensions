@@ -11,27 +11,9 @@ jq="jq -cMr "
 
 export HUB_HOME PATH HUB_HOME HUB_WORKDIR DOT_ENV
 
-find_in_path() {
-  local _file _path rv
-  _file="$(echo "$1" | sed -e 's/^\///')"
-  ( IFS=:
-    for _path in $PATH; do
-      if test -x "$_path/$_file"; then
-        rv="$_path/$_file"
-        echo "$rv"
-        break;
-      fi
-    done
-    if test -z "$rv"; then
-      >&2 echo "Error: command not found: $1"
-      exit 44
-    fi
-  )
-}
-
 
 toJson() {
-  cat "$1" | yq e -o=json
+  yq e -o=json "$1"
 }
 
 usage() {
@@ -47,7 +29,7 @@ EOF
   if test -n "$@"; then
     for req in $@; do
       local init
-      init=$(find_in_path "$req/init")
+      init=$(files find-in-path "$req/init")
       if test -n "$init"; then
         $init --help
       fi
@@ -74,11 +56,10 @@ finalize() {
 }
 
 VERBOSE=false
-SILENT=false
 HELP=false
 ARGS=$*
 HUB_FILES=""
-
+HUB_AUTOCONFIGURE="${HUB_AUTOCONFIGURE:-1}"
 
 while [ "$1" != "" ]; do
   case $1 in
@@ -96,6 +77,10 @@ while [ "$1" != "" ]; do
     --profile )
       shift
       HUB_DEPLOY_PROFILE="$1"
+      ;;
+    --disable-auto-configure )
+      shift
+      HUB_AUTOCONFIGURE="0"
       ;;
     -V | --verbose )
       VERBOSE=true
@@ -141,9 +126,9 @@ EOF
 fi
 
 if test -z "$HUB_FILES"; then
-  cat << EOF
+  cat << EOF | color e
 
-Error: cannot find hub definition files
+Error: cannot find hubfile(s)
 
 Example:
   $HUB_EXTENSION -f hub.yaml
@@ -335,7 +320,7 @@ if test -n "$HUB_STATE"; then
 
       state_val=$(getParamFromState "$state" "$param")
       if test -n "$state_val"; then
-        dotenv -f "$DOT_ENV" set "$env=\"$state_val\""
+        dotenv set "$env=\"$state_val\""
         echo "  Saving $env to .env file"
       fi
     done
@@ -345,7 +330,7 @@ if test -n "$HUB_STATE"; then
 fi
 
 for req in $HUB_STACK_REQUIRES; do
-  init=$(find_in_path "$req/init")
+  init=$(files find-in-path "$req/init")
   echo -n "Initializing "
   color h "$req"
   $init $ARGS
@@ -417,9 +402,10 @@ for hubfile in $HUB_FILES; do
   done
 done
 
-dotenv -f "$DOT_ENV" set "HUB_FILES=\"$HUB_FILES\""
+dotenv set "HUB_AUTOCONFIGURE=\"$HUB_AUTOCONFIGURE\""
+dotenv set "HUB_FILES=\"$HUB_FILES\""
 if test -n "$HUB_STATE"; then
-  dotenv -f "$DOT_ENV" set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
+  dotenv set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
 fi
 update_symlink "$DOT_ENV" "$HUB_WORKDIR/.env"
 

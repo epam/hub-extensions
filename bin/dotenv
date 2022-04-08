@@ -6,13 +6,14 @@ usage() {
 
 Parameters:
   --default VALUE         Default value if applicable (can repeat multiple times)
-  -f --file PATH          Path to .env file (can repeat multiple times)
+  -f --file PATH          Path to .env file (can repeat multiple times, can be from DOT_ENV)
   --verbose               Verbose output for debugging
 
 Subcommands:
-  $(basename "$0") set KEY -f FILE       returns all keys in dotenv file
-  $(basename "$0") get KEY -f FILE       returns value associated with KEY or empty string
-  $(basename "$0") keys -f FILE          returns all keys in dotenv file
+  $(basename "$0") get KEY               returns value associated with KEY or empty string
+  $(basename "$0") set KEY               returns all keys in dotenv file
+  $(basename "$0") contains              returns all keys in dotenv file
+  $(basename "$0") keys                  returns all keys in dotenv file
   $(basename "$0") merge (-f FILE1)...   merges two or .env files
   $(basename "$0") export                exports dotenv file for bash
 EOF
@@ -27,7 +28,7 @@ VERBOSE=${VERBOSE:-false}
 DEFAULTS=
 while [ "$1" != "" ]; do
   case "$1" in
-    get )
+    get | contains | contain | has | have )
       ACTION="$1"
       shift
       KEY="$1"
@@ -171,6 +172,41 @@ dotenv::keys() {
   done
 }
 
+contains_word() {
+  local pattern result
+  pattern="$1"
+  shift
+
+  # shellcheck disable=SC2048
+  for w in $*; do
+    if test "$w" = "$pattern"; then
+      result="$w"
+      break
+    fi
+  done
+  test -n "$result"
+}
+
+dotenv::contains() {
+  local result keys
+  for f in $FILES; do
+    if ! test -f "$f"; then
+      continue
+    fi
+    keys="$(dotenv::keys "$f")"
+    for w in $keys; do
+      if test "$w" = "$1"; then
+        result="$w"
+        break
+      fi
+    done
+    if test -n "$result"; then
+      break
+    fi
+  done
+  test -n "$result"
+}
+
 FIRST_FILE=$(echo "$FILES" | awk '{print $1;}')
 case $ACTION  in
   "merge" )
@@ -185,6 +221,9 @@ case $ACTION  in
     else
       echo "$DEFAULTS"
     fi
+  ;;
+  "contains" | "contain" | "has" | "have" )
+    dotenv::contains "$KEY" "$FIRST_FILE"
   ;;
   "set" )
     dotenv::$ACTION $ARG;;

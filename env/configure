@@ -104,6 +104,7 @@ for ENV in $(params listenv); do
     VAL_history=$($history get $ENV)
     VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
     VAL_empty=""
+    exist_empty=""
     EMPTY=$(echo "$json" | $jq '.empty | select (.)')
     if test "$EMPTY" = "allow"; then
       HASHTAGS="hubstate default empty"
@@ -120,8 +121,14 @@ for ENV in $(params listenv); do
 
     if ! $INTERACTIVE; then
       VALUE="$val"
+    elif test -z "$val" -a -n "$hashtag"; then
+      if test "$hashtag" = "empty" && dotenv -f "$HUB_WORKDIR/.env" -f "$DOT_ENV" contains "$ENV"; then
+        echo "  $ENV already set"
+        continue
+      fi
+      read -rp "  Enter value (#$hashtag): " VALUE
     elif test -z "$val"; then
-      read -rp "  Enter value: " VALUE
+      read -rp "  Enter value (#$hashtag): " VALUE
     elif test "$val" = "$(echo $val | cut -c1-31)"; then
       echo -n "  Enter value ("
       color -n b "$val"
