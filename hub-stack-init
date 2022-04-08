@@ -24,6 +24,9 @@ Usage:
   $HUB_EXTENSION -f <path-or-url-hub.yaml>
   $HUB_EXTENSION -f <path-or-url-hub.yaml> -s <path-or-url-to-hubstate>
 
+Parameters:
+  --disable-auto-configure    turn off configure action on deploy
+
 EOF
 
   if test -n "$@"; then
