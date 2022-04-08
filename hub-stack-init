@@ -24,9 +24,6 @@ Usage:
   $HUB_EXTENSION -f <path-or-url-hub.yaml>
   $HUB_EXTENSION -f <path-or-url-hub.yaml> -s <path-or-url-to-hubstate>
 
-Parameters:
-  --disable-auto-configure    turn off configure action on deploy
-
 EOF
 
   if test -n "$@"; then
@@ -43,7 +40,8 @@ cat <<EOF
 Common parameters:
   -f  --file                  URL (http) or path to stack definition file (can be repeated multiple times)
   -s  --state                 URL (gs only) or path to state file
-      --force                 Force to overwrite .env file
+  --disable-auto-configure    Turn off configure action on deploy
+  --force                     Force to overwrite .env file
   -V  --verbose               Verbose outputs for debug purposes
   -h  --help                  Print this message
 EOF
