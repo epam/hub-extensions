@@ -176,7 +176,7 @@ if test -n "$CHART_VALUES_FILE"; then
 fi
 for file in values.yaml values-*.yaml values.yml values-*.yml $EXTRA_VALUES_FILE; do
     if test ! -f "$file"; then continue; fi
-    echo "* $file"
+    color b "  $file"
     HELM_ARGS="$HELM_ARGS --values $file";
 done
 echo "Installing helm chart: $COMPONENT_NAME"
