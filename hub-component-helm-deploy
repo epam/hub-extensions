@@ -1,7 +1,15 @@
 #!/bin/bash -e
-if test -z "$COMPONENT_NAME" -o -z "$DOMAIN_NAME" -o -z "$NAMESPACE" -o -z "$HELM_CHART"; then
+
+if test -n "$DOMAIN_NAME"; then
+    color w "Environment variable: DOMAIN_NAME has been deprecated"
+    color w "Use HUB_DOMAIN_NAME instead"
+    HUB_DOMAIN_NAME="$DOMAIN_NAME"
+    export HUB_DOMAIN_NAME
+fi
+
+if test -z "$COMPONENT_NAME" -o -z "$HUB_DOMAIN_NAME" -o -z "$NAMESPACE" -o -z "$HELM_CHART"; then
 #  -o -z "$HELM_REPO"
-    echo "COMPONENT_NAME, DOMAIN_NAME, NAMESPACE, HELM_CHART must be set"
+    color w "COMPONENT_NAME, HUB_DOMAIN_NAME, NAMESPACE, HELM_CHART must be set"
 fi
 
 if test -z "$HELM_OPTS"; then
@@ -9,14 +17,34 @@ if test -z "$HELM_OPTS"; then
 fi
 
 charts="$(mktemp -d)"
-trap "rm -rf -- $charts" EXIT
+trap 'rm -rf -- $charts' EXIT
+
+temp_file() {
+  # shellcheck disable=SC2002
+  echo "$charts/$(cat /dev/urandom | head -c 32 | base64 | tr -dc '[:lower:]')"
+}
+
+apply_crd_file() {
+    max_di=$(yq e 'di' "$1" | tail -1)
+    for i in $(seq 0 "$max_di"); do
+        crd=$(yq e "select(di == $i).metadata.name" "$1")
+        if test -z "$crd" -o "$crd" = "null"; then
+            continue
+        fi
+        if $kubectl get crd "$crd" > /dev/null; then
+            echo "  $crd already exists"
+        else
+            $kubectl create -f "$1"
+        fi
+    done
+}
 
 yq="yq"
 helm3="helm"
 if which helm3 >/dev/null; then helm3=helm3; fi
 
-kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
-helm="$helm3 --kube-context=$DOMAIN_NAME --namespace=$NAMESPACE"
+kubectl="kubectl --context=$HUB_DOMAIN_NAME --namespace=$NAMESPACE"
+helm="$helm3 --kube-context=$HUB_DOMAIN_NAME --namespace=$NAMESPACE"
 
 export kubectl helm
 
@@ -79,7 +107,7 @@ elif test -n "$HELM_REPO"; then
     # shellcheck disable=SC2086
     $helm fetch "$COMPONENT_NAME/$HELM_CHART" $HELM_ARGS --destination $charts --untar
 else
-    echo "Cannot find helm chart $HELM_CHART"
+    color e "Cannot find helm chart $HELM_CHART"
     exit 1
 fi
 
@@ -103,23 +131,24 @@ if ! $kubectl get namespace "$NAMESPACE" -o name > /dev/null;  then
   $kubectl create namespace "$NAMESPACE"
 fi
 
+if test -n "$CRD"; then
+    if echo "$CRD" | grep -e '^https\?://' >/dev/null 2>&1; then
+        echo "* Downloading CRD from: $CRD ..."
+        temp=$(temp_file)
+        files download "$CRD" "$temp"
+        apply_crd_file "$temp"
+    elif test -f "$CRD"; then
+        echo "* Reading CRD from: $CRD"
+        apply_crd_file "$CRD"
+    fi
+else
+    color w "Warning: file not found ($CRD)"
+fi
 if test -d "crds"; then
-    echo "Resolving CRDs"
     for file in crds/*.yaml crds/*.yml; do
         if test ! -f "$file"; then continue; fi
-        echo "* Reading: $file"
-        max_di=$($yq e 'di' "$file" | tail -1)
-        for i in $(seq 0 "$max_di"); do
-            crd=$($yq e "select(di == $i).metadata.name" "$file")
-            if test -z "$crd" -o "$crd" = "null"; then
-                continue
-            fi
-            if $kubectl get crd "$crd" > /dev/null; then
-                echo "  $crd already exists"
-            else
-                $kubectl create -f "$file"
-            fi
-        done
+        echo "* Reading CRD from: $file"
+        apply_crd_file "$file"
     done
 fi
 
@@ -133,11 +162,16 @@ fi
 echo "Resolving helm chart values:"
 if test -n "$CHART_VALUES_FILE"; then
     for file in $CHART_VALUES_FILE; do
-        if test -f "$chart_path/$file"; then
-            echo "* HELM_CHART/$file"
+        if echo "$file" | grep -e '^https\?://' >/dev/null 2>&1; then
+            color b "  $file (downloading)"
+            temp=$(temp_file)
+            files download "$file" "$temp"
+            HELM_ARGS="$HELM_ARGS --values $temp"
+        elif test -f "$chart_path/$file"; then
+            color b "  HELM_CHART/$file"
             HELM_ARGS="$HELM_ARGS --values $chart_path/$file"
         else
-            echo "* WARN: cannot find file HELM_CHART/$file (ignoring)"
+            color w "* Warning: cannot find file HELM_CHART/$file (ignoring)"
         fi
     done
 fi
@@ -147,12 +181,12 @@ for file in values.yaml values-*.yaml values.yml values-*.yml $EXTRA_VALUES_FILE
     HELM_ARGS="$HELM_ARGS --values $file";
 done
 echo "Installing helm chart: $COMPONENT_NAME"
-set -x
 
 if test -z "$HELM_OPTS"; then
     HELM_OPTS="--create-namespace --wait"
 fi
 
+set -x
 # shellcheck disable=SC2086
 $helm upgrade "$COMPONENT_NAME" "$chart_path" \
     $HELM_ARGS \

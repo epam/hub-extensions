@@ -3,7 +3,7 @@
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_EXTENSION="hub stack configure -r kubernetes"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
@@ -27,6 +27,7 @@ while [ "$1" != "" ]; do
     --kubeconfig )
       shift
       KUBECONFIG="$1"
+      export KUBECONFIG
       ;;
     --kubecontext )
       shift
@@ -52,10 +53,8 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-dotenv="dotenv -f $DOT_ENV"
-
 if test -z "$HUB_DOMAIN_NAME"; then
-  HUB_DOMAIN_NAME=$($dotenv get "HUB_DOMAIN_NAME" --default "cluster.local")
+  HUB_DOMAIN_NAME="$(dotenv get "HUB_DOMAIN_NAME")"
 fi
 
 if test -z "$KUBECONTEXT"; then
@@ -67,48 +66,26 @@ TEMP=$(mktemp || exit 1)
 trap "rm -f $TEMP" EXIT
 
 echo "Configuring Kubernetes"
-if test -n "$HUB_KUBECONFIG" \
-  && $(dirname $0)/configure-kubeconfig \
-      --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME" \
-      --save-to "$TEMP" \
-      --kubeconfig "$HUB_KUBECONFIG"; then
-  : # pass
-elif test -n "$KUBECONFIG" \
-  && $(dirname $0)/configure-kubeconfig \
-      --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME" \
-      --save-to "$TEMP" \
-      --kubeconfig "$KUBECONFIG"; then
-  : # pass
-elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then
-  : # pass
-elif $(dirname $0)/configure-kubeconfig \
-      --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME" \
-      --save-to "$TEMP" \
-      --kubeconfig "$HOME/.kube/config"; then
-  : # pass
-elif $(dirname $0)/configure-kubeconfig \
-      --kubecontext "$KUBECONTEXT" \
-      --domain-name "$HUB_DOMAIN_NAME" \
-      --save-to "$TEMP" \
-      --kubeconfig "$HOME/.kubeconfig"; then
-  : # pass
+if   kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" > "$TEMP"; then
+  echo -n "* Using kubeconfig from env:"
+  color b "HUB_KUBECONFIG"
+elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" > "$TEMP"; then
+  echo -n "* Using kubeconfig from env:"
+  color b "KUBECONTEXT"
+elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" > "$TEMP"; then : #pass
+  echo -n "* Using kubeconfig from default location:"
+  # shellcheck disable=SC2016
+  color b '$HOME/.kube/config'
+elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then : #pass
+  echo -n "* Using kubeconfig service account"
 else
-  cat << EOF
-
-Error: cannot find kubeconfig!
-EOF
-  exit 3
+  color w "Cannot configure kubeconfig. This may be ok if one of the components provides kubernetes"
+  echo "TODO: implement check for this case"
 fi
 
 WORKDIR=${WORKDIR:-$(pwd)}
-echo -n "* Saving kubeconfig to .hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
+echo  -n "* Setting up shared location for kubernetes "
+color -n b ".hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
 copy "$TEMP" "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 chmod go-rw "$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
-DOT_ENV=${DOT_ENV:-"$WORKDIR/.env"}
-cat << EOF >> $DOT_ENV
-# Location of sandboxed kubeconfig
-HUB_KUBECONFIG="$(files abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"
-EOF
+dotenv set "HUB_KUBECONFIG=\"$(files abspath $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)\""

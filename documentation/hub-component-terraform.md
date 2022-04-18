@@ -6,7 +6,7 @@ Terraform is a popular infrastruture as code technology often used to deploy clo
 
 If component follows the conventions below, then hub will know how to deploy  it.
 
-### Kustomize Detection
+### Terraform Detection
 
 When you want to use helm deployment add the following definition to the `hub-component.yaml`
 

@@ -1,17 +1,22 @@
 #!/bin/sh
 
-if test -z "$COMPONENT_NAME" -o -z "$DOMAIN_NAME" -o -z "$NAMESPACE"; then
-    echo "COMPONENT_NAME, DOMAIN_NAME, NAMESPACE must be set"
+if test -n "$DOMAIN_NAME"; then
+    color w "Environment variable: DOMAIN_NAME has been deprecated"
+    color w "Use HUB_DOMAIN_NAME instead"
+    HUB_DOMAIN_NAME="$DOMAIN_NAME"
+    export HUB_DOMAIN_NAME
+fi
+
+if test -z "$COMPONENT_NAME" -o -z "$HUB_DOMAIN_NAME" -o -z "$NAMESPACE"; then
+    echo "COMPONENT_NAME, HUB_DOMAIN_NAME, NAMESPACE must be set"
     exit 1
 fi
 
 helm3=helm
 if which helm3 >/dev/null; then helm3=helm3; fi
 
-export kubectl="kubectl --context=$DOMAIN_NAME --namespace=$NAMESPACE"
-export helm="$helm3 --kube-context=$DOMAIN_NAME --namespace=$NAMESPACE"
-
-set -xe
+export kubectl="kubectl --context=$HUB_DOMAIN_NAME --namespace=$NAMESPACE"
+export helm="$helm3 --kube-context=$HUB_DOMAIN_NAME --namespace=$NAMESPACE"
 
 if test -x pre-undeploy; then
     ./pre-undeploy
