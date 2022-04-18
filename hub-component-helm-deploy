@@ -39,7 +39,6 @@ apply_crd_file() {
     done
 }
 
-yq="yq"
 helm3="helm"
 if which helm3 >/dev/null; then helm3=helm3; fi
 

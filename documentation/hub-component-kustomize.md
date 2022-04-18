@@ -6,7 +6,7 @@ Kustomize is a popular packaging technology for Kubernetes applications. It reli
 
 ### Kustomize Detection
 
-Because kustomize has been part of `kubectl -k ...` this compoenent doesn't require any specific configuration besides just a kubernetes. So hubfile should have 
+Because kustomize has been part of `kubectl -k ...` this compoenent doesn't require any specific configuration besides just a kubernetes. So hubfile should have
 
 ```yaml
 requires:
@@ -23,10 +23,11 @@ As every script, helm deployment scripts has been controlled via set off well-kn
 
 | Variable   | Description | Required
 | :-------- | :-------- | :-: |
-| `DOMAIN_NAME` | Hub will use a kubecontext that corresponds to FQDN of a stack | x |
+| `DOMAIN_NAME` | [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name) of a stack. We use this parameter as a natural id of the deployment (defaults to implicit variable `HUB_DOMAIN_NAME`). Usage of this variables requires user to define a parameter `dns.domain` in `hub-component.yaml`. Yet we advice to use instead an implicit variable `HUB_DOMAIN_NAME` instead |  |
 | `NAMESPACE` | Target kubernetes namespace | x |
 | `HUB_KUSTOMIZE_TARBALL_URL` | Download kustomize base from the tarball. It will unpack tarball into `<component root>/kustomize` directory. Then you can refer resources or bases from this directory in your `kustomization.yaml` file | |
 | `HUB_KUSTOMIZE_TARBALL_SUBPATH` | Works in conjuction with `HUB_KUSTOMIZE_TARBALL_URL`, it instructs to unpack to the `<component root>/kustomize` a subpath inside the tarball | |
+| `CRD` | URL or local path to the CRD file (if not located in `<component root>/crds` directory)  | |
 
 ### Deployment hooks
 
@@ -47,6 +48,8 @@ We do advise not to deploy CRD with the helm chart. Because component `undeploy`
 2. CRDs will not be deleted after component will be undeployed. Which means you can redeploy the component without dropping user custom resources
 
 ## Examples
+
+`//TODO`
 
 ## See also
 
