@@ -26,14 +26,15 @@ As every script, helm deployment scripts has been controlled via set off well-kn
 
 | Variable   | Description | Required
 | :-------- | :-------- | :-: |
-| `DOMAIN_NAME` | [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name) of a stack. We use this parameter as a natural id of the deployment | x |
+| `DOMAIN_NAME` | [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name) of a stack. We use this parameter as a natural id of the deployment (defaults to implicit variable `HUB_DOMAIN_NAME`). Usage of this variables requires user to define a parameter `dns.domain` in `hub-component.yaml`. Yet we advice to use instead an implicit variable `HUB_DOMAIN_NAME` instead |  |
 | `COMPONENT_NAME` | Corresponds to parameter `hub.componentName` parameter, however can be overriden in `hub-component.yaml`. Hub will use this variable as a helm release name | x |
 | `NAMESPACE` | Target kubernetes namespace | x |
 | `HELM_CHART` | This can have multiple values, that corresponds to the helm chart location. Corresponds to the helm chart tarball, directory or a chart name in the repository | x |
 | `HELM_REPO` | Instructs hub to download helm chart from the helm repository | |
 | `HELM_CHART_VERSION` | Addes a version constraint to the helm chart install. This variable works in conjunction with `HELM_REPO` | |
 | `HELM_CHART_USERNAME` and `HELM_CHART_PASSWORD`| Username and password for helm chart repository basic auth | |
-| `CHART_VALUES_FILE` | Instructs hub that it must use concrete values file inside of the helm chart as the base and only override with parameters from `values.yaml` in the component root directory` | |
+| `CHART_VALUES_FILE` | Instructs hub that it must use concrete values file inside of the helm chart as the base and only override with parameters from `values.yaml` in the component root directory. Alternatively if this variable has prefix `http` or `https` then the file. Additional values files can be referenced by adding a whitespace (or new line) separated reference | |
+| `CRD` | URL or local path to the CRD file (if not located in `<component root>/crds` directory)  | |
 | `HELM_OPTS` | Helm command arguments, defautls to `--create-namespace --wait` | |
 
 #### Environment variable: `HELM_CHART`

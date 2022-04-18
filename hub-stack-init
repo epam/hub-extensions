@@ -143,7 +143,6 @@ mkdir -p "$TEMP_DIR"
 trap 'finalize $TEMP_DIR' EXIT
 
 temp_file() {
-
   echo "$TEMP_DIR/$(cat /dev/urandom | head -c 32 | base64 | tr -dc '[:lower:]')"
 }
 

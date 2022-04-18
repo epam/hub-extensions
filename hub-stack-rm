@@ -47,7 +47,7 @@ fi
 
 if test ! -f "$DOT_ENV"; then
   cat <<EOF
-* Nothing to unconfigure
+* Nothing to remove
 
 EOF
   usage
@@ -63,7 +63,7 @@ fi
 dotenv="dotenv -f $DOT_ENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
 if test -z "$HUB_DOMAIN_NAME"; then
-  HUB_DOMAIN_NAME="unconfigured"
+  HUB_DOMAIN_NAME="initialised"
   FILES=$(ls .hub/env/.env)
 else
   FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
@@ -89,6 +89,6 @@ cat <<EOF
 
 State has been removed.
 
-Please not this does not affect the deployment of a stack
+This operation does not undeploy associated to the stack resources
 
 EOF
