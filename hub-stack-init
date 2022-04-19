@@ -21,8 +21,13 @@ usage() {
 Initializes a brand new stack from existing hub file
 
 Usage:
+  $HUB_EXTENSION [flags] [id]
+
+Example:
+  $HUB_EXTENSION
   $HUB_EXTENSION -f <path-or-url-hub.yaml>
   $HUB_EXTENSION -f <path-or-url-hub.yaml> -s <path-or-url-to-hubstate>
+  $HUB_EXTENSION -f <path-or-url-hub.yaml> --force [id]
 
 EOF
 
@@ -36,14 +41,15 @@ EOF
     done
   fi
 
-cat <<EOF
-Common parameters:
-  -f  --file                  URL (http) or path to stack definition file (can be repeated multiple times)
-  -s  --state                 URL (gs only) or path to state file
+  cat <<EOF
+
+Flags:
+  -f, --file string           URL (http) or path to stack definition file (can be repeated multiple times)
+  -s, --state string          URL (https or gs only) or path to state file
   --disable-auto-configure    Turn off configure action on deploy
   --force                     Force to overwrite .env file
-  -V  --verbose               Verbose outputs for debug purposes
-  -h  --help                  Print this message
+  -V, --verbose               Verbose outputs for debug purposes
+  -h, --help                  Print this message
 EOF
 }
 
@@ -60,10 +66,10 @@ VERBOSE=false
 HELP=false
 ARGS=$*
 HUB_FILES=""
-HUB_AUTOCONFIGURE="${HUB_AUTOCONFIGURE:-1}"
+# HUB_AUTOCONFIGURE="${HUB_AUTOCONFIGURE:-1}"
 
 while [ "$1" != "" ]; do
-  case $1 in
+  case "$1" in
     -f | --file )
       shift
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
@@ -80,7 +86,6 @@ while [ "$1" != "" ]; do
       HUB_DEPLOY_PROFILE="$1"
       ;;
     --disable-auto-configure )
-      shift
       HUB_AUTOCONFIGURE="0"
       ;;
     -V | --verbose )
@@ -89,6 +94,9 @@ while [ "$1" != "" ]; do
     -h | --help )
       HELP=true
       ARGS="--help"
+      ;;
+    * )
+      STACK_ID="$1"
       ;;
   esac
   shift
@@ -259,6 +267,10 @@ export HUB_FILES
 
 mkdir -p "$HUB_WORKDIR/.hub/env"
 
+if test -n "$STACK_ID" -a -z "$SOURCE_HUB_STATE"; then
+  SOURCE_HUB_STATE="$(hub state show $STACK_ID -o json | $jq '.stateLocation.uri | select(.)')"
+fi
+
 if test -n "$SOURCE_HUB_STATE"; then
   echo "Checking hub state"
   for state in $(echo "$SOURCE_HUB_STATE" |tr ',' ' '); do
@@ -269,10 +281,11 @@ if test -n "$SOURCE_HUB_STATE"; then
     fi
 
     if echo "$state" | grep -e '^https\?://' >/dev/null 2>&1; then
-      echo "* Downloading from: $state"
+      echo -n "* Downloading from: $state... "
       if test ! -f "$temp"; then
         download_file "$state" "$temp"
       fi
+      echo "done"
     elif echo "$state" | grep -e '^gs\?://' >/dev/null 2>&1; then
       echo -n "* Downloading from: $state... "
       gsutil -q cp "$state" "$temp"
@@ -413,6 +426,10 @@ cat << EOF
 
 Stack has been initialized!
 
+EOF
+
+if test "$HUB_AUTOCONFIGURE" = "0"; then
+  cat << EOF
 Next step: apply deployment configuration
 
 Run:
@@ -422,3 +439,18 @@ For more details:
   hub stack configure --help
 
 EOF
+else
+  cat << EOF
+Next step: start deploy or undeploy operations
+
+Run:
+  hub stack deploy
+Or:
+  hub stack undeploy
+
+For more details:
+  hub stack deploy --help
+  hub stack undeploy --help
+
+EOF
+fi

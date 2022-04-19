@@ -2,9 +2,9 @@
 
 usage() {
   cat <<EOF
-GCP access parameters:
-      --gcp-project-id               ARG    Override GCP project ID
-      --gcp-application-credentials  ARG    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
+GCP access flags:
+      --gcp-project-id string                 Override GCP project ID
+      --gcp-application-credentials string    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
 EOF
 }
 
