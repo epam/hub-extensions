@@ -11,15 +11,25 @@ Parameters
   -f  --file FILE                specify hubfile  (can repeat, defaults to HUB_FILES .env or environemnt variable)
   -m  --message TEXT             add a text message to display to the user
   -a  --alternative-param PARAM  alternative parameter name to search for
-  --dotenv                       locatin for dotenv file ()
+  --dotenv FILE                  locatin for dotenv file (defaults to DOT_ENV or .env)
+  --suggested VALUE              value to use as a suggested default
 
 User hints
   +hubstate  -hubstate           enable or disable hint for hubstate
   +env       -env                enable or disable hint for environment variable
   +history   -history            enable or disable hint for history
   +default   -default            enable or disable hint for default value (must present in hubfile)
-  +empty     -empty              enable or disable hint to allow entry of empty value
+  +empty     -empty              enable or disable hint to allow entry of empty value (disables -random)
   +random    -random             enable or disable hint for random value
+
+User hints priority:
+
+  hubstate history default env suggested random empty
+
+Uaer hints enabled by default:
+
+  random history default env
+
 EOF
 }
 
