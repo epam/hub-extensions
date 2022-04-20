@@ -1,0 +1,204 @@
+#!/bin/bash -e
+
+usage() {
+  cat << EOF
+Asks user to enter value interactively and provides suggestion
+
+Usage
+  $(basename "$0") env VAR    # ask user to enter environment variable
+
+Parameters
+  -f  --file FILE                specify hubfile  (can repeat, defaults to HUB_FILES .env or environemnt variable)
+  -m  --message TEXT             add a text message to display to the user
+  -a  --alternative-param PARAM  alternative parameter name to search for
+  --dotenv                       locatin for dotenv file ()
+EOF
+}
+
+ident() {
+  sed 's/^/  /'
+}
+
+shorten() {
+  if test "$1" = "$(echo "$1" | cut -c1-31)"; then
+    echo "$1"
+  else
+    # shellcheck disable=SC2005
+    echo "$(echo "$1" | cut -c1-31)..."
+  fi
+}
+
+if test -z "$HUB_WORKDIR"; then
+  HUB_WORKDIR="$(dirname "$(files abspath .env)")"
+fi
+
+HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
+mkdir -p "$(dirname "$HISTORY_FILE")"
+touch "$HISTORY_FILE"
+
+suggested=""
+hubstate=""
+random="random"
+history="history"
+default="default"
+env="env"
+empty=""
+while test -n "$1"; do
+  case $1 in
+    -h | --help )
+        usage
+        exit ;;
+    env )
+      action="env"
+    ;;
+    -m | --message )
+      message="$2"
+      shift
+    ;;
+    -a | --alternative-param )
+      default_param="$2"
+      shift
+    ;;
+    -f | --file )
+      HUB_FILES="$HUB_FILES $2"
+      shift
+    ;;
+
+    --dotenv | --dot-env )
+      dot_env="$dot_env $2"
+      HUB_WORKDIR="$(basedir "$(files abspath "$2")")"
+      shift
+    ;;
+
+    --suggested )
+      suggested_value="$2"
+      suggested="suggested"
+      shift
+    ;;
+
+    +random | +hubstate | +env | +history | +default | +empty )
+      eval "$(echo "$1" | cut -c2-)=\"$(echo "$1" | cut -c2-)\""
+    ;;
+
+    -random | -hubstate | -env | -history | -default | -empty )
+      eval "$(echo "$1" | cut -c2-)=\"\""
+    ;;
+
+    * )
+      ENV="$1"
+    ;;
+  esac
+  shift
+done
+
+if test -n "$dot_env"; then
+  DOT_ENV="$dot_env"
+else
+  DOT_ENV="${DOT_ENV:-"$HUB_WORKDIR/.env"}"
+fi
+
+if test ! -f "$DOT_ENV"; then
+  color e "Error: file not found: .env"
+  exit 1
+fi
+
+if test -z "$action"; then
+  usage
+  exit 1
+fi
+
+if test -z "$HUB_FILES"; then
+  HUB_FILES="$(dotenv -f "$DOT_ENV" get "HUB_FILES")"
+fi
+
+if test -z "$message"; then
+  message="$ENV variable"
+fi
+
+export HUB_FILES DOT_ENV HUB_WORKDIR
+
+echo "* Setting $message"
+if dotenv contains "$ENV"; then
+    echo "$ENV already set" | ident
+    exit
+fi
+
+json="$(params envvar "$ENV")"
+if test -z "$json"; then
+  json="$(params json "$default_param")"
+fi
+
+brief=$(echo "$json" | jq -cMr '.brief | select (.)')
+if test -n "$brief"; then
+  echo "$brief" | ident
+fi
+
+param_value="$(echo "$json" | jq -cMr '.value | select(.)')"
+if test -n "$param_value"; then
+  param_name="$(echo "$json" | jq -cMr '.name | select (.)')"
+  echo -n "Saving $ENV from parameter " | ident
+  color -n b "$param_name"
+  dotenv set "$ENV=\"$param_value\""
+  exit 0
+fi
+
+EMPTY=$(echo "$json" | jq -cMr '.empty | select (.)')
+if test "$EMPTY" = "allow"; then
+  history=""
+  empty=""
+fi
+
+
+for hint in $hubstate $history $default $env $suggested $random $empty; do
+  case $hint in
+    "empty" )
+      hint_val=""
+      break
+    ;;
+    "default" )
+      hint_val="$(echo "$json" | jq -cMr '.default | select(.)')"
+    ;;
+    "env" )
+      hint_val=$(eval "echo \$$ENV")
+    ;;
+    "history" )
+      hint_val="$(dotenv -f "$HISTORY_FILE" get "$ENV")"
+    ;;
+    "hubstate" )
+      hint_val=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
+    ;;
+    "random" )
+      hint_val="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)"
+    ;;
+    "suggested" )
+      hint_val="$suggested_value"
+    ;;
+  esac
+  if test -n "$hint_val"; then
+    break;
+  fi
+done
+
+if test -z "$hint_val" -a "$hint" != "empty"; then
+  hint=""
+fi
+
+if test -z "$hint"; then
+  read -rp "  Enter value: " VALUE
+elif test -z "$hint_val"; then
+  read -rp "  Enter value (#$hint): " VALUE
+else
+  shorty="$(shorten $hint_val)"
+  echo -n "  Enter value ("
+  color -n b "$shorty"
+  read -rp " #$hint): " VALUE
+fi
+
+if test -n "$VALUE"; then
+  dotenv -f "$HISTORY_FILE" set "$ENV=\"$VALUE\""
+else
+  VALUE="$hint_val"
+fi
+
+dotenv set "$ENV=\"$VALUE\""
+echo "  $ENV saved"
