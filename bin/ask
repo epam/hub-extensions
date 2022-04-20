@@ -12,6 +12,14 @@ Parameters
   -m  --message TEXT             add a text message to display to the user
   -a  --alternative-param PARAM  alternative parameter name to search for
   --dotenv                       locatin for dotenv file ()
+
+User hints
+  +hubstate  -hubstate           enable or disable hint for hubstate
+  +env       -env                enable or disable hint for environment variable
+  +history   -history            enable or disable hint for history
+  +default   -default            enable or disable hint for default value (must present in hubfile)
+  +empty     -empty              enable or disable hint to allow entry of empty value
+  +random    -random             enable or disable hint for random value
 EOF
 }
 
@@ -32,9 +40,6 @@ if test -z "$HUB_WORKDIR"; then
   HUB_WORKDIR="$(dirname "$(files abspath .env)")"
 fi
 
-HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
-mkdir -p "$(dirname "$HISTORY_FILE")"
-touch "$HISTORY_FILE"
 
 suggested=""
 hubstate=""
@@ -148,6 +153,11 @@ if test "$EMPTY" = "allow"; then
   empty=""
 fi
 
+if test -n "$history"; then
+  HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
+  mkdir -p "$(dirname "$HISTORY_FILE")"
+  touch "$HISTORY_FILE"
+fi
 
 for hint in $hubstate $history $default $env $suggested $random $empty; do
   case $hint in
