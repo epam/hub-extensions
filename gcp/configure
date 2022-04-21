@@ -107,23 +107,46 @@ fi
 if test -z "$HUB_STATE_BUCKET"; then
   HUB_STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
-echo "Configuring remote state storage"
-echo -n "* Checking presence of gs bucket: "
-color -n b "gs://$HUB_STATE_BUCKET... "
+echo -n "Configuring state storage: "
+color b "gs://$HUB_STATE_BUCKET"
 if gsutil -q ls -b "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
-  echo "found"
+  echo "* Bucket gs://$HUB_STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
-  echo "creating... "
-	if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null; then
-		echo "  Bucket has been created"
-	else
-		color err "  Error: failed to create gs://$HUB_STATE_BUCKET bucket"
-    exit 1
-	fi
+  if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
+    gsutil label ch -l "managed-by":"superhub" "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1
+    echo "* Bucket gs://$HUB_STATE_BUCKET has been created"
+  else
+    color err "ERROR: Failed to create gs://$HUB_STATE_BUCKET bucket"
+  fi
 fi
 
 HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
 HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
+
+### State function
+STATE_FUNCTION_REGION="us-central1"
+STATE_FUNCTION_REPO="https://github.com/agilestacks/hub-utils.git"
+STATE_FUNCTION_REF="master"
+echo "Configuring state management cloud function "
+if gcloud functions describe stacks --region "$STATE_FUNCTION_REGION" > /dev/null 2>&1 && test -z "$FORCE_FUNCTION_UPDATE"; then
+  echo "* State management cloud function already deployed to $GOOGLE_PROJECT. Use --force flag to redeploy"
+else
+  echo -n "* Deploying the function to $GOOGLE_PROJECT (it could take up to 2 minutes). "
+  TEMP_DIR=$(mktemp -d || exit 2)
+  mkdir -p "$TEMP_DIR"
+  trap 'rm -rf $TEMP_DIR' EXIT
+  git clone --depth 1 "$STATE_FUNCTION_REPO" "$TEMP_DIR" > /dev/null 2>&1
+  git -C "$TEMP_DIR" checkout "$STATE_FUNCTION_REF" > /dev/null 2>&1
+  if RESULT=$(gcloud functions deploy stacks --runtime nodejs16 --trigger-http \
+    --allow-unauthenticated --memory 4096MB \
+    --source "$TEMP_DIR"/hub-state-api --entry-point stacks 2>&1); then
+    echo "Deployed"
+  else 
+    color err "Error occured, see the details below:"
+    color err "$RESULT"
+    exit 1
+  fi
+fi
 
 # if test -n "$GOOGLE_REGION"; then
 #   echo -n "* Setting region: "
