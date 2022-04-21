@@ -11,8 +11,8 @@ Parameters:
 
 Subcommands:
   $(basename "$0") get KEY               returns value associated with KEY or empty string
-  $(basename "$0") set KEY               returns all keys in dotenv file
-  $(basename "$0") contains              returns all keys in dotenv file
+  $(basename "$0") set KEY="VAL"         write line in this format to the .env file
+  $(basename "$0") contains KEY          exit with code 0 if .env file contains KEY
   $(basename "$0") keys                  returns all keys in dotenv file
   $(basename "$0") merge (-f FILE1)...   merges two or .env files
   $(basename "$0") export                exports dotenv file for bash
@@ -22,7 +22,6 @@ EOF
 TEMP_FILES=""
 trap 'rm -f $TEMP_FILES' EXIT
 
-FILES="$DOT_ENV"
 ACTION=
 VERBOSE=${VERBOSE:-false}
 DEFAULTS=
@@ -30,23 +29,23 @@ while [ "$1" != "" ]; do
   case "$1" in
     get | contains | contain | has | have )
       ACTION="$1"
+      KEY="$2"
       shift
-      KEY="$1"
     ;;
     merge | export | keys )
       ACTION="$1" ;;
     set )
       ACTION="$1"
+      ARG="$2"
       shift
-      ARG="$1"
     ;;
     -f | --file )
+      FILES=$(echo "$FILES" "$2" | xargs)
       shift
-      FILES=$(echo "$FILES" "$1" | xargs)
       ;;
     --default )
+      DEFAULTS=$(echo "$DEFAULTS" "$2" | xargs)
       shift
-      DEFAULTS=$(echo "$DEFAULT" "$1" | xargs)
       ;;
     -h | --help )
       usage
@@ -67,18 +66,10 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-if test -z "$FILES"; then
-  if test -f ".env"; then
-    FILES=".env"
-  else
-    cat <<EOF
-
-Error: cannot find .env file
-
-EOF
-    usage
-    exit 1
-  fi
+if test -z "$FILES" -a -n "$DOT_ENV"; then
+  FILES="$DOT_ENV"
+elif test -z "$FILES" -a -f ".env"; then
+  FILES="$(files abspath ".env")"
 fi
 
 dotenv::merge() {
