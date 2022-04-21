@@ -1,4 +1,5 @@
 #!/bin/bash -e
+# shellcheck disable=SC2034
 
 usage() {
   cat << EOF
@@ -14,6 +15,7 @@ Parameters
   --dotenv FILE                  locatin for dotenv file (defaults to DOT_ENV or .env)
   --suggested VALUE              value to use as a suggested default
   -p  --priority HINTS           set hints priority (default see below)
+  --non-interactive              set hints priority (defaults to TTY)
 
 User hints
   +hubstate  -hubstate           enable or disable hint for hubstate
@@ -51,6 +53,11 @@ if test -z "$HUB_WORKDIR"; then
   HUB_WORKDIR="$(dirname "$(files abspath .env)")"
 fi
 
+if test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
+  INTERACTIVE=true
+else
+  INTERACTIVE=false
+fi
 
 suggested=""
 hubstate=""
@@ -63,10 +70,12 @@ priority="hubstate history default env suggested random empty"
 while test -n "$1"; do
   case $1 in
     -h | --help )
-        usage
-        exit ;;
+      usage
+      exit ;;
     env )
       action="env"
+      ENV="$2"
+      shift
     ;;
     -m | --message )
       message="$2"
@@ -91,10 +100,14 @@ while test -n "$1"; do
       shift
     ;;
 
-    --suggested )
+    --suggest | --suggested )
       suggested_value="$2"
       suggested="suggested"
       shift
+    ;;
+
+    --non-interactive )
+      INTERACTIVE=false
     ;;
 
     +random | +hubstate | +env | +history | +default | +empty )
@@ -106,7 +119,9 @@ while test -n "$1"; do
     ;;
 
     * )
-      ENV="$1"
+      color e "Invalid option: $1"
+      usage
+      exit 1
     ;;
   esac
   shift
@@ -116,11 +131,6 @@ if test -n "$dot_env"; then
   DOT_ENV="$dot_env"
 else
   DOT_ENV="${DOT_ENV:-"$HUB_WORKDIR/.env"}"
-fi
-
-if test ! -f "$DOT_ENV"; then
-  color e "Error: file not found: .env"
-  exit 1
 fi
 
 if test -z "$action"; then
@@ -169,8 +179,8 @@ if test "$EMPTY" = "allow"; then
   empty=""
 fi
 
-if test -n "$history"; then
-  HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
+HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
+if test ! -f "$HISTORY_FILE"; then
   mkdir -p "$(dirname "$HISTORY_FILE")"
   touch "$HISTORY_FILE"
 fi
@@ -209,12 +219,14 @@ if test -z "$hint_val" -a "$hint" != "empty"; then
   hint=""
 fi
 
-if test -z "$hint"; then
+if ! $INTERACTIVE; then
+  VALUE="$hint_val"
+elif test -z "$hint"; then
   read -rp "  Enter value: " VALUE
 elif test -z "$hint_val"; then
   read -rp "  Enter value (#$hint): " VALUE
 else
-  shorty="$(shorten $hint_val)"
+  shorty="$(shorten "$hint_val")"
   echo -n "  Enter value ("
   color -n b "$shorty"
   read -rp " #$hint): " VALUE
@@ -224,6 +236,11 @@ if test -n "$VALUE"; then
   dotenv -f "$HISTORY_FILE" set "$ENV=\"$VALUE\""
 else
   VALUE="$hint_val"
+fi
+
+if test -z "$VALUE" -a "$hint" != "empty"; then
+  color e "Error: $ENV cannot have empty value" | ident
+  exit 1
 fi
 
 dotenv set "$ENV=\"$VALUE\""
