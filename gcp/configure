@@ -5,18 +5,19 @@ usage() {
     cat <<EOF
 GCP parameters:
   --gcp-project-id               GCP project ID (default to GOOGLE_PROJECT)
-  --gcp-region                   GCP region (defaults to GOOGLE_REGION)
-  --gcp-zone                     GCP region (defaults to GOOGLE_ZONE)
   --gcs-bucket-name              GCS bucket name (defaults to GOOGLE_PROJECT_superhub)
   --domain-name                  Domain name of the stack (we get one from bubble dns if not set)
 EOF
 }
 
+ident() {
+  sed 's/^/  /'
+}
+
 jq='jq -cM'
 # shellcheck disable=SC2089
-curl='curl -isH "Metadata-Flavor: Google"'
+# curl='curl -isH "Metadata-Flavor: Google"'
 dotenv="dotenv -f $DOT_ENV"
-
 
 while [ "$1" != "" ]; do
     case $1 in
@@ -28,14 +29,14 @@ while [ "$1" != "" ]; do
         shift
         GOOGLE_PROJECT="$1"
         ;;
-    --gcp-region)
-        shift
-        GOOGLE_REGION="$1"
-        ;;
-    --gcp-zone)
-        shift
-        GOOGLE_ZONE="$1"
-        ;;
+    # --gcp-region)
+    #     shift
+    #     GOOGLE_REGION="$1"
+    #     ;;
+    # --gcp-zone)
+    #     shift
+    #     GOOGLE_ZONE="$1"
+    #     ;;
     --domain-name)
         shift
         HUB_DOMAIN_NAME="$1"
@@ -48,33 +49,36 @@ if test "$VERBOSE" = "true"; then
 	set -x
 fi
 
+HUB_CLOUD_PROVIDER="gcp"
+export HUB_CLOUD_PROVIDER
+
 echo -n "Setting current GCP project to: "
-color h "$GOOGLE_PROJECT"
+color b "$GOOGLE_PROJECT"
 echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
 
-if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
-  echo "* The Hub CLI runs inside a Google Cloud environment"
-  if test -z "$GOOGLE_REGION"; then
-    GOOGLE_ZONE=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
-    GOOGLE_REGION="$(echo "$GOOGLE_ZONE" | cut -d- -f1-2)"
-  fi
-else
-  if test -z "$GOOGLE_REGION"; then
-    echo -n "* Getting default region from project: "
-    GOOGLE_REGION=$(gcloud config get-value "compute/region")
-    color b "$GOOGLE_REGION"
-  fi
+# if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
+#   echo "* The Hub CLI runs inside a Google Cloud environment"
+#   if test -z "$GOOGLE_REGION"; then
+#     GOOGLE_ZONE=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
+#     GOOGLE_REGION="$(echo "$GOOGLE_ZONE" | cut -d- -f1-2)"
+#   fi
+# else
+#   if test -z "$GOOGLE_REGION"; then
+#     echo -n "* Getting default region from project: "
+#     GOOGLE_REGION=$(gcloud config get-value "compute/region")
+#     color b "$GOOGLE_REGION"
+#   fi
 
-  if test -z "$GOOGLE_ZONE"; then
-    echo -n "* Getting default zone from project: "
-    GOOGLE_ZONE=$(gcloud config get-value "compute/zone")
-    color b "$GOOGLE_ZONE"
-  fi
-fi
+#   if test -z "$GOOGLE_ZONE"; then
+#     echo -n "* Getting default zone from project: "
+#     GOOGLE_ZONE=$(gcloud config get-value "compute/zone")
+#     color b "$GOOGLE_ZONE"
+#   fi
+# fi
 
-### Enable required APIs
-echo "* Enabling DNS API..."
-gcloud services enable dns.googleapis.com
+echo "Configuring Bubble DNS"
+echo -n "* Enabling API for dns.googleapis.com... "
+gcloud services enable "dns.googleapis.com" && echo "done"
 
 ### Create DNS Zone
 CURRENT_DIR=$(dirname "$0")
@@ -82,53 +86,56 @@ CURRENT_DIR=$(dirname "$0")
 source "$CURRENT_DIR/../bubble-dns/include"
 if test -z "$HUB_DOMAIN_NAME"; then
   configureBubbleDNS
-else
-  echo "Configuring Bubble DNS"
 fi
+echo -n "* Cloud DNS Zone "
+color -n b "$HUB_DOMAIN_NAME... "
 FOUND=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
 	--format json | $jq '. | length' | xargs)
-export HUB_CLOUD_PROVIDER=gcp
 if test "$FOUND" == "0"; then
-	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME has not been found. Creating (takes a minute)..."
-	echo "* $(gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
+	echo "not found"
+  echo "  Creating (takes a minute)... "
+  gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
 		--description="Managed by Superhub" \
-		--dns-name="$HUB_DOMAIN_NAME" 2>&1;)"
+		--dns-name="$HUB_DOMAIN_NAME" 2>&1 | ident;
   # FIXME: bubble-dns/include should be implemented as CLI and available in bin directory
 	updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
 else
-	echo "* Cloud DNS Zone $HUB_DOMAIN_NAME found"
+	echo "found"
 fi
 
 ### State Bucket
 if test -z "$HUB_STATE_BUCKET"; then
   HUB_STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
-echo -n "* Configuring state storage: "
-color b "gs://$HUB_STATE_BUCKET"
+echo "Configuring remote state storage"
+echo -n "* Checking presence of gs bucket: "
+color -n b "gs://$HUB_STATE_BUCKET... "
 if gsutil -q ls -b "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
-  echo "  Bucket gs://$HUB_STATE_BUCKET already exist in $GOOGLE_PROJECT"
+  echo "found"
 else
+  echo "creating... "
 	if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null; then
-		echo "  Bucket gs://$HUB_STATE_BUCKET has been created"
+		echo "  Bucket has been created"
 	else
-		color err "  Failed to create gs://$HUB_STATE_BUCKET bucket"
+		color err "  Error: failed to create gs://$HUB_STATE_BUCKET bucket"
+    exit 1
 	fi
 fi
 
 HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
 HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
 
-if test -n "$GOOGLE_REGION"; then
-  echo -n "* Setting region: "
-  color b "$GOOGLE_REGION"
-  $dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
-fi
+# if test -n "$GOOGLE_REGION"; then
+#   echo -n "* Setting region: "
+#   color b "$GOOGLE_REGION"
+#   $dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
+# fi
 
-if test -n "$GOOGLE_ZONE"; then
-  echo -n "* Setting zone: "
-  color b "$GOOGLE_ZONE"
-  $dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
-fi
+# if test -n "$GOOGLE_ZONE"; then
+#   echo -n "* Setting zone: "
+#   color b "$GOOGLE_ZONE"
+#   $dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
+# fi
 
 $dotenv set "HUB_CLOUD_PROVIDER=\"$HUB_CLOUD_PROVIDER\""
 $dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""

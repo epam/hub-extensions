@@ -7,6 +7,10 @@ HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
+ident() {
+  sed 's/^/  /'
+}
+
 usage() {
   cat << EOF
 Reads configuration information in ${HUB_FILES:-hub.yaml} and configures stack for deployment.
@@ -245,7 +249,7 @@ EOF
   dotenv merge $MERGE_FILES > $TEMP1
   HUB_DOMAIN_NAME=$(dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
   echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
-  copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+  copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
   if test -n "$HUB_DOMAIN_NAME" && $unconfigured; then
     echo "  Removing old: .hub/env/.env"
     rm -rf "$HUB_WORKDIR/.hub/env/.env"
@@ -254,8 +258,18 @@ EOF
   echo
   if test "$rv" = "0"; then
     echo "Done!"
+    cat <<EOF | color g
+
+Next step: start deploy or undeploy operations
+
+Run:
+  hub stack deploy
+Or:
+  hub stack undeploy
+
+EOF
   else
-    echo "See error above!"
+    color e "See error above!"
   fi
   exit $rv
 }
@@ -364,12 +378,12 @@ for req in $(echo "$REQS" | xargs -n1); do
   fi
 
   echo -n "Running configuration for: "
-  color h "$req"
+  color b "$req"
 
   DOT_ENV=$(temp_file)
   export DOT_ENV
   if ! $configure --output "$DOT_ENV" $ARGS; then
-    cat << EOF
+    cat << EOF | color e
 
 Error: "$req" completed with error!
 

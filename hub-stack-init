@@ -328,6 +328,7 @@ for req in $HUB_STACK_REQUIRES; do
   $init $ARGS
 done
 
+echo "Checking components"
 for hubfile in $HUB_FILES; do
   if test ! -f $hubfile; then
     color warn "* Warning: skipping $hubfile due to not found"
@@ -335,7 +336,7 @@ for hubfile in $HUB_FILES; do
   fi
   components="$(toJson "$hubfile" | $jq '.components' -)"
   for comp in $(echo "$components" | $jq '.[].name'); do
-    echo -n "* Checking component $comp: "
+    echo -n "* component $comp: "
     comp_dir=$(echo $components | componentDir "$comp")
     if test -d "$comp_dir"; then
       echo "already exist"
@@ -419,12 +420,12 @@ For more details:
 
 EOF
 else
-  cat << EOF
+  cat << EOF | color g
 Next step: start deploy or undeploy operations
 
 Run:
   hub stack deploy
-Or:
+or:
   hub stack undeploy
 
 For more details:

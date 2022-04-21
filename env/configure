@@ -50,105 +50,18 @@ if test -z "$HUB_WORKDIR"; then
   export HUB_WORKDIR
 fi
 
-jq="jq -cMr"
-
-HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
-mkdir -p "$(dirname "$HISTORY_FILE")"
-touch "$HISTORY_FILE"
-history="dotenv -f $HISTORY_FILE"
-
 if test $VERBOSE = "true"; then
   set -x
 fi
 
+echo "Configuring environment variables"
+
 if test -z "$HUB_FILES"; then
-  echo "Error: cannot find stack definition files"
+  color e "Error: cannot find stack definition files"
   exit 1
 fi
 
-echo "Configuring environment variables"
-# ALL_ENVS=
-# for f in $HUB_FILES; do
-#   test -f "$f" || continue;
-#   envs=$(
-#     yq e $f -o=json | jq -cr \
-#       '.. | objects | with_entries(select(.key=="fromEnv")).fromEnv? | select(.!=null)'
-#   )
-#   ALL_ENVS="$ALL_ENVS $envs"
-# done
-
-if test -z "$DOT_ENV"; then
-  echo "Error: please run with option: $(dirname "0")/$(basename "0") --output FILE "
-  exit 2
-fi
-
-touch $DOT_ENV
-for ENV in $(params listenv); do
-  json=$(params envvar "$ENV")
-  if test -z "$json"; then
-    color warn "* Warning: cannot find parameter for variable: $ENV"
-    continue
-  fi
-
-  VALUE=$(printenv "$ENV" || echo "")
-  PARAM=$(echo "$json" | $jq '.name  | select (.)')
-  BRIEF=$(echo "$json" | $jq '.brief | select (.)')
-  if test -z "$VALUE"; then
-    echo -n "* Parameter: "
-    color h "$PARAM"
-    if test -n "$BRIEF"; then
-      echo "$BRIEF" | ident
-    fi
-    VAL_default=$(echo "$json" | $jq '.default | select (.)')
-    VAL_hubstate=$(hub show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
-    VAL_history=$($history get $ENV)
-    VAL_random=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)
-    VAL_empty=""
-    exist_empty=""
-    EMPTY=$(echo "$json" | $jq '.empty | select (.)')
-    if test "$EMPTY" = "allow"; then
-      HASHTAGS="hubstate default empty"
-    else
-      HASHTAGS="hubstate history default random"
-    fi
-    for t in $HASHTAGS; do
-      val=$(eval echo "\$VAL_$t")
-      if test -n "$val" || test "$t" = "empty"; then
-        hashtag="$t"
-        break;
-      fi
-    done
-
-    if ! $INTERACTIVE; then
-      VALUE="$val"
-    elif test -z "$val" -a -n "$hashtag"; then
-      if test "$hashtag" = "empty" && dotenv -f "$HUB_WORKDIR/.env" -f "$DOT_ENV" contains "$ENV"; then
-        echo "  $ENV already set"
-        continue
-      fi
-      read -rp "  Enter value (#$hashtag): " VALUE
-    elif test -z "$val"; then
-      read -rp "  Enter value (#$hashtag): " VALUE
-    elif test "$val" = "$(echo $val | cut -c1-31)"; then
-      echo -n "  Enter value ("
-      color -n b "$val"
-      read -rp " #$hashtag): " VALUE
-    else
-      echo -n "  Enter value ("
-      color -n b "$(echo "$val" | cut -c1-31)..."
-      read -rp " #$hashtag): " VALUE
-    fi
-    if test -n "$VALUE"; then
-      $history set "$ENV=\"$VALUE\""
-    else
-      VALUE="$val"
-    fi
-  else
-    echo -n "* Parameter: "
-    color h "$PARAM"
-    echo "  $ENV already set"
-    continue
-  fi
-  echo "$ENV=\"$VALUE\"" >> $DOT_ENV
-  echo "  $ENV saved"
+for e in $(params listenv); do
+  pname="$(params "$e" envvar | jq -cMr '.name? | select(.)')"
+  ask env "$e" -m "parameter $pname" +random +empty -d "$DOT_ENV" -d "$(files abspath ".env")"
 done

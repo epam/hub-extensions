@@ -15,6 +15,7 @@ Parameters
   --dotenv FILE                  locatin for dotenv file (defaults to DOT_ENV or .env)
   --suggested VALUE              value to use as a suggested default
   -p  --priority HINTS           set hints priority (default see below)
+  -d  --dotenv FILE              link to dotenv file (can repeat, default to DOT_ENV). Results will be saved to the first file
   --non-interactive              set hints priority (defaults to TTY)
 
 User hints
@@ -94,9 +95,9 @@ while test -n "$1"; do
       shift
     ;;
 
-    --dotenv | --dot-env )
+    -d | --dotenv | --dot-env )
       dot_env="$dot_env $2"
-      HUB_WORKDIR="$(basedir "$(files abspath "$2")")"
+      HUB_WORKDIR="$(dirname "$(files abspath "$2")")"
       shift
     ;;
 
@@ -133,13 +134,22 @@ else
   DOT_ENV="${DOT_ENV:-"$HUB_WORKDIR/.env"}"
 fi
 
+first_dotenv="$(echo "$DOT_ENV" | awk '{print $1;}')"
+# expanding multiple dotenv files as -f arguments
+for d in $DOT_ENV; do
+  if test -f "$d"; then
+    dotenv="$dotenv -f $d"
+  fi
+done
+dotenv="dotenv $dotenv"
+
 if test -z "$action"; then
   usage
   exit 1
 fi
 
 if test -z "$HUB_FILES"; then
-  HUB_FILES="$(dotenv -f "$DOT_ENV" get "HUB_FILES")"
+  HUB_FILES="$($dotenv get "HUB_FILES")"
 fi
 
 if test -z "$message"; then
@@ -149,7 +159,7 @@ fi
 export HUB_FILES DOT_ENV HUB_WORKDIR
 
 echo "* Setting $message"
-if dotenv contains "$ENV"; then
+if $dotenv contains "$ENV"; then
     echo "$ENV already set" | ident
     exit
 fi
@@ -169,7 +179,7 @@ if test -n "$param_value"; then
   param_name="$(echo "$json" | jq -cMr '.name | select (.)')"
   echo -n "Saving $ENV from parameter " | ident
   color -n b "$param_name"
-  dotenv set "$ENV=\"$param_value\""
+  $dotenv set "$ENV=\"$param_value\""
   exit 0
 fi
 
@@ -243,5 +253,5 @@ if test -z "$VALUE" -a "$hint" != "empty"; then
   exit 1
 fi
 
-dotenv set "$ENV=\"$VALUE\""
+dotenv -f "$first_dotenv" set "$ENV=\"$VALUE\""
 echo "  $ENV saved"

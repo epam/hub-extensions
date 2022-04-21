@@ -7,7 +7,7 @@ Print colored message (if terminal supports colorings)
 Parameters:
   -c --color COLOR_CODE   Use color with this code
   -n                      Do not print the trailing newline character
-  -b --bold               Use bold text
+  +b --bold               Use bold text
   -e --stderr             Write output to stderr instead of stdout
   -V --verbose            For debug purpose
   -h --help               Show this message
@@ -16,6 +16,8 @@ Subcommands:
   h or hightlight    MSG  Prints bold white
   w, warn or warning MSG  Prints bold yellow
   e, err or error    MSG  Prints bold red
+  b, bold            MSG  Prints bold
+  g, green           MSG  Prints green
 
 EOF
 }
@@ -55,7 +57,7 @@ while test -n "$1"; do
       echo="$echo -n"
       shift; continue
     ;;
-    -b | --bold )
+    +b | --bold )
       _tput bold
       shift; continue
     ;;
@@ -80,6 +82,12 @@ while test -n "$1"; do
       _tput setaf 1
       _tput bold
       stderr="1"
+      shift
+      message="$*"
+      break
+    ;;
+    g | green )
+      _tput setaf 2
       shift
       message="$*"
       break

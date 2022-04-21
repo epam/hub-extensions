@@ -3,8 +3,10 @@
 usage() {
   cat <<EOF
 GCP access flags:
-      --gcp-project-id string                 Override GCP project ID
+      --gcp-project-id string                 Override GCP project ID (can be also defined via GOOGLE_PROJECT)
       --gcp-application-credentials string    Path to the google application credentials file (see: https://cloud.google.com/docs/authentication/getting-started, can be also defined via GOOGLE_APPLICATION_CREDENTIALS)
+      --gcp-region string                     Override GCP region (can be also defined via GOOGLE_REGION)
+      --gcp-zone' string                      Override GCP zone (can be also defined via GOOGLE_ZONE)
 EOF
 }
 
@@ -29,18 +31,22 @@ ident() {
 
 while [ "$1" != "" ]; do
   case $1 in
-  --defaults)
-    INTERACTIVE=false
-    ;;
   --gcp-project-id)
+    GOOGLE_PROJECT="$2"
     shift
-    GOOGLE_PROJECT="$1"
-    INTERACTIVE=false
     ;;
   --gcp-application-credentials)
+    GOOGLE_APPLICATION_CREDENTIALS="$2"
     shift
-    GOOGLE_APPLICATION_CREDENTIALS="$1"
     ;;
+  --gcp-region)
+    GOOGLE_REGION="$2"
+    shift
+  ;;
+  --gcp-zone)
+    GOOGLE_ZONE="$2"
+    shift
+  ;;
   -h | --help)
     usage
     exit 0
@@ -49,46 +55,24 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test "$VERBOSE" = "true"; then
-  set -x
-fi
+# if test "$VERBOSE" = "true"; then
+#   set -x
+# fi
 dotenv="dotenv -f $DOT_ENV"
-
-echo "Setting up access"
+# shellcheck disable=SC2089
+curl="curl -isH 'Metadata-Flavor: Google'"
+echo "Setting up credentials"
 if test -n "$GOOGLE_PROJECT"; then
   echo "* Setting GCP project ID: defined via GOOGLE_PROJECT"
 else
-  echo "* Setting GCP project ID"
   gcloud_result="$(gcloud config list --format="json" | jq -cMr '.core.project | select(.)')"
-  if ! $INTERACTIVE; then
-    GOOGLE_PROJECT="$gcloud_result"
-  elif test -z "$gcloud_result"; then
-    read -rp "  Enter value: " GOOGLE_PROJECT
-  elif test "$gcloud_result" = "$(echo "$gcloud_result" | cut -c1-31)"; then
-    echo -n "  Enter value ("
-    color -n b "$gcloud_result"
-    read -rp " #gcloud): " GOOGLE_PROJECT
+  if test -n "$gcloud_result"; then
+    ask env "GOOGLE_PROJECT" -m "GCP project ID" -a "projectId" --suggested "$gcloud_result" -random -empty
   else
-    echo -n "  Enter value ("
-    color -n b "$(echo "$gcloud_result" | cut -c1-31)..."
-    read -rp " #gcloud): " GOOGLE_PROJECT
-  fi
-  if test -z "$GOOGLE_PROJECT"; then
-    GOOGLE_PROJECT="$gcloud_result"
+    ask env "GOOGLE_PROJECT" -m "GCP project ID" -a "projectId" -random -empty
   fi
 fi
-
-if test -z "$GOOGLE_PROJECT"; then
-  cat << EOF
-
-Abort due: project ID has not been defined
-To correct this error run again:
-  $HUB_EXTENSION
-
-EOF
-  exit 2
-fi
-
+GOOGLE_PROJECT="$(dotenv get GOOGLE_PROJECT)"
 active_projects="$(gcloud projects list --format='json' | jq -cMr '[.[]][] | select(.lifecycleState == "ACTIVE").projectId | select(.)')"
 if ! contains "$GOOGLE_PROJECT" "$active_projects"; then
     cat <<EOF | ident | color warn
@@ -103,30 +87,67 @@ Entered value: $GOOGLE_PROJECT
 EOF
 fi
 
-$dotenv set "GOOGLE_PROJECT=\"$GOOGLE_PROJECT\""
 # deprecated variable as not recognized by Terraform
 # see: https://registry.terraform.io/providers/hashicorp/google/3.29.0/docs/guides/provider_reference
 $dotenv set "GCP_PROJECT_ID=\"$GOOGLE_PROJECT\""
 
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   CREDS="$HOME/.config/gcloud/application_default_credentials.json"
-  if curl -H "Metadata-Flavor: Google" "http://metadata.google.internal" -i >/dev/null 2>&1; then
+  # shellcheck disable=SC2090
+  if $curl -H 'http://metadata.google.internal' >/dev/null 2>&1; then
     echo "* The Hub CLI runs inside a Google Cloud environment using Environment-provided service account to talk to GCP"
   elif test -f "$CREDS"; then
-    echo "* $CREDS file exists"
-    echo "  ADC (Application Default Credentials) will be used to authenticate requests to GCP"
+    cat << EOF
+* $CREDS file exists
+  ADC (Application Default Credentials) will be used to authenticate requests to GCP
+EOF
   else
-    echo "* Since GOOGLE_APPLICATION_CREDENTIALS is not provided"
-    echo "  trying ADC (Application Default Credentials) to authenticate"
-    echo "  please give consent in the browser"
+    cat << EOF
+* Since GOOGLE_APPLICATION_CREDENTIALS is not provided
+  trying ADC (Application Default Credentials) to authenticate
+  please give consent in the browser
+EOF
     if gcloud auth application-default login >/dev/null 2>&1; then
       echo "* Consent has been given. $CREDS created"
     else
-      echo "gcloud auth application-default login command failed"
+      color e "gcloud auth application-default login command failed" | ident
       exit 1
     fi
   fi
 else
   echo "* Using application credentials: $GOOGLE_APPLICATION_CREDENTIALS"
   $dotenv set "GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\""
+fi
+
+# shellcheck disable=SC2090
+if test -z "$GOOGLE_REGION"; then
+  if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
+    suggest_zone=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
+    suggest_region="$(echo "$suggest_zone" | cut -d- -f1-2)"
+  else
+    suggest_region="$(gcloud config get-value "compute/region" 2> /dev/null)"
+  fi
+  if test -z "$suggest_region"; then
+    suggest_region="us-central1"
+  fi
+  ask env "GOOGLE_REGION" -m "GCP region" -a "cloud.region" --suggest "$suggest_region"
+else
+  echo "* Saving GCP region $GOOGLE_REGION"
+  dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
+fi
+
+# shellcheck disable=SC2090
+if test -z "$GOOGLE_ZONE"; then
+  if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
+    suggest_zone=$(basename "$($curl http://metadata.google.internal/computeMetadata/v1/instance/zone)")
+  else
+    suggest_zone="$(gcloud config get-value "compute/zone" 2> /dev/null)"
+  fi
+  if test -z "$suggest_zone"; then
+    suggest_zone="us-central1-a"
+  fi
+  ask env "GOOGLE_ZONE" -m "GCP zone" -a "cloud.zone" --suggest "$suggest_zone"
+else
+  echo "* Saving GCP zone $GOOGLE_ZONE"
+  dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
 fi
