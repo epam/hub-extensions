@@ -66,7 +66,7 @@ VERBOSE=false
 HELP=false
 ARGS=$*
 HUB_FILES=""
-# HUB_AUTOCONFIGURE="${HUB_AUTOCONFIGURE:-1}"
+HUB_AUTOCONFIGURE="${HUB_AUTOCONFIGURE:-1}"
 
 while [ "$1" != "" ]; do
   case "$1" in
@@ -151,28 +151,7 @@ mkdir -p "$TEMP_DIR"
 trap 'finalize $TEMP_DIR' EXIT
 
 temp_file() {
-  echo "$TEMP_DIR/$(cat /dev/urandom | head -c 32 | base64 | tr -dc '[:lower:]')"
-}
-
-download_file() {
-  local temp http_code
-  echo "  Downloading $(basename $2) from: $1"
-  temp="$TEMP_DIR/$(basename $2)"
-  http_code=$(
-    curl -sLo "$temp" -w "%{http_code}" "$1"
-  )
-  if test "$(echo $http_code | cut -c1-1)" != "2"; then
-    echo "Error downloading url: $http_code"
-    cat "$temp"
-    return $http_code
-  fi
-  if test ! -s "$temp"; then
-    echo "Error: have got empty file (url: $temp)"
-    return 1
-  fi
-  echo -n "  Saving variable to $(pwd): "
-  copy "$temp" "$2"
-  rm -f "$temp"
+  echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]')"
 }
 
 KNOWN_URLS=""
@@ -198,7 +177,7 @@ expand_hub_files() {
     if echo "$f" | grep -e '^https\?://' >/dev/null 2>&1; then
       local_file="$HUB_WORKDIR/$(basename "$f")"
       if test ! -f "$local_file"; then
-        download_file "$f" "$local_file"
+        files download "$f" "$local_file"
         KNOWN_URLS=$(dirname $f | xargs)
       fi
       expand_hub_files "$local_file"
@@ -207,7 +186,7 @@ expand_hub_files() {
 
     for url in $KNOWN_URLS; do
       # shellcheck disable=SC2001
-      if download_file "$url/$1" "$HUB_WORKDIR/$1"; then
+      if files download "$url/$1" "$HUB_WORKDIR/$1"; then
         expand_hub_files "$HUB_WORKDIR/$1"
         break
       fi
@@ -283,7 +262,7 @@ if test -n "$SOURCE_HUB_STATE"; then
     if echo "$state" | grep -e '^https\?://' >/dev/null 2>&1; then
       echo -n "* Downloading from: $state... "
       if test ! -f "$temp"; then
-        download_file "$state" "$temp"
+        files download "$state" "$temp"
       fi
       echo "done"
     elif echo "$state" | grep -e '^gs\?://' >/dev/null 2>&1; then
