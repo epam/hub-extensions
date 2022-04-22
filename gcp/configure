@@ -112,12 +112,14 @@ color b "gs://$HUB_STATE_BUCKET"
 if gsutil -q ls -b "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
   echo "* Bucket gs://$HUB_STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
-  if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
+  echo -n "* Creating bucket gs://$HUB_STATE_BUCKET... "
+	if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
     gsutil label ch -l "managed-by":"superhub" "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1
-    echo "* Bucket gs://$HUB_STATE_BUCKET has been created"
-  else
-    color err "ERROR: Failed to create gs://$HUB_STATE_BUCKET bucket"
-  fi
+		echo "done"
+	else
+		color err "Error: Failed to create gs://$HUB_STATE_BUCKET bucket"
+    exit 1
+	fi
 fi
 
 HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
@@ -141,7 +143,7 @@ else
     --allow-unauthenticated --memory 4096MB \
     --source "$TEMP_DIR"/hub-state-api --entry-point stacks 2>&1); then
     echo "Deployed"
-  else 
+  else
     color err "Error occured, see the details below:"
     color err "$RESULT"
     exit 1

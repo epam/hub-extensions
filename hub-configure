@@ -264,7 +264,7 @@ Next step: start deploy or undeploy operations
 
 Run:
   hub stack deploy
-Or:
+or:
   hub stack undeploy
 
 EOF
