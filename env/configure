@@ -63,7 +63,5 @@ fi
 
 for e in $(params listenv); do
   pname="$(params "$e" envvar | jq -cMr '.name? | select(.)')"
-  set -x
   ask env "$e" -m "parameter $pname" +empty -d "$DOT_ENV" -d "$(files abspath ".env")" -ask-env
-  set +x
 done
