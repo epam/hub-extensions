@@ -1,6 +1,10 @@
 #!/bin/bash -e
 # shellcheck disable=SC2034
 
+priority="parameter hubstate history default env suggested random empty"
+enabled="$priority"
+ask="suggested hubstate random history default env empty"
+
 usage() {
   cat << EOF
 Asks user to enter value interactively and provides suggestion
@@ -19,6 +23,7 @@ Parameters
   --non-interactive              set hints priority (defaults to TTY)
 
 User hints
+  +parameter -parameter          enable or disable hint for hubfile parameter value
   +hubstate  -hubstate           enable or disable hint for hubstate
   +env       -env                enable or disable hint for environment variable
   +history   -history            enable or disable hint for history
@@ -28,11 +33,18 @@ User hints
 
 User hints priority:
 
-  hubstate history default env suggested random empty
+  $priority
 
-Uaer hints enabled by default:
+Enabled hints by default:
 
-  random history default env
+  $enabled
+
+Advanced
+  +ask-HINT  -ask-HINT           to enable or disable user prompt for hint
+
+Example
+
+  ask .... -ask-env              to disable asking hint env and accept it's value
 
 EOF
 }
@@ -50,6 +62,21 @@ shorten() {
   fi
 }
 
+contains() {
+  local pattern result
+  pattern="$1"
+  shift
+
+  # shellcheck disable=SC2048
+  for w in $*; do
+    if test "$w" = "$pattern"; then
+      result="$w"
+      break
+    fi
+  done
+  test -n "$result"
+}
+
 if test -z "$HUB_WORKDIR"; then
   HUB_WORKDIR="$(dirname "$(files abspath .env)")"
 fi
@@ -60,14 +87,6 @@ else
   INTERACTIVE=false
 fi
 
-suggested=""
-hubstate=""
-random="random"
-history="history"
-default="default"
-env="env"
-empty=""
-priority="hubstate history default env suggested random empty"
 while test -n "$1"; do
   case $1 in
     -h | --help )
@@ -111,12 +130,23 @@ while test -n "$1"; do
       INTERACTIVE=false
     ;;
 
-    +random | +hubstate | +env | +history | +default | +empty )
-      eval "$(echo "$1" | cut -c2-)=\"$(echo "$1" | cut -c2-)\""
+    +parameter | +random | +hubstate | +env | +history | +default | +empty )
+      enabled="$enabled $(echo "$1" | cut -c2-)"
     ;;
 
-    -random | -hubstate | -env | -history | -default | -empty )
-      eval "$(echo "$1" | cut -c2-)=\"\""
+    -parameter | -random | -hubstate | -env | -history | -default | -empty )
+      word="$(echo "$1" | cut -c2-)"
+      enabled="${enabled/$word/}"
+    ;;
+
+    +ask-parameter | +ask-random | +ask-hubstate | +ask-env | +ask-history | +ask-default | +ask-empty )
+      ask="$ask $(echo "$1" | cut -c6-)"
+    ;;
+
+    -ask-parameter | -ask-random | -ask-hubstate | -ask-env | -ask-history | -ask-default | -ask-empty )
+      word="$(echo "$1" | cut -c6-)"
+      # shellcheck disable=SC2001
+      ask="${ask/$word/}"
     ;;
 
     * )
@@ -160,8 +190,8 @@ export HUB_FILES DOT_ENV HUB_WORKDIR
 
 echo "* Setting $message"
 if $dotenv contains "$ENV"; then
-    echo "$ENV already set" | ident
-    exit
+  echo "$ENV already set" | ident
+  exit
 fi
 
 json="$(params envvar "$ENV")"
@@ -174,19 +204,10 @@ if test -n "$brief"; then
   echo "$brief" | ident
 fi
 
-param_value="$(echo "$json" | jq -cMr '.value | select(.)')"
-if test -n "$param_value"; then
-  param_name="$(echo "$json" | jq -cMr '.name | select (.)')"
-  echo -n "Saving $ENV from parameter " | ident
-  color -n b "$param_name"
-  $dotenv set "$ENV=\"$param_value\""
-  exit 0
-fi
-
 EMPTY=$(echo "$json" | jq -cMr '.empty | select (.)')
 if test "$EMPTY" = "allow"; then
-  history=""
-  empty=""
+  enabled="${enabled/history/}"
+  enabled="${enabled/random/}"
 fi
 
 HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
@@ -196,7 +217,13 @@ if test ! -f "$HISTORY_FILE"; then
 fi
 
 for hint in $priority; do
-  case $(eval "echo \$$hint") in
+  if ! contains "$hint" "$enabled"; then
+    continue
+  fi
+  case "$hint" in
+    "parameter" )
+      hint_val="$(echo "$json" | jq -cMr '.value | select(.)')"
+    ;;
     "empty" )
       hint_val=""
       break
@@ -231,6 +258,8 @@ fi
 
 if ! $INTERACTIVE; then
   VALUE="$hint_val"
+elif test -n "$hint" && ! contains "$hint" "$ask"; then
+  VALUE="$hint_val"
 elif test -z "$hint"; then
   read -rp "  Enter value: " VALUE
 elif test -z "$hint_val"; then
@@ -242,7 +271,7 @@ else
   read -rp " #$hint): " VALUE
 fi
 
-if test -n "$VALUE"; then
+if test -n "$VALUE" -a "$VALUE" != "$hint_val"; then
   dotenv -f "$HISTORY_FILE" set "$ENV=\"$VALUE\""
 else
   VALUE="$hint_val"
