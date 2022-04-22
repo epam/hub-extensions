@@ -90,7 +90,7 @@ fi
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   CREDS="$HOME/.config/gcloud/application_default_credentials.json"
   # shellcheck disable=SC2090
-  if $curl -H 'http://metadata.google.internal' >/dev/null 2>&1; then
+  if $curl 'http://metadata.google.internal' >/dev/null 2>&1; then
     echo "* The Hub CLI runs inside a Google Cloud environment using Environment-provided service account to talk to GCP"
   elif test -f "$CREDS"; then
     cat << EOF
