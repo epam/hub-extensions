@@ -255,7 +255,13 @@ EOF
     rm -rf "$HUB_WORKDIR/.hub/env/.env"
   fi
   update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
-  echo
+
+  if test -x "$HUB_WORKDIR/.hub/after-configure"; then
+    export DOT_ENV=".hub/env/$HUB_DOMAIN_NAME.env"
+    echo "Running after configure script..."
+    $HUB_WORKDIR/.hub/after-configure "$rv"
+  fi
+
   if test "$rv" = "0"; then
     echo "Done!"
     cat <<EOF | color g
@@ -304,6 +310,11 @@ fi
 mkdir -p "$HUB_WORKDIR/.hub/env"
 
 WORKDIR="$HUB_WORKDIR"
+
+if test -x "$HUB_WORKDIR/.hub/before-configure"; then
+  echo "Running before configure script..."
+  $HUB_WORKDIR/.hub/before-configure
+fi
 
 # common environment variables that
 # will be used by exact extensions

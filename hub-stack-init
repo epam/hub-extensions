@@ -251,6 +251,10 @@ HUB_FILES="$EXPANDED"
 export HUB_FILES
 
 mkdir -p "$HUB_WORKDIR/.hub/env"
+if test -x "$HUB_WORKDIR/.hub/before-init"; then
+  echo "Running before init script..."
+  $HUB_WORKDIR/.hub/before-init
+fi
 
 if test -n "$STACK_ID" -a -z "$SOURCE_HUB_STATE"; then
   SOURCE_HUB_STATE="$(hub state show $STACK_ID -o json | $jq '.stateLocation.uri | select(.)')"
@@ -415,6 +419,11 @@ echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
 files copy "$temp" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
 update_symlink "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
 
+if test -x "$HUB_WORKDIR/.hub/after-init"; then
+  export DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+  echo "Running after init script..."
+  $HUB_WORKDIR/.hub/after-init
+fi
 cat << EOF
 
 Stack has been initialized!
