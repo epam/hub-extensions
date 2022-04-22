@@ -261,7 +261,7 @@ if test -n "$SOURCE_HUB_STATE"; then
   for state in $(echo "$SOURCE_HUB_STATE" |tr ',' ' '); do
     temp="$(temp_file)"
     if test -f "$state"; then
-      echo "* State file $state: already exists"
+      echo "* State file $state: exist"
       continue
     fi
 
@@ -295,9 +295,9 @@ if test -n "$SOURCE_HUB_STATE"; then
       export DOT_ENV
       local_file="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
       if test -f "$local_file"; then
-        echo "  State file already exists: .hub/$HUB_DOMAIN_NAME.state"
+        echo "  State file exist: .hub/$HUB_DOMAIN_NAME.state"
       else
-        copy "$temp" "$local_file"
+        files copy "$temp" "$local_file"
       fi
       HUB_STATE="$HUB_STATE $local_file $state"
     else
@@ -346,7 +346,7 @@ for hubfile in $HUB_FILES; do
     echo -n "* component $comp: "
     comp_dir=$(echo $components | componentDir "$comp")
     if test -d "$hubfile_dir/$comp_dir"; then
-      echo "already exist"
+      echo "exist"
       continue
     fi
     echo "fetching"
@@ -410,9 +410,9 @@ fi
 echo "Saving configuration"
 temp="$(temp_file)"
 HUB_DOMAIN_NAME=$(dotenv -f "DOT_ENV" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
-dotenv merge -f "DOT_ENV"  > "$temp"
+dotenv merge -f "$DOT_ENV" -f ".hub/env/$HUB_DOMAIN_NAME.env" > "$temp"
 echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
-copy "$temp" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
+files copy "$temp" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
 update_symlink "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
 
 cat << EOF
