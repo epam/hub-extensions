@@ -400,6 +400,7 @@ dotenv set "HUB_FILES=\"$HUB_FILES\""
 if test -n "$HUB_STATE"; then
   dotenv set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
 fi
+echo "Saving configuration"
 update_symlink "$DOT_ENV" "$HUB_WORKDIR/.env"
 
 cat << EOF

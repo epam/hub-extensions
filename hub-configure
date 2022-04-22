@@ -225,7 +225,7 @@ finalize() {
   local profiles
   if test -d "$HUB_WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$HUB_WORKDIR/.hub/profiles")"; fi
   if test -d "$HUB_HOME/profiles"; then profiles="$profiles $(ls $HUB_HOME/profiles)"; fi
-  echo "Finalizing env files..."
+  echo "Saving configuration"
   TEMP1=$(temp_file)
   TEMP2=$(temp_file)
 cat << EOF >> $TEMP2
