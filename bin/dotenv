@@ -37,6 +37,11 @@ while [ "$1" != "" ]; do
     set )
       ACTION="$1"
       ARG="$2"
+      if test -n "$3"; then
+        # shellcheck disable=SC2089
+        ARG="$ARG=\"$3\""
+        shift
+      fi
       shift
     ;;
     -f | --file )

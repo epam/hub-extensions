@@ -162,14 +162,10 @@ fi
 #   $dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
 # fi
 
-$dotenv set "HUB_CLOUD_PROVIDER=\"$HUB_CLOUD_PROVIDER\""
-$dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
-# TODO: STATE_BUCKET is deprecated and will be removed in favour of HUB_STATE_BUCKET
-$dotenv set "STATE_BUCKET=\"$HUB_STATE_BUCKET\""
-$dotenv set "GOOGLE_PROJECT=\"$GOOGLE_PROJECT\""
-# deprecated variable as not recognized by Terraform
-# see: https://registry.terraform.io/providers/hashicorp/google/3.29.0/docs/guides/provider_reference
-$dotenv set "GCP_PROJECT_ID=\"$GOOGLE_PROJECT\""
-$dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
-$dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
-$dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""
+$dotenv set "HUB_CLOUD_PROVIDER" "$HUB_CLOUD_PROVIDER"
+$dotenv set "HUB_STATE_BUCKET" "$HUB_STATE_BUCKET"
+$dotenv set "STATE_BUCKET" "$HUB_STATE_BUCKET"
+$dotenv set "GOOGLE_PROJECT" "$GOOGLE_PROJECT"
+$dotenv set "HUB_DOMAIN_NAME" "$HUB_DOMAIN_NAME"
+$dotenv set "HUB_STATE" "$HUB_STATE_FILE"
+$dotenv set "HUB_ELABORATE" "$HUB_ELABORATE_FILE"

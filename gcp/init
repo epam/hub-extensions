@@ -87,10 +87,6 @@ Entered value: $GOOGLE_PROJECT
 EOF
 fi
 
-# deprecated variable as not recognized by Terraform
-# see: https://registry.terraform.io/providers/hashicorp/google/3.29.0/docs/guides/provider_reference
-$dotenv set "GCP_PROJECT_ID=\"$GOOGLE_PROJECT\""
-
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   CREDS="$HOME/.config/gcloud/application_default_credentials.json"
   # shellcheck disable=SC2090
@@ -116,7 +112,7 @@ EOF
   fi
 else
   echo "* Using application credentials: $GOOGLE_APPLICATION_CREDENTIALS"
-  $dotenv set "GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\""
+  $dotenv set "GOOGLE_APPLICATION_CREDENTIALS" "$GOOGLE_APPLICATION_CREDENTIALS"
 fi
 
 # shellcheck disable=SC2090
@@ -133,7 +129,7 @@ if test -z "$GOOGLE_REGION"; then
   ask env "GOOGLE_REGION" -m "GCP region" -a "cloud.region" --suggest "$suggest_region"
 else
   echo "* Saving GCP region $GOOGLE_REGION"
-  dotenv set "GOOGLE_REGION=\"$GOOGLE_REGION\""
+  dotenv set "GOOGLE_REGION" "$GOOGLE_REGION"
 fi
 
 # shellcheck disable=SC2090
@@ -149,5 +145,5 @@ if test -z "$GOOGLE_ZONE"; then
   ask env "GOOGLE_ZONE" -m "GCP zone" -a "cloud.zone" --suggest "$suggest_zone"
 else
   echo "* Saving GCP zone $GOOGLE_ZONE"
-  dotenv set "GOOGLE_ZONE=\"$GOOGLE_ZONE\""
+  dotenv set "GOOGLE_ZONE" "$GOOGLE_ZONE"
 fi

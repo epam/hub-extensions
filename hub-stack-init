@@ -318,7 +318,7 @@ if test -n "$HUB_STATE"; then
 
       state_val=$(getParamFromState "$state" "$param")
       if test -n "$state_val"; then
-        dotenv set "$env=\"$state_val\""
+        dotenv set "$env" "$state_val"
         echo "  Saving $env to .env file"
       fi
     done
@@ -402,10 +402,10 @@ for hubfile in $HUB_FILES; do
   done
 done
 
-dotenv set "HUB_AUTOCONFIGURE=\"$HUB_AUTOCONFIGURE\""
-dotenv set "HUB_FILES=\"$HUB_FILES\""
+dotenv set "HUB_AUTOCONFIGURE" "$HUB_AUTOCONFIGURE"
+dotenv set "HUB_FILES" "$HUB_FILES"
 if test -n "$HUB_STATE"; then
-  dotenv set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
+  dotenv set "HUB_STATE" "$(echo "$HUB_STATE" | xargs | tr ' ' ',')"
 fi
 echo "Saving configuration"
 temp="$(temp_file)"
