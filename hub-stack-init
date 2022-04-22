@@ -5,7 +5,6 @@ HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
-DOT_ENV="$HUB_WORKDIR/.hub/env/.env"
 
 jq="jq -cMr "
 
@@ -51,6 +50,10 @@ Flags:
   -V, --verbose               Verbose outputs for debug purposes
   -h, --help                  Print this message
 EOF
+}
+
+ident() {
+  sed 's/^/  /'
 }
 
 finalize() {
@@ -154,6 +157,7 @@ temp_file() {
   echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]')"
 }
 
+DOT_ENV="$(temp_file)"
 KNOWN_URLS=""
 EXPANDED=""
 
@@ -232,11 +236,13 @@ getParamFromState() {
 }
 
 echo "Initializing a new stack"
-if test ! -L "$HUB_WORKDIR/.env"; then
-  if test -f "$HUB_WORKDIR/.env" ; then
-    "* Removing .env"
-    rm -rf "$HUB_WORKDIR/.env"
-  fi
+echo "* Using working directory: $HUB_WORKDIR"
+if test -L "$HUB_WORKDIR/.env"; then
+  echo "* Unlinking .env"
+  unlink "$HUB_WORKDIR/.env"
+elif test -f "$HUB_WORKDIR/.env" ; then
+  echo "* Removing .env"
+  rm -rf "$HUB_WORKDIR/.env"
 fi
 
 expand_hub_files $HUB_FILES
@@ -334,11 +340,12 @@ for hubfile in $HUB_FILES; do
     color warn "* Warning: skipping $hubfile due to not found"
     continue
   fi
+  hubfile_dir="$(dirname "$(files abspath "$hubfile")")"
   components="$(toJson "$hubfile" | $jq '.components' -)"
   for comp in $(echo "$components" | $jq '.[].name'); do
     echo -n "* component $comp: "
     comp_dir=$(echo $components | componentDir "$comp")
-    if test -d "$comp_dir"; then
+    if test -d "$hubfile_dir/$comp_dir"; then
       echo "already exist"
       continue
     fi
@@ -364,8 +371,8 @@ for hubfile in $HUB_FILES; do
         fi
       )
       echo "  Saving component: $comp_dir"
-      mkdir -p "$HUB_WORKDIR/$comp_dir"
-      cp -rf "$temp_dir/$subdir/." "$HUB_WORKDIR/$comp_dir"
+      mkdir -p "$hubfile_dir/$comp_dir"
+      cp -rf "$temp_dir/$subdir/." "$hubfile_dir/$comp_dir"
       continue
     fi
 
@@ -401,7 +408,12 @@ if test -n "$HUB_STATE"; then
   dotenv set "HUB_STATE=\"$(echo "$HUB_STATE" | xargs | tr ' ' ',')\""
 fi
 echo "Saving configuration"
-update_symlink "$DOT_ENV" "$HUB_WORKDIR/.env"
+temp="$(temp_file)"
+HUB_DOMAIN_NAME=$(dotenv -f "DOT_ENV" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
+dotenv merge -f "DOT_ENV"  > "$temp"
+echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
+copy "$temp" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
+update_symlink "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
 
 cat << EOF
 

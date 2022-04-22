@@ -20,7 +20,7 @@ EOF
 }
 
 TEMP_FILES=""
-trap 'rm -f $TEMP_FILES' EXIT
+trap 'rm -f "$TEMP_FILES"' EXIT
 
 ACTION=
 VERBOSE=${VERBOSE:-false}
@@ -44,7 +44,7 @@ while [ "$1" != "" ]; do
       shift
       ;;
     --default )
-      DEFAULTS=$(echo "$DEFAULTS" "$2" | xargs)
+      DEFAULTS="$2"
       shift
       ;;
     -h | --help )
@@ -210,7 +210,9 @@ case $ACTION  in
   "export" | "keys" )
     dotenv::$ACTION $FIRST_FILE ;;
   "get"    )
+    set +e
     rv="$(dotenv::$ACTION $KEY $FIRST_FILE)"
+    set -e
     if test -n "$rv"; then
       echo "$rv"
     else
