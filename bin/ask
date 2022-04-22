@@ -1,7 +1,7 @@
 #!/bin/bash -e
 # shellcheck disable=SC2034
 
-priority="parameter hubstate history default env suggested random empty"
+priority="parameter hubstate history env default suggested random empty"
 enabled="$priority"
 ask="suggested hubstate random history default env empty"
 
