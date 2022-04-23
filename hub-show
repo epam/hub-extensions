@@ -184,15 +184,36 @@ else
 fi
 if test -z "$HUB_TOKEN"; then
   if test -n "$(echo $RESP | jq -crM '.components|select(.)')"; then
-    DOCBASE=$(echo $RESP | jq -crM '{
-      "components" : [select(.components != null).components|to_entries[]|.key],
-      "provides" : [select(.provides != null).provides|to_entries[]|.key]
-    }')
+    if test -z "$HUB_COMPONENT"; then
+      DOCBASE=$(echo $RESP | jq -crM '{
+        "meta" : {
+          "kind": .meta.kind | select("."),
+          "name": .meta.name | select("."),
+          "status": .status | select("."),
+          "timestamp": .timestamp | select("."),
+        },
+        "components": [select(.components != null).components|to_entries[]|.key],
+        "provides": [select(.provides != null).provides|to_entries[]|.key],
+      }')
+
+      echo "$DOCBASE"
+      echo ">>>"
+    else
+      DOCBASE=$(echo $RESP | jq --arg c "$HUB_COMPONENT" -crM '{
+        "meta" : {
+          "kind": "component",
+          "name": $c,
+          "status": .components[$c].status | select(.),
+          "timestamp": .components[$c].timestamp | select(.),
+        },
+      }')
+    fi
   else
     # derive components from "provides"
     DOCBASE=$(echo $RESP | jq -crM '{
       "components" : [.provides|to_entries[].value|select(.)[]] | unique,
-      "provides" : [select(.provides != null).provides|to_entries[]|.key]
+      "provides" : [select(.provides != null).provides|to_entries[]|.key],
+      "status" : ""
     }')
   fi
 else
