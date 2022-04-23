@@ -195,9 +195,6 @@ if test -z "$HUB_TOKEN"; then
         "components": [select(.components != null).components|to_entries[]|.key],
         "provides": [select(.provides != null).provides|to_entries[]|.key],
       }')
-
-      echo "$DOCBASE"
-      echo ">>>"
     else
       DOCBASE=$(echo $RESP | jq --arg c "$HUB_COMPONENT" -crM '{
         "meta" : {
