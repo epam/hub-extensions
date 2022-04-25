@@ -139,9 +139,9 @@ if test -n "$CRD"; then
     elif test -f "$CRD"; then
         echo "* Reading CRD from: $CRD"
         apply_crd_file "$CRD"
+    else
+        color w "Warning: file not found ($CRD)"
     fi
-else
-    color w "Warning: file not found ($CRD)"
 fi
 if test -d "crds"; then
     for file in crds/*.yaml crds/*.yml; do
