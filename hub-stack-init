@@ -345,8 +345,8 @@ for hubfile in $HUB_FILES; do
     continue
   fi
   hubfile_dir="$(dirname "$(files abspath "$hubfile")")"
-  components="$(toJson "$hubfile" | $jq '.components' -)"
-  for comp in $(echo "$components" | $jq '.[].name'); do
+  components="$(toJson "$hubfile" | $jq '.components | select(.)' -)"
+  for comp in $(echo "$components" | $jq '.[].name | select(.)'); do
     echo -n "* component $comp: "
     comp_dir=$(echo $components | componentDir "$comp")
     if test -d "$hubfile_dir/$comp_dir"; then
@@ -405,7 +405,6 @@ for hubfile in $HUB_FILES; do
     fi
   done
 done
-
 dotenv set "HUB_AUTOCONFIGURE" "$HUB_AUTOCONFIGURE"
 dotenv set "HUB_FILES" "$HUB_FILES"
 if test -n "$HUB_STATE"; then
