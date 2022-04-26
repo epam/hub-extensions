@@ -70,6 +70,7 @@ if test -z "$HUB_FILES"; then
 fi
 
 if test -z "$subcommand" -o -z "$HUB_FILES"; then
+  color e "Error: cannot find .env file"
   usage
   exit 1
 fi

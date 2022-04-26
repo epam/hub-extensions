@@ -17,7 +17,8 @@ Parameters
   -m  --message TEXT             add a text message to display to the user
   -a  --alternative-param PARAM  alternative parameter name to search for
   --dotenv FILE                  locatin for dotenv file (defaults to DOT_ENV or .env)
-  --suggested VALUE              value to use as a suggested default
+  --suggest   VALUE              value to use as a suggested default
+  -t  --suggest-tag HASHTAG      tag name to apply for suggested value (default: suggested)
   -p  --priority HINTS           set hints priority (default see below)
   -d  --dotenv FILE              link to dotenv file (can repeat, default to DOT_ENV). Results will be saved to the first file
   --non-interactive              set hints priority (defaults to TTY)
@@ -122,7 +123,11 @@ while test -n "$1"; do
 
     --suggest | --suggested )
       suggested_value="$2"
-      suggested="suggested"
+      shift
+    ;;
+
+    -t | --suggest-hashtag | --suggest-tag )
+      suggested_tag="$2"
       shift
     ;;
 
@@ -256,6 +261,11 @@ if test -z "$hint_val" -a "$hint" != "empty"; then
   hint=""
 fi
 
+hashtag="$hint"
+if test "$hint" = "suggested" -a -n "$suggested_tag"; then
+  hashtag="$suggested_tag"
+fi
+
 if ! $INTERACTIVE; then
   VALUE="$hint_val"
 elif test -n "$hint" && ! contains "$hint" "$ask"; then
@@ -263,12 +273,12 @@ elif test -n "$hint" && ! contains "$hint" "$ask"; then
 elif test -z "$hint"; then
   read -rp "  Enter value: " VALUE
 elif test -z "$hint_val"; then
-  read -rp "  Enter value (#$hint): " VALUE
+  read -rp "  Enter value (#$hashtag): " VALUE
 else
   shorty="$(shorten "$hint_val")"
   echo -n "  Enter value ("
   color -n b "$shorty"
-  read -rp " #$hint): " VALUE
+  read -rp " #$hashtag): " VALUE
 fi
 
 if test -n "$VALUE" -a "$VALUE" != "$hint_val"; then
@@ -278,7 +288,7 @@ else
 fi
 
 if test -z "$VALUE" -a "$hint" != "empty"; then
-  color e "Error: $ENV cannot have empty value" | ident
+  color e "Empty value is not allowed for $ENV" | ident
   exit 1
 fi
 

@@ -67,7 +67,7 @@ if test -n "$GOOGLE_PROJECT"; then
 else
   gcloud_result="$(gcloud config list --format="json" | jq -cMr '.core.project | select(.)')"
   if test -n "$gcloud_result"; then
-    ask env "GOOGLE_PROJECT" -m "GCP project ID" -a "projectId" --suggested "$gcloud_result" -random -empty
+    ask env "GOOGLE_PROJECT" -m "GCP project ID" -a "projectId" --suggest "$gcloud_result" -t "gcloud" -random -empty
   else
     ask env "GOOGLE_PROJECT" -m "GCP project ID" -a "projectId" -random -empty
   fi
