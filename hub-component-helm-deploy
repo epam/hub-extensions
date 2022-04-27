@@ -131,13 +131,13 @@ if ! $kubectl get namespace "$NAMESPACE" -o name > /dev/null;  then
 fi
 
 if test -n "$CRD"; then
+    echo "Processing CRD: $CRD"
     if echo "$CRD" | grep -e '^https\?://' >/dev/null 2>&1; then
-        echo "* Downloading CRD from: $CRD ..."
+        echo "* Downloading from URL..."
         temp=$(temp_file)
         files download "$CRD" "$temp"
         apply_crd_file "$temp"
     elif test -f "$CRD"; then
-        echo "* Reading CRD from: $CRD"
         apply_crd_file "$CRD"
     else
         color w "Warning: file not found ($CRD)"
@@ -152,10 +152,16 @@ if test -d "crds"; then
 fi
 
 if $helm list --failed --pending -q | grep -E "^$COMPONENT_NAME\$"; then
-    echo "Uninstalling chart: $COMPONENE_NAME"
-    set -x
+    cat << EOF
+Uninstalling helm chart $COMPONENT_NAME
+Due to previous state: failed or incomplete
+
+Running helm command:
+
+    $(echo "$helm uninstall $COMPONENT_NAME" | xargs)
+
+EOF
     $helm uninstall "$COMPONENT_NAME"
-    set +x
 fi
 
 echo "Resolving helm chart values:"
@@ -185,13 +191,15 @@ if test -z "$HELM_OPTS"; then
     HELM_OPTS="--create-namespace --wait"
 fi
 
-set -x
+cat << EOF
+
+Running helm command
+
+    $(echo "$helm upgrade $COMPONENT_NAME $chart_path $HELM_ARGS $HELM_OPTS --install" | xargs)
+
+EOF
 # shellcheck disable=SC2086
-$helm upgrade "$COMPONENT_NAME" "$chart_path" \
-    $HELM_ARGS \
-    $HELM_OPTS \
-    --install
-set +x
+$helm upgrade "$COMPONENT_NAME" "$chart_path" $HELM_ARGS $HELM_OPTS --install
 
 if test -x post-deploy; then
     echo "Running post-deploy..."
