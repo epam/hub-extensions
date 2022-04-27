@@ -11,6 +11,7 @@ Subcommands:
   json   PARAM            Returns json string of the parameter
   value  PARAM            Returns only value of the parameter
   envvar ENVVAR           Returns param name by envvar
+  env    ENVVAR           Same as envvar
   flatten                 Returns flattended parameters
   listenv                 Returns list of environment variables
 
@@ -29,7 +30,7 @@ COMMAND_ARG=""
 while test -n "$1"; do
   ARG="$1"; shift
   case $ARG in
-    value | json | envvar)
+    value | json | envvar | env)
       subcommand="$ARG"
       continue
       ;;
@@ -110,6 +111,10 @@ readField() {
   jq -cMr --arg field "$1" '. | select(.[$field]) | .[$field]'
 }
 
+first() {
+  jq -cMr '[.][0] | select(.)'
+}
+
 getParamValue() {
   local hubfile value envval envname default
   result="$(json $HUB_FILES | flatten | withName "$1")"
@@ -146,7 +151,7 @@ getFlatParams() {
 }
 
 getParamByEnvvar() {
-  getFlatParams | jq -s add | jq -cMr --arg var "$1" '.[] | select(.fromEnv == $var)'
+  getFlatParams | jq -s add | jq -cMr --arg var "$1" '.[] | select(.fromEnv == $var)' | first
 }
 
 listEnvvars() {
@@ -160,7 +165,7 @@ case $subcommand in
   json)
     getParamJson "$COMMAND_ARG"
   ;;
-  envvar)
+  envvar | env)
     getParamByEnvvar "$COMMAND_ARG"
   ;;
   flat | flatten)
