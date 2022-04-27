@@ -111,12 +111,8 @@ readField() {
   jq -cMr --arg field "$1" '. | select(.[$field]) | .[$field]'
 }
 
-first() {
-  jq -cMr '[.][0] | select(.)'
-}
-
 getParamValue() {
-  local hubfile value envval envname default
+  local value envval envname default
   result="$(json $HUB_FILES | flatten | withName "$1")"
   if test -n "$result"; then
     value="$(echo "$result" | readField "value")"
@@ -151,7 +147,7 @@ getFlatParams() {
 }
 
 getParamByEnvvar() {
-  getFlatParams | jq -s add | jq -cMr --arg var "$1" '.[] | select(.fromEnv == $var)' | first
+  getFlatParams | jq -s add | jq -cMr --arg var "$1" '[.[] | select(.fromEnv == $var) | .][0] | select(.)'
 }
 
 listEnvvars() {
