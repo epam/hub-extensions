@@ -78,6 +78,10 @@ contains() {
   test -n "$result"
 }
 
+first() {
+  jq -cMr '[.][0] | select(.)'
+}
+
 if test -z "$HUB_WORKDIR"; then
   HUB_WORKDIR="$(dirname "$(files abspath .env)")"
 fi
@@ -201,15 +205,15 @@ fi
 
 json="$(params envvar "$ENV")"
 if test -z "$json"; then
-  json="$(params json "$default_param")"
+  json="$(params json "$default_param" | first)"
 fi
 
-brief=$(echo "$json" | jq -cMr '.brief | select (.)')
+brief=$(echo "$json" | jq -cMr '.brief | select (.)' | first)
 if test -n "$brief"; then
   echo "$brief" | ident
 fi
 
-EMPTY=$(echo "$json" | jq -cMr '.empty | select (.)')
+EMPTY=$(echo "$json" | jq -cMr '.empty | select (.)' | first)
 if test "$EMPTY" = "allow"; then
   enabled="${enabled/history/}"
   enabled="${enabled/random/}"
