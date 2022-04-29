@@ -76,12 +76,10 @@ Please use:
   hub stack init --file $1
 EOF
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
-      continue
       ;;
     --profile )
       shift
       HUB_DEPLOY_PROFILE="$1"
-      continue
       ;;
     -r | --requirement )
       shift
@@ -96,12 +94,10 @@ EOF
       ;;
     -V | --verbose )
       VERBOSE=true
-      continue
       ;;
     -h | --help )
       HELP=true
       ARGS="--help"
-      continue
       ;;
   esac
   shift
