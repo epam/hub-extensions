@@ -333,9 +333,11 @@ fi
 
 for req in $HUB_STACK_REQUIRES; do
   init=$(files find-in-path "$req/init")
-  echo -n "Initializing "
-  color h "$req"
-  $init $ARGS
+  if test -x "$init"; then
+    echo -n "Initializing "
+    color h "$req"
+    $init $ARGS
+  fi
 done
 
 echo "Checking components"
