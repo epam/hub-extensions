@@ -58,11 +58,18 @@ while test -n "$1"; do
 done
 
 abspath() {
+  local p
   if test -d "$1"; then
     (cd "$1" && pwd)
   elif test -f "$1"; then
     # shellcheck disable=SC2086,SC2046
     echo "$(cd $(dirname $1) && pwd)/$(basename $1)"
+  else
+    name="$(basename "$1")"
+    dir="$(dirname "$1")"
+    if test -n "dir"; then
+      echo "$(abspath "$dir")/$name"
+    fi
   fi
 }
 
