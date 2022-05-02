@@ -23,7 +23,7 @@ for f in $HUB_WORKDIR/.hub/env/*.env $HUB_WORKDIR/.hub/env/.env; do
     STAR="*"
   fi
   if test "$STACK" == ".env"; then
-    STACK="initialised"
+    STACK="initialized"
   fi
   echo "$STAR       $STACK"
 done

@@ -63,7 +63,7 @@ fi
 dotenv="dotenv -f $DOT_ENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
 if test -z "$HUB_DOMAIN_NAME"; then
-  HUB_DOMAIN_NAME="initialised"
+  HUB_DOMAIN_NAME="initialized"
   FILES=$(ls .hub/env/.env)
 else
   FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
