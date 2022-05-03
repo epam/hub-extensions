@@ -59,14 +59,15 @@ fi
 TEMP=$(mktemp || exit 1)
 trap "rm -f $TEMP" EXIT
 
+
 echo "Configuring Kubernetes"
-if   kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" > "$TEMP"; then
+if   kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
   echo -n "* Using kubeconfig from env: "
   color b "HUB_KUBECONFIG"
-elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" > "$TEMP"; then
+elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
   echo -n "* Using kubeconfig from env: "
   color b "KUBECONTEXT"
-elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" > "$TEMP"; then : #pass
+elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" -o "$TEMP" > /dev/null 2>&1; then : #pass
   echo -n "* Using kubeconfig from default location: "
   # shellcheck disable=SC2016
   color b '$HOME/.kube/config'
@@ -78,7 +79,7 @@ else
 fi
 
 echo  -n "* Setting up shared location for kubernetes "
-color -n b ".hub/env/$HUB_DOMAIN_NAME.kubeconfig: "
+color b ".hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 copy "$TEMP" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 chmod go-rw "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 dotenv set "HUB_KUBECONFIG" "$(files abspath $HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig)"

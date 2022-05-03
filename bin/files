@@ -58,7 +58,7 @@ while test -n "$1"; do
 done
 
 abspath() {
-  local p
+  local name dir
   if test -d "$1"; then
     (cd "$1" && pwd)
   elif test -f "$1"; then
