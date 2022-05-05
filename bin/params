@@ -16,7 +16,8 @@ Subcommands:
   listenv                 Returns list of environment variables
 
 Parameters:
-  -f --file               Path to hubfile (this parameter can repeat, default HUB_FILES envvar)
+  -f --file               Path to hubfile (can repeat, default HUB_FILES envvar)
+  -d --dotenv             Path to the dotenv file (can repeat, default DOT_ENV envvar)
   -V --verbose            For debug purpose
   -h --help               Show this message
 
@@ -26,6 +27,7 @@ EOF
 
 subcommand=""
 hub_files=""
+dot_env=""
 COMMAND_ARG=""
 while test -n "$1"; do
   ARG="$1"; shift
@@ -48,6 +50,14 @@ while test -n "$1"; do
       shift
       continue
       ;;
+    -d | --dotenv )
+      if test -f "$f"; then
+        unset DOT_ENV
+        dot_env="$DOT_ENV $1"
+      fi
+      shift
+      continue
+      ;;
     -h | --help )
       usage
       exit
@@ -60,10 +70,12 @@ while test -n "$1"; do
   esac
 done
 
-
 if test "$VERBOSE" = "true"; then
   set -x
 fi
+
+# shellcheck disable=SC2155
+export DOT_ENV="$(echo "$DOT_ENV $dot_env" | xargs)"
 
 HUB_FILES="$(echo "$HUB_FILES $hub_files" | xargs)"
 if test -z "$HUB_FILES"; then
@@ -123,7 +135,7 @@ getParamValue() {
       if test -n "$envname"; then
         envval="$(dotenv get "$envname")"
         if test -z "$envval"; then
-          envval="$(printenv "$envname")"
+          envval="$(eval "echo \$$envname")"
         fi
       fi
       if test -n "$envval"; then
