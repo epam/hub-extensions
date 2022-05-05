@@ -205,7 +205,7 @@ if test -z "$json"; then
 fi
 brief="$(echo "$json" | jq -cMr '.brief | select (.)')"
 if test -n "$brief"; then
-  echo "$brief" | ident
+  echo "$brief" | ident | color green
 fi
 
 EMPTY="$(echo "$json" | jq -cMr '.empty | select (.)')"
