@@ -127,7 +127,7 @@ HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate,gs://$HUB_STATE_BUCKET/$HUB_
 
 ### State function
 STATE_FUNCTION_REGION="us-central1"
-STATE_FUNCTION_REPO="https://github.com/agilestacks/hub-utils.git"
+STATE_FUNCTION_REPO="https://github.com/agilestacks/hub-state.git"
 STATE_FUNCTION_REF="master"
 echo "Configuring state management cloud function "
 if gcloud functions describe stacks --region "$STATE_FUNCTION_REGION" > /dev/null 2>&1 && test -z "$FORCE_FUNCTION_UPDATE"; then
@@ -141,7 +141,7 @@ else
   git -C "$TEMP_DIR" checkout "$STATE_FUNCTION_REF" > /dev/null 2>&1
   if RESULT=$(gcloud functions deploy stacks --runtime nodejs16 --trigger-http \
     --allow-unauthenticated --memory 4096MB \
-    --source "$TEMP_DIR"/hub-state-api --entry-point stacks 2>&1); then
+    --source "$TEMP_DIR"/api --entry-point stacks 2>&1); then
     echo "Deployed"
   else
     color err "Error occured, see the details below:"
