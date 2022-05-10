@@ -28,7 +28,7 @@ while [ "$1" != "" ]; do
     --gcp-project-id)
         shift
         GOOGLE_PROJECT="$1"
-        ;;     
+        ;;
     --force)
         FORCE_FUNCTION_UPDATE=1
         ;;
@@ -125,6 +125,8 @@ USAGE_REPORTING_FUNCTION_REGION="us-central1"
 USAGE_REPORTING_FUNCTION_REPO="https://github.com/agilestacks/hub-state.git"
 USAGE_REPORTING_FUNCTION_REF="master"
 USAGE_REPORTING_FUNCTION_NAME="reporting-$(echo "$HUB_STATE_BUCKET" | tr '[:upper:]' '[:lower:]')"
+echo -n "* Enabling API for cloudfunctions.googleapis.com... "
+gcloud services enable "cloudfunctions.googleapis.com" && echo "done"
 echo "Configuring usage reporting cloud function "
 if gcloud functions describe "$USAGE_REPORTING_FUNCTION_NAME" --region "$USAGE_REPORTING_FUNCTION_REGION" > /dev/null 2>&1 && test -z "$FORCE_FUNCTION_UPDATE"; then
   echo "* Usage reporting cloud function already deployed to $GOOGLE_PROJECT for $HUB_STATE_BUCKET. Use --force flag to redeploy"
