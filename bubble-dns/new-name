@@ -1,0 +1,45 @@
+#!/bin/bash -e
+# shellcheck disable=SC2046,SC2086
+
+HUB_PARENT_DOMAIN="epam.devops.delivery"
+while [ "$1" != "" ]; do
+  case $1 in
+    --parent-domain )   shift
+                        HUB_PARENT_DOMAIN="$1"
+                        ;;
+  esac
+  shift
+done
+
+if test $VERBOSE = "true"; then
+  set -x
+fi
+
+TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
+# shellcheck disable=SC2064
+trap "rm -f $TEMP" EXIT
+
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://bubbles.stuff.epam.superhub.io/"}
+HTTP_CODE=$( \
+  curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
+      -w "%{http_code}" \
+      -o "$TEMP" \
+      -H 'Content-Type: application/json;charset=UTF-8' \
+      -d "{\"baseDomain\": \"$HUB_PARENT_DOMAIN\"}" \
+)
+
+# checking if http code is 2**
+if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
+  cat << EOF
+Error
+
+Please try again later!
+
+Troubleshooting info:
+* Web services returned error code: $HTTP_CODE
+EOF
+  echo -n "* Payload: "
+  cat $TEMP
+  exit 1
+fi
+jq -cMr '.domain' < "$TEMP"

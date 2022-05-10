@@ -130,6 +130,10 @@ if test "$HUB_AUTOCONFIGURE" = "1"; then
 fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
+  HUB_DOMAIN_NAME="$HUB_STACK_NAME"
+fi
+
+if test -z "$HUB_DOMAIN_NAME"; then
 cat << EOF
 Error: cannot find hub definition files (HUB_DOMAIN_NAME) in .env"
 
@@ -250,4 +254,4 @@ for i in $(echo "$AFTER" | xargs -n1); do
   $hook
 done
 
-echo "Done!"
+color g "Done!"
