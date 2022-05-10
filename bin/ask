@@ -4,6 +4,8 @@
 priority="parameter hubstate history env default suggested random empty"
 enabled="$priority"
 ask="suggested hubstate random history default env empty"
+brief=""
+message=""
 
 usage() {
   cat << EOF
@@ -16,12 +18,12 @@ Parameters
   -f  --file FILE                specify hubfile  (can repeat, defaults to HUB_FILES .env or environemnt variable)
   -m  --message TEXT             add a text message to display to the user
   -a  --alternative-param PARAM  alternative parameter name to search for
-  --dotenv FILE                  locatin for dotenv file (defaults to DOT_ENV or .env)
+  -d --dotenv FILE               locatin for dotenv file (defaults to DOT_ENV or .env)
   --suggest   VALUE              value to use as a suggested default
   -t  --suggest-tag HASHTAG      tag name to apply for suggested value (default: suggested)
   -p  --priority HINTS           set hints priority (default see below)
-  -d  --dotenv FILE              link to dotenv file (can repeat, default to DOT_ENV). Results will be saved to the first file
   --non-interactive              set hints priority (defaults to TTY)
+  --brief                        add brief user text (effectively replaces .brief of parameter)
 
 User hints
   +parameter -parameter          enable or disable hint for hubfile parameter value
@@ -100,6 +102,10 @@ while test -n "$1"; do
     ;;
     -m | --message )
       message="$2"
+      shift
+    ;;
+    --brief )
+      brief="$2"
       shift
     ;;
     -p | --priority )
@@ -203,7 +209,9 @@ json="$(params envvar "$ENV")"
 if test -z "$json"; then
   json="$(params json "$default_param")"
 fi
-brief="$(echo "$json" | jq -cMr '.brief | select (.)')"
+if test -z "$brief"; then
+  brief="$(echo "$json" | jq -cMr '.brief | select (.)')"
+fi
 if test -n "$brief"; then
   echo "$brief" | ident | color green
 fi
