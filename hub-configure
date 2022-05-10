@@ -48,13 +48,14 @@ EOF
   done
 }
 
-# find_up () {
-#   path=$(pwd)
-#   while [[ "$path" != "" && ! -e "$path/$1" ]]; do
-#     path=${path%/*}
-#   done
-#   echo "$path/$1"
-# }
+real_files() {
+  for f in $@; do
+    if test -f "$f"; then
+      echo -n " $f"
+    fi
+  done
+  echo
+}
 
 VERBOSE=false
 SILENT=false
@@ -120,91 +121,6 @@ temp_file(){
   echo $temp
 }
 
-find_in_path() {
-  local _file _path rv
-  _file="$(echo "$1" | sed -e 's/^\///')"
-  ( IFS=:
-    for _path in $PATH; do
-      if test -x "$_path/$_file"; then
-        rv="$_path/$_file"
-        echo "$rv"
-        break;
-      fi
-    done
-    if test -z "$rv"; then
-      >&2 echo "Error: command not found: $1"
-      exit 44
-    fi
-  )
-}
-
-download_file() {
-  if test -f "$2"; then
-    return
-  fi
-
-  local temp http_code
-  temp=$(temp_file)
-  echo "  Downloading $(basename $2) from: $1"
-  http_code=$(
-    curl -sLo "$temp" -w "%{http_code}" "$1"
-  )
-  if test "$(echo $http_code | cut -c1-1)" != "2"; then
-    echo "Error downloading url: $http_code"
-    cat $temp
-    return $http_code
-  fi
-  if test ! -s "$temp"; then
-    echo "Error: have got empty file (url: $temp)"
-    return 1
-  fi
-  echo -n "  Saving to $(pwd): "
-  copy "$temp" "$2"
-}
-
-KNOWN_URLS=""
-EXPANDED=""
-expand_hub_files() {
-  local f included local_file
-  for f in $@; do
-    if grep -q "$f" <<< "$EXPANDED"; then
-      continue
-    fi
-    if test -f "$f"; then
-      EXPANDED=$(echo "$EXPANDED $f" | xargs)
-      $HELP || echo "* File $f: exist"
-      included="$(cat "$f" | yq e '.extensions.include.[]' - )"
-      if test -n "$included"; then
-        expand_hub_files $included
-      fi
-      continue
-    fi
-    # is url
-    if echo "$f" | grep -e '^https\?://' >/dev/null 2>&1; then
-      local_file="$HUB_WORKDIR/$(basename "$f")"
-      if test ! -f "$local_file"; then
-        download_file "$f" "$local_file"
-        KNOWN_URLS=$(dirname $f | xargs)
-      fi
-      expand_hub_files "$local_file"
-      continue
-    fi
-
-    for url in $KNOWN_URLS; do
-      # shellcheck disable=SC2001
-      if download_file "$url/$1" "$HUB_WORKDIR/$1"; then
-        expand_hub_files "$HUB_WORKDIR/$1"
-        break
-      fi
-    done
-
-    if test ! -f "$f"; then
-      echo "Error: $f not found!"
-      exit 1
-    fi
-  done
-}
-
 update_symlink() {
   if test -L "$2" && test $(readlink -n "$2") != "$1"; then
     unlink "$2"
@@ -219,48 +135,54 @@ finalize() {
   # shellcheck disable=SC2046
   local rv=$?
   local profiles
+  if test "$rv" != "0"; then
+    cat << EOF | color e
+See error above!
+
+Configuration has been reverted!
+EOF
+    exit $rv
+  fi
   if test -d "$HUB_WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$HUB_WORKDIR/.hub/profiles")"; fi
   if test -d "$HUB_HOME/profiles"; then profiles="$profiles $(ls $HUB_HOME/profiles)"; fi
   echo "Saving configuration"
   TEMP1=$(temp_file)
   TEMP2=$(temp_file)
-cat << EOF >> $TEMP2
-  # stack definition files
-  HUB_FILES="$NEW_HUB_FILES"
-  # deploy profiles are: $(echo "$profiles" | xargs)
-  HUB_DEPLOY_PROFILE="$HUB_DEPLOY_PROFILE"
-  HUB_TTY="${HUB_TTY:-false}"
-EOF
-  unconfigured=false
-  if test -L "$HUB_WORKDIR/.env"; then
-    dotenv1=$(files abspath $(readlink -n "$HUB_WORKDIR/.env"))
-    dotenv2=$(files abspath "$HUB_WORKDIR/.hub/env/.env")
-    if test "$dotenv1" = "$dotenv2"; then
-      unconfigured=true
-    fi
-  fi
+  dotenv -f "$TEMP1" set "HUB_DEPLOY_PROFILE" "$HUB_DEPLOY_PROFILE"
+  dotenv -f "$TEMP1" set "HUB_TTY" "${HUB_TTY:-false}"
+  dotenv -f "$TEMP1" set "HUB_FILES" "$HUB_FILES"
+
+  # unconfigured=false
+  # if test -L "$HUB_WORKDIR/.env"; then
+    # dotenv1=$(files abspath $(readlink -n "$HUB_WORKDIR/.env"))
+    # dotenv2=$(files abspath "$HUB_WORKDIR/.hub/env/.env")
+    # if test "$dotenv1" = "$dotenv2"; then
+    #   unconfigured=true
+    # fi
+  # fi
 
   MERGE_FILES="$MERGE_FILES -f $TEMP2"
   # shellcheck disable=SC2001
   dotenv merge $MERGE_FILES > $TEMP1
   HUB_DOMAIN_NAME=$(dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
-  echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
-  copy "$TEMP1" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
-  if test -n "$HUB_DOMAIN_NAME" && $unconfigured; then
+  HUB_STACK_NAME=$(dotenv -f "$TEMP1" get "HUB_STACK_NAME" --default "$HUB_STACK_NAME")
+  if test -n "$HUB_DOMAIN_NAME"; then
+    dotenv_file="$(files abspath .hub/env/$HUB_DOMAIN_NAME.env)"
+  elif test -n "$HUB_STACK_NAME"; then
+    dotenv_file="$(files abspath .hub/env/$HUB_STACK_NAME.env)"
+  else
+    dotenv_file="$(files abspath .hub/env/.env)"
+  fi
+  echo "* Saving configuration to $dotenv_file"
+  copy "$TEMP1" "$dotenv_file" | ident
+  if test "$(files abspath $(readlink -n $HUB_WORKDIR/.env))" = $(files abspath .hub/env/.env); then
     echo "  Removing old: .hub/env/.env"
     rm -rf "$HUB_WORKDIR/.hub/env/.env"
   fi
-  update_symlink ".hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
-
-  if test -x "$HUB_WORKDIR/.hub/after-configure"; then
-    export DOT_ENV=".hub/env/$HUB_DOMAIN_NAME.env"
-    echo "Running after configure script..."
-    $HUB_WORKDIR/.hub/after-configure "$rv"
-  fi
-
-  if test "$rv" = "0"; then
-    echo "Done!"
-    cat <<EOF | color g
+  update_symlink "$dotenv_file" "$HUB_WORKDIR/.env"
+  export DOT_ENV="$dotenv_file"
+  cat <<EOF | color g
+Done!
 
 Next step: start deploy or undeploy operations
 
@@ -270,10 +192,6 @@ or:
   hub stack undeploy
 
 EOF
-  else
-    color e "See error above!"
-  fi
-  exit $rv
 }
 
 if test -z "$HUB_WORKDIR"; then
@@ -307,20 +225,11 @@ mkdir -p "$HUB_WORKDIR/.hub/env"
 
 WORKDIR="$HUB_WORKDIR"
 
-if test -x "$HUB_WORKDIR/.hub/before-configure"; then
-  echo "Running before configure script..."
-  $HUB_WORKDIR/.hub/before-configure
-fi
-
 # common environment variables that
 # will be used by exact extensions
 export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG HUB_WORKDIR
 if test -z "$REQS"; then
-  for f in $HUB_FILES; do
-    test -f $f || continue;
-    REQS="$REQS $(yq e '.extensions.configure.[]' $f)"
-  done
-  REQS=$(echo "$REQS" | xargs -n1)
+  REQS="$(yq $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.configure).configure[]')"
 fi
 
 if $HELP; then
@@ -341,17 +250,27 @@ if test -z "$HUB_DEPLOY_PROFILE"; then
       fi
     done
   fi
+#   brief=$(cat <<-EOF
+# # Deployment profile used to execute automation
+# # - local: run everything locally
+# # - toolbox: run a docker container with all tools inside in interactive shell
+# # - pod: to run a toolbox container as a kubernetes pod
+
+# # See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles
+# EOF
+  ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$brief"
   echo "* Setting deployment profile: $HUB_DEPLOY_PROFILE"
 else
   echo "* Setting deployment profile: $HUB_DEPLOY_PROFILE"
 fi
 
-if test -z "$(find_in_path "profiles/$HUB_DEPLOY_PROFILE")"; then
-  echo "  Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE"
+if test -z "$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE")"; then
+  color e "Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE" | ident
   exit 44
 fi
 
-NEW_HUB_FILES="$HUB_FILES"
+HUB_FILES="$(real_files $HUB_FILES)"
+export HUB_FILES
 trap 'finalize $?' EXIT
 
 MERGE_FILES=""
@@ -378,7 +297,11 @@ fi
 echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 
 for req in $(echo "$REQS" | xargs -n1); do
-  configure=$(find_in_path "$req/configure")
+  if test -x "$HUB_WORKDIR/$req"; then
+    configure="$HUB_WORKDIR/$req"
+  else
+    configure=$(files find-in-path "$req/configure")
+  fi
   if test -z "$configure"; then
     color warn "* Warning: cannot find configure script for \"$req\""
     continue
@@ -389,6 +312,7 @@ for req in $(echo "$REQS" | xargs -n1); do
 
   DOT_ENV=$(temp_file)
   export DOT_ENV
+  files copy "$WORKDIR/.env" "$DOT_ENV"
   if ! $configure --output "$DOT_ENV" $ARGS; then
     cat << EOF | color e
 
