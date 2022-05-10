@@ -237,33 +237,6 @@ if $HELP; then
   exit
 fi
 
-if test -z "$HUB_DEPLOY_PROFILE"; then
-  HUB_DEPLOY_PROFILE="local"
-  # We don't want run pod if inside of the pod
-  if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
-    for f in $HUB_FILES; do
-      test -f $f || continue;
-      r=$(yq e -o=json . $f | jq -r '.requires? | select(type=="array")[] | select(. == "kubernetes")')
-      if test "$r" = "kubernetes"; then
-        HUB_DEPLOY_PROFILE="pod"
-        break
-      fi
-    done
-  fi
-#   brief=$(cat <<-EOF
-# # Deployment profile used to execute automation
-# # - local: run everything locally
-# # - toolbox: run a docker container with all tools inside in interactive shell
-# # - pod: to run a toolbox container as a kubernetes pod
-
-# # See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles
-# EOF
-  ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$brief"
-  echo "* Setting deployment profile: $HUB_DEPLOY_PROFILE"
-else
-  echo "* Setting deployment profile: $HUB_DEPLOY_PROFILE"
-fi
-
 if test -z "$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE")"; then
   color e "Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE" | ident
   exit 44
@@ -293,8 +266,6 @@ if test -f "$HUB_WORKDIR/.env"; then
 else
   echo "Configuration .env file: to be created"
 fi
-
-echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 
 for req in $(echo "$REQS" | xargs -n1); do
   if test -x "$HUB_WORKDIR/$req"; then
@@ -332,3 +303,20 @@ EOF
     MERGE_FILES="$MERGE_FILES -f $DOT_ENV"
   fi
 done
+
+if test -z "$HUB_DEPLOY_PROFILE"; then
+  HUB_DEPLOY_PROFILE="local"
+  # We don't want run pod if inside of the pod
+  if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
+      r="$(yq e $HUB_FILES -o=json . $f | jq -cMr --arg a "kubernetes" '.requires|select(.)[]|select(.==$a)')"
+      if test -n "$r"; then
+        HUB_DEPLOY_PROFILE="pod"
+      fi
+  fi
+  BRIEF="Deployment profile used to execute automation
+- local: run everything locally
+- toolbox: run a docker container with all tools inside in interactive shell
+- pod: to run a toolbox container as a kubernetes pod
+See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
+  ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$BRIEF"
+fi
