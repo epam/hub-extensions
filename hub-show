@@ -117,7 +117,7 @@ fi
 
 
 if test -z "$RESP"; then
-    echo "Stack $HUB_DOMAIN_NAME not found" 1>&2
+    echo "Stack $HUB_DOMAIN_NAME not found" | xargs | color e
     exit 2
 fi
 
