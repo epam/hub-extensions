@@ -218,3 +218,7 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
     dotenv set "HUB_DEPLOY_PROFILE" "local"
   fi
 fi
+
+if test -n "$CLOUD_SHELL"; then
+    $dotenv set "HUB_DEPLOY_PROFILE" "local"
+fi
