@@ -14,6 +14,10 @@ ident() {
   sed 's/^/  /'
 }
 
+check_api_enabled() {
+  gcloud services list --enabled --filter "name:($1)" --format="value(config.name)"  >/dev/null 2>&1
+}
+
 jq='jq -cM'
 # shellcheck disable=SC2089
 # curl='curl -isH "Metadata-Flavor: Google"'
@@ -72,9 +76,10 @@ echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
 # fi
 
 echo "Configuring Bubble DNS"
-echo -n "* Enabling API for dns.googleapis.com... "
-gcloud services enable "dns.googleapis.com" && echo "done"
-
+if check_api_enabled "dns.googleapis.com"; then
+  echo -n "* Enabling API for dns.googleapis.com... "
+  gcloud services enable "dns.googleapis.com" && echo "done"
+fi
 ### Create DNS Zone
 CURRENT_DIR=$(dirname "$0")
 # shellcheck disable=SC1091
@@ -125,8 +130,10 @@ USAGE_REPORTING_FUNCTION_REGION="us-central1"
 USAGE_REPORTING_FUNCTION_REPO="https://github.com/agilestacks/hub-state.git"
 USAGE_REPORTING_FUNCTION_REF="master"
 USAGE_REPORTING_FUNCTION_NAME="reporting-$(echo "$HUB_STATE_BUCKET" | tr '[:upper:]' '[:lower:]')"
-echo -n "* Enabling API for cloudfunctions.googleapis.com... "
-gcloud services enable "cloudfunctions.googleapis.com" && echo "done"
+if check_api_enabled "cloudfunctions.googleapis.com"; then
+  echo -n "* Enabling API for cloudfunctions.googleapis.com... "
+  gcloud services enable "cloudfunctions.googleapis.com" && echo "done"
+fi
 echo "Configuring usage reporting cloud function "
 if gcloud functions describe "$USAGE_REPORTING_FUNCTION_NAME" --region "$USAGE_REPORTING_FUNCTION_REGION" > /dev/null 2>&1 && test -z "$FORCE_FUNCTION_UPDATE"; then
   echo "* Usage reporting cloud function already deployed to $GOOGLE_PROJECT for $HUB_STATE_BUCKET. Use --force flag to redeploy"
@@ -192,3 +199,6 @@ $dotenv set "GOOGLE_PROJECT" "$GOOGLE_PROJECT"
 $dotenv set "HUB_DOMAIN_NAME" "$HUB_DOMAIN_NAME"
 $dotenv set "HUB_STATE" "$HUB_STATE_FILE"
 $dotenv set "HUB_ELABORATE" "$HUB_ELABORATE_FILE"
+if test -n "$CLOUD_SHELL"; then
+    $dotenv set "HUB_DEPLOY_PROFILE" "local"
+fi
