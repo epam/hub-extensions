@@ -1,13 +1,15 @@
 #!/bin/bash -e
 # shellcheck disable=SC2016,SC2068,SC2086
 
-PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH
-
-HUB_HOME="$(files abspath "${HUB_HOME:-$(dirname "$0")}")"
-HUB_WORKDIR="$(files abspath "${HUB_WORKDIR:-$(pwd)}")"
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
-export HUB_HOME HUB_HOME HUB_WORKDIR DOT_ENV
+
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH HUB_HOME HUB_EXTENSION
+
+HUB_WORKDIR="$(files abspath "$HUB_WORKDIR")"
+export HUB_WORKDIR
 
 jq="jq -cMr "
 
