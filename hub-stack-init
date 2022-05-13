@@ -82,7 +82,6 @@ finalize() {
 }
 
 VERBOSE=false
-HELP=false
 ARGS=$*
 HUB_FILES=""
 HUB_AUTOCONFIGURE="${HUB_AUTOCONFIGURE:-1}"
@@ -160,6 +159,7 @@ temp_file() {
 DOT_ENV="$(temp_file)"
 KNOWN_URLS=""
 EXPANDED=""
+export DOT_ENV
 
 expand_hub_files() {
   local f included local_file
