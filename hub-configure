@@ -145,27 +145,8 @@ EOF
   fi
   if test -d "$HUB_WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$HUB_WORKDIR/.hub/profiles")"; fi
   if test -d "$HUB_HOME/profiles"; then profiles="$profiles $(ls $HUB_HOME/profiles)"; fi
-  echo "Saving configuration"
-  TEMP1=$(temp_file)
-  TEMP2=$(temp_file)
-  dotenv -f "$TEMP1" set "HUB_DEPLOY_PROFILE" "$HUB_DEPLOY_PROFILE"
-  dotenv -f "$TEMP1" set "HUB_TTY" "${HUB_TTY:-false}"
-  dotenv -f "$TEMP1" set "HUB_FILES" "$HUB_FILES"
-
-  # unconfigured=false
-  # if test -L "$HUB_WORKDIR/.env"; then
-    # dotenv1=$(files abspath $(readlink -n "$HUB_WORKDIR/.env"))
-    # dotenv2=$(files abspath "$HUB_WORKDIR/.hub/env/.env")
-    # if test "$dotenv1" = "$dotenv2"; then
-    #   unconfigured=true
-    # fi
-  # fi
-
-  MERGE_FILES="$MERGE_FILES -f $TEMP2"
-  # shellcheck disable=SC2001
-  dotenv merge $MERGE_FILES > $TEMP1
-  HUB_DOMAIN_NAME=$(dotenv -f "$TEMP1" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
-  HUB_STACK_NAME=$(dotenv -f "$TEMP1" get "HUB_STACK_NAME" --default "$HUB_STACK_NAME")
+  HUB_DOMAIN_NAME=$(dotenv get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
+  HUB_STACK_NAME=$(dotenv get "HUB_STACK_NAME" --default "$HUB_STACK_NAME")
   if test -n "$HUB_DOMAIN_NAME"; then
     dotenv_file="$(files abspath .hub/env/$HUB_DOMAIN_NAME.env)"
   elif test -n "$HUB_STACK_NAME"; then
@@ -173,14 +154,14 @@ EOF
   else
     dotenv_file="$(files abspath .hub/env/.env)"
   fi
-  echo "* Saving configuration to $dotenv_file"
-  copy "$TEMP1" "$dotenv_file" | ident
-  if test "$(files abspath $(readlink -n $HUB_WORKDIR/.env))" = $(files abspath .hub/env/.env); then
-    echo "  Removing old: .hub/env/.env"
-    rm -rf "$HUB_WORKDIR/.hub/env/.env"
+  if test "$(files abspath $DOT_ENV)" != "$dotenv_file"; then
+    echo "Saving configuration to new location: $dotenv_file"
+    copy "$TEMP1" "$dotenv_file" | ident
+    echo "  Removing old: $DOT_ENV"
+    update_symlink "$dotenv_file" "$HUB_WORKDIR/.env"
+    rm -rf "$DOT_ENV"
   fi
-  update_symlink "$dotenv_file" "$HUB_WORKDIR/.env"
-  export DOT_ENV="$dotenv_file"
+
   cat <<EOF | color g
 Done!
 
@@ -248,23 +229,26 @@ trap 'finalize $?' EXIT
 
 MERGE_FILES=""
 
-# if test -n "$INIT_DOTENV"; then
-#   echo "Using $INIT_DOTENV as initial configuration"
-#   eval $(dotenv export -f "$INIT_DOTENV")
-#   MERGE_FILES="$MERGE_FILES -f $INIT_DOTENV"
-# fi
-
 if test -f "$HUB_WORKDIR/.env"; then
   echo "Configuration .env file: exist"
-  eval $(dotenv export -f "$HUB_WORKDIR/.env")
-  if test -n "$HUB_CLOUD_PROVIDER"; then echo "* Cloud provider: $HUB_CLOUD_PROVIDER"; fi
   if test -L "$HUB_WORKDIR/.env"; then
-    MERGE_FILES="-f $(readlink -n "$HUB_WORKDIR/.env") $MERGE_FILES"
+    DOT_ENV="$(readlink -n "$HUB_WORKDIR/.env")"
   else
-    MERGE_FILES="-f $HUB_WORKDIR/.env $MERGE_FILES"
+    DOT_ENV="$HUB_WORKDIR/.env"
+  fi
+  export DOT_ENV
+  eval $(dotenv export -f "$HUB_WORKDIR/.env")
+  if test -n "$HUB_CLOUD_PROVIDER"; then
+    echo "* Cloud provider: $HUB_CLOUD_PROVIDER";
   fi
 else
-  echo "Configuration .env file: to be created"
+  cat << EOF | color e
+Error: cannot find .env file
+
+Did you run?
+  hub stack init
+EOF
+  exit 1
 fi
 
 for req in $(echo "$REQS" | xargs -n1); do
@@ -280,11 +264,9 @@ for req in $(echo "$REQS" | xargs -n1); do
 
   echo -n "Running configuration for: "
   color b "$req"
-
-  DOT_ENV=$(temp_file)
-  export DOT_ENV
-  files copy "$WORKDIR/.env" "$DOT_ENV"
-  if ! $configure --output "$DOT_ENV" $ARGS; then
+  if $configure --output "$DOT_ENV" $ARGS; then
+    eval $(dotenv export -f "$DOT_ENV")
+  else
     cat << EOF | color e
 
 Error: "$req" completed with error!
@@ -298,13 +280,9 @@ For additional options:
 EOF
     exit 4
   fi
-  if test -s "$DOT_ENV"; then
-    eval $(dotenv export -f "$DOT_ENV")
-    MERGE_FILES="$MERGE_FILES -f $DOT_ENV"
-  fi
 done
 
-if test -z "$HUB_DEPLOY_PROFILE"; then
+if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
   HUB_DEPLOY_PROFILE="local"
   # We don't want run pod if inside of the pod
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
@@ -320,3 +298,6 @@ if test -z "$HUB_DEPLOY_PROFILE"; then
 See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
   ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$BRIEF"
 fi
+
+dotenv set "HUB_TTY" "${HUB_TTY:-false}"
+dotenv set "HUB_FILES" "$HUB_FILES"
