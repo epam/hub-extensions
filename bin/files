@@ -10,10 +10,14 @@ Parameters:
   --help                  Print this message
 
 Subcommands:
-  $(basename "$0") find-in-path FILE        Returns file locatin in PATH (also can use subdirs)
-  $(basename "$0") abspath      FILE        Returns returns absolute location for desired file
-  $(basename "$0") download     URL  DEST   Downloads a remote file
-  $(basename "$0") copy         FILE DEST   Copy file utility
+  $(basename "$0") find-in-path FILE             Returns file locatin in PATH (also can use subdirs)
+  $(basename "$0") abspath      FILE             Returns returns absolute location for desired file
+  $(basename "$0") download     URL  DEST        Downloads a remote file
+  $(basename "$0") copy         FILE DEST        Copy file utility
+  $(basename "$0") download-tar URL  EXTRACT_TO  Downlaods and extracts tarball file
+
+Parameters for download-tar:
+  --tar-subpath PATH_INSIDE_TARBALL              Instructs to extract only specific subpath
 EOF
 }
 
@@ -49,7 +53,20 @@ while test -n "$1"; do
         shift
         continue
     ;;
+
+    download-tarball | download-tar )
+      op="download-tarball"
+      shift
+      arg="$1"
+      shift
+      arg2="$1"
+    ;;
+    --tar-subpath )
+      tar_subpath="$2"
+      shift
+    ;;
     * )
+      color e "Error: unknown flag $1"
       usage
       exit 1
       ;;
@@ -126,6 +143,26 @@ case "$op"  in
     trap 'rm -f $temp' EXIT
     download_file "$arg" "$temp"
     files copy "$temp" "$arg2"
+  ;;
+
+  "download-tarball" )
+    temp="$(mktemp)"
+    trap 'rm -f $temp' EXIT
+    echo -n "Downloading $arg... "
+    download_file "$arg" "$temp"
+    if test -n "$tar_subpath"; then
+      echo " extracting $tar_subpath "
+      ROOT=$(tar -tvf "$temp" | awk 'NR==1{print substr($NF, 1, length($NF)-1)}')
+      STRIP=$(echo "$ROOT/$tar_subpath" | tr / " " | wc -w)
+      rm -rf "$arg2"
+      mkdir -p "$arg2"
+      tar -xf "$temp" --strip-components "$STRIP" -C "$arg2" "$ROOT/$tar_subpath"
+    else
+      color e "Error: download-tar without subpath is not implemented yet!"
+      exit 1
+    fi
+
+    # files copy "$temp" "$arg2"
   ;;
 
   "copy" )
