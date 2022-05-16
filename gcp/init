@@ -86,6 +86,7 @@ Entered value: $GOOGLE_PROJECT
 
 EOF
 fi
+echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
 
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   CREDS="$HOME/.config/gcloud/application_default_credentials.json"
