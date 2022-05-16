@@ -155,11 +155,12 @@ EOF
     dotenv_file="$(files abspath .hub/env/.env)"
   fi
   if test "$(files abspath $DOT_ENV)" != "$dotenv_file"; then
-    echo "Saving configuration to new location: $dotenv_file"
-    copy "$TEMP1" "$dotenv_file" | ident
-    echo "  Removing old: $DOT_ENV"
-    update_symlink "$dotenv_file" "$HUB_WORKDIR/.env"
-    rm -rf "$DOT_ENV"
+    echo "Saving configuration as: $(basename "$dotenv_file")"
+    if files copy "$DOT_ENV" "$dotenv_file" | ident; then
+      echo "* Removing old: $DOT_ENV"
+      update_symlink "$dotenv_file" "$HUB_WORKDIR/.env"
+      rm -rf "$DOT_ENV"
+    fi
   fi
 
   cat <<EOF | color g
@@ -226,8 +227,6 @@ fi
 HUB_FILES="$(real_files $HUB_FILES)"
 export HUB_FILES
 trap 'finalize $?' EXIT
-
-MERGE_FILES=""
 
 if test -f "$HUB_WORKDIR/.env"; then
   echo "Configuration .env file: exist"
