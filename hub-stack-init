@@ -333,7 +333,7 @@ if test -n "$HUB_STATE"; then
   eval $(dotenv export -f "$DOT_ENV")
 fi
 
-HUB_STACK_REQUIRES="$(yq $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.init).init[]')"
+HUB_STACK_REQUIRES="$(yq e '' $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.init).init[]')"
 for req in $HUB_STACK_REQUIRES; do
   init=$(files find-in-path "$req/init")
   if test -x "$HUB_WORKDIR/$req"; then

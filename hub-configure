@@ -211,7 +211,7 @@ WORKDIR="$HUB_WORKDIR"
 # will be used by exact extensions
 export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG HUB_WORKDIR
 if test -z "$REQS"; then
-  REQS="$(yq $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.configure).configure[]')"
+  REQS="$(yq e '' $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.configure).configure[]')"
 fi
 
 if $HELP; then
@@ -285,7 +285,7 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
   HUB_DEPLOY_PROFILE="local"
   # We don't want run pod if inside of the pod
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
-      r="$(yq e $HUB_FILES -o=json | jq -cMr --arg a "kubernetes" '.requires|select(.)[]|select(.==$a)')"
+      r="$(yq e '' $HUB_FILES -o=json | jq -cMr --arg a "kubernetes" '.requires|select(.)[]|select(.==$a)')"
       if test -n "$r"; then
         HUB_DEPLOY_PROFILE="pod"
       fi
