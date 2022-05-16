@@ -24,7 +24,7 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 trap "rm -f $TEMP" EXIT
 
 echo -n "* Resolving new domain name: "
-HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://bubbles.stuff.epam.superhub.io/"}
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://bubbles.tools.epam.devops.delivery/"}
 HTTP_CODE=$( \
   curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
       -w "%{http_code}" \
