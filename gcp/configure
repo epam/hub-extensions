@@ -210,3 +210,11 @@ fi
 if test -n "$HUB_STACK_NAME"; then
   $dotenv set "HUB_STACK_NAME" "$HUB_STACK_NAME"
 fi
+
+if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
+  if test -n "$CLOUD_SHELL"; then
+    echo "* The Hub CLI runs inside a Cloud Shell environment"
+    echo "  Setting deploy profile to: local"
+    dotenv set "HUB_DEPLOY_PROFILE" "local"
+  fi
+fi
