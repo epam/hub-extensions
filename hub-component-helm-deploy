@@ -198,6 +198,12 @@ Running helm command
     $(echo "$helm upgrade $COMPONENT_NAME $chart_path $HELM_ARGS $HELM_OPTS --install" | xargs)
 
 EOF
+
+if test -n "$DEBUG"; then
+    # shellcheck disable=SC2086
+    $helm template "$COMPONENT_NAME" "$chart_path" $HELM_ARGS $HELM_OPTS | tee charts-dump.yaml
+fi
+
 # shellcheck disable=SC2086
 $helm upgrade "$COMPONENT_NAME" "$chart_path" $HELM_ARGS $HELM_OPTS --install
 
