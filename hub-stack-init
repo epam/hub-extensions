@@ -13,6 +13,10 @@ export HUB_WORKDIR
 
 jq="jq -cMr "
 
+hub_state_cli_exist() {
+  hub state --help >/dev/null 2>&1
+}
+
 real_files() {
   for f in $@; do
     if test -f "$f"; then
@@ -28,21 +32,21 @@ toJson() {
 
 # shellcheck disable=SC2120
 usage() {
-  local maybe_id
-  if test -z "$(files find-in-path hub-state)"; then
-    maybe_id="[id]"
-  fi
   cat << EOF
 Initializes a brand new stack from existing hub file
 
 Usage:
-  $HUB_EXTENSION [flags] $maybe_id
+  $HUB_EXTENSION [flags] <state-ref>
 
 Example:
   $HUB_EXTENSION
+  $HUB_EXTENSION <state-ref>
   $HUB_EXTENSION -f <path-or-url-hub.yaml>
-  $HUB_EXTENSION -f <path-or-url-hub.yaml> -s <path-or-url-to-hubstate>
-  $HUB_EXTENSION -f <path-or-url-hub.yaml> --force $maybe_id
+  $HUB_EXTENSION -f <path-or-url-hub.yaml> --force
+  $HUB_EXTENSION <state-ref> -f <path-or-url-hub.yaml> --force
+
+State ref:
+  State can be referenced as a file, http, gs url or id (see "hub state ls")
 
 EOF
 
@@ -60,7 +64,6 @@ EOF
 
 Flags:
   -f, --file string           URL (http) or path to stack definition file (can be repeated multiple times)
-  -s, --state string          URL (https or gs only) or path to state file
   --disable-auto-configure    Turn off configure action on deploy
   --force                     Force to overwrite .env file
   -V, --verbose               Verbose outputs for debug purposes
@@ -75,9 +78,9 @@ ident() {
 finalize() {
   local rv="$?"
   rm -rf $@
-  if test "$rv" != "0"; then
-    echo "Finished wih error!"
-  fi
+  # if test "$rv" != "0"; then
+  #   color e "Finished wih error!"
+  # fi
   exit $rv
 }
 
@@ -92,10 +95,10 @@ while [ "$1" != "" ]; do
       shift
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
       ;;
-    -s | --state )
-      shift
-      SOURCE_HUB_STATE="$1"
-      ;;
+    # -s | --state )
+    #   shift
+    #   SOURCE_HUB_STATE="$1"
+    #   ;;
     --force )
       HUB_USE_FORCE="1"
       ;;
@@ -110,7 +113,12 @@ while [ "$1" != "" ]; do
       exit 0
       ;;
     * )
-      STACK_ID="$1"
+      if test -n "$SOURCE_HUB_STATE"; then
+        color e "Error; unknown option $1"
+        exit 1
+      else
+        SOURCE_HUB_STATE="$1"
+      fi
       ;;
   esac
   shift
@@ -256,9 +264,14 @@ export HUB_FILES
 # fi
 
 # TODO: remove when hub-extensions packaging will be resolved
-if test -n "$(files find-in-path hub state)"; then
-  if test -n "$STACK_ID" -a -z "$SOURCE_HUB_STATE"; then
-    SOURCE_HUB_STATE="$(hub state show $STACK_ID -o json | $jq '.stateLocation.uri | select(.)')"
+if test -n "$SOURCE_HUB_STATE"; then
+  # backward compatibility for users who have not installed new hub-state extension
+  if hub_state_cli_exist; then
+    _state="$(hub state show "$STACK_ID" -o json | $jq '.stateLocation.uri | select(.)')"
+    if test -n "$_state"; then
+      echo "Found state file: $_state"
+      SOURCE_HUB_STATE="$_state"
+    fi
   fi
 fi
 
@@ -290,7 +303,7 @@ if test -n "$SOURCE_HUB_STATE"; then
         echo "  Message: $state_msg"
       fi
     else
-      echo "Error: file not found $state"
+      color e "Error: file not found $state"
       exit 13
     fi
 
