@@ -267,7 +267,7 @@ export HUB_FILES
 if test -n "$SOURCE_HUB_STATE"; then
   # backward compatibility for users who have not installed new hub-state extension
   if hub_state_cli_exist; then
-    _state="$(hub state show "$STACK_ID" -o json | $jq '.stateLocation.uri | select(.)')"
+    _state="$(hub state show "$SOURCE_HUB_STATE" -o json | $jq '.stateLocation.uri | select(.)')"
     if test -n "$_state"; then
       echo "Found state file: $_state"
       SOURCE_HUB_STATE="$_state"
