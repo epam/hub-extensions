@@ -207,6 +207,21 @@ export TF_CLI_ARGS_apply
 $terraform apply $TF_CLI_ARGS -auto-approve $TFPLAN
 echo
 
+sensitive="$(terraform output -json | jq -r 'to_entries[]|select(.value.sensitive==true).key | select(.)')"
+if test -n $(); then
+    cat << EOF
+Values of terraform sensitive outputs has been captured in the file
+
+Outputs:
+
+EOF
+    for s in $sensitive; do
+        terraform output -raw "$s" > "$TF_DATA_DIR/$s.out"
+        echo "sensitive_$s = file://$(files abspath "$TF_DATA_DIR/$s.out")"
+    done
+fi
+echo
+
 if test -x post-$verb; then
     echo "Running post $verb script..."
     echo
