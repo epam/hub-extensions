@@ -70,6 +70,15 @@ while test -n "$1"; do
   esac
 done
 
+with_params() {
+  # shellcheck disable=SC2048
+  for f in $*; do
+    if test -n "$(yq e 'select(.parameters)' $f)"; then
+      echo -n " $f"
+    fi
+  done
+}
+
 if test "$VERBOSE" = "true"; then
   set -x
 fi
@@ -81,6 +90,8 @@ HUB_FILES="$(echo "$HUB_FILES $hub_files" | xargs)"
 if test -z "$HUB_FILES"; then
   HUB_FILES="$(dotenv get HUB_FILES)"
 fi
+
+HUB_FILES="$(with_params $HUB_FILES)"
 
 if test -z "$subcommand" -o -z "$HUB_FILES"; then
   color e "Error: cannot find .env file"
