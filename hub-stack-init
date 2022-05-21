@@ -244,10 +244,8 @@ getParamFromState() {
 }
 
 getParamValueByEnvVar() {
-  if dotenv contains "$2"; then
-    dotenv get "$2"
-  else
-    param="$(params envvar "$2" | jq -cMr '.name')"
+  param="$(params envvar "$2" | jq -cMr '.name')"
+  if test -n "$param"; then
     getParamFromState "$1" "$param"
   fi
 }
@@ -326,6 +324,9 @@ if test -n "$SOURCE_HUB_STATE"; then
     if test -n "$HUB_DOMAIN_NAME"; then
       echo "* Discovered parameter for domain name: $HUB_DOMAIN_NAME"
       DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+      echo "  Creaging .hub/env/$HUB_DOMAIN_NAME.env"
+      mkdir -p "$(dirname "$DOT_ENV")"
+      touch "$DOT_ENV"
       export DOT_ENV
       local_file="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
       if test -f "$local_file"; then
@@ -345,6 +346,9 @@ if test -n "$HUB_STATE"; then
   echo "* Checking environment variables from state"
   for env in $(params listenv -f "$HUB_FILES"); do
     param=$(params envvar "$env" | $jq '.name')
+    if test -z "$param"; then
+      continue
+    fi
     for state in $HUB_STATE; do
       if test ! -f $state; then
         continue
