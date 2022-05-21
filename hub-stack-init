@@ -243,6 +243,15 @@ getParamFromState() {
   hub explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
 }
 
+getParamValueByEnvVar() {
+  if dotenv contains "$2"; then
+    dotenv get "$2"
+  else
+    param="$(params envvar "$2" | jq -cMr '.name')"
+    getParamFromState "$1" "$param"
+  fi
+}
+
 echo "Initializing a new stack"
 echo "* Using working directory: $HUB_WORKDIR"
 if test -L "$HUB_WORKDIR/.env"; then
@@ -308,6 +317,12 @@ if test -n "$SOURCE_HUB_STATE"; then
     fi
 
     HUB_DOMAIN_NAME=$(getParamFromState "$temp" "dns.domain")
+    if test -z "$HUB_DOMAIN_NAME"; then
+      HUB_DOMAIN_NAME="$(getParamValueByEnvVar "$temp" "HUB_DOMAIN_NAME")"
+      if test -z "$HUB_DOMAIN_NAME"; then
+        HUB_DOMAIN_NAME="$(getParamValueByEnvVar "$temp" "HUB_STACK_NAME")"
+      fi
+    fi
     if test -n "$HUB_DOMAIN_NAME"; then
       echo "* Discovered parameter for domain name: $HUB_DOMAIN_NAME"
       DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
