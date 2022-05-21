@@ -444,11 +444,11 @@ echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
 files copy "$temp" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
 update_symlink "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
 
-if test -x "$HUB_WORKDIR/.hub/after-init"; then
-  export DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
-  echo "Running after init script..."
-  $HUB_WORKDIR/.hub/after-init
-fi
+# if test -x "$HUB_WORKDIR/.hub/after-init"; then
+#   export DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
+#   color w "Deprecated functionality: after-init will be removed "
+#   $HUB_WORKDIR/.hub/after-init
+# fi
 cat << EOF
 
 Stack has been initialized!
