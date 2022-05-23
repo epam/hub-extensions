@@ -65,10 +65,17 @@ fi
 dotenv="dotenv -f $DOT_ENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
 if test -z "$HUB_DOMAIN_NAME"; then
-  HUB_DOMAIN_NAME="initialized"
-  FILES=$(ls .hub/env/.env)
-else
+  HUB_DOMAIN_NAME="$($dotenv get "HUB_STACK_NAME" --default "initialized")"
+  if test -L .env; then
+    FILES="$FILES $(readlink -n .env)"
+  fi
+fi
+
+if test -n "$HUB_DOMAIN_NAME"; then
+  # shellcheck disable=SC2086
   FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
+else
+  FILES="$(ls .hub/env/.env)"
 fi
 
 echo "Unconfiguring: $HUB_DOMAIN_NAME"
