@@ -270,6 +270,22 @@ export HUB_FILES
 #   $HUB_WORKDIR/.hub/before-init
 # fi
 
+HUB_STACK_REQUIRES="$(yq e '' $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.init).init[]')"
+for req in $HUB_STACK_REQUIRES; do
+  init=$(files find-in-path "$req/init")
+  if test -x "$HUB_WORKDIR/$req"; then
+    echo -n "Running init script "
+    color h "$req"
+    $HUB_WORKDIR/$req $ARGS
+  elif test -n "$init"; then
+    echo -n "Initializing "
+    color h "$req"
+    $init $ARGS
+  else
+    color w "Cannot find neither init script $req neither extension $req/init"
+  fi
+done
+
 # TODO: remove when hub-extensions packaging will be resolved
 if test -n "$SOURCE_HUB_STATE"; then
   # backward compatibility for users who have not installed new hub-state extension
@@ -364,22 +380,6 @@ if test -n "$HUB_STATE"; then
   # shellcheck disable=SC2046
   eval $(dotenv export -f "$DOT_ENV")
 fi
-
-HUB_STACK_REQUIRES="$(yq e '' $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.init).init[]')"
-for req in $HUB_STACK_REQUIRES; do
-  init=$(files find-in-path "$req/init")
-  if test -x "$HUB_WORKDIR/$req"; then
-    echo -n "Running init script "
-    color h "$req"
-    $HUB_WORKDIR/$req $ARGS
-  elif test -n "$init"; then
-    echo -n "Initializing "
-    color h "$req"
-    $init $ARGS
-  else
-    color w "Cannot find neither init script $req neither extension $req/init"
-  fi
-done
 
 echo "Checking components"
 for hubfile in $HUB_FILES; do
