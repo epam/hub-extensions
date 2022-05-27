@@ -190,8 +190,7 @@ if test -z "$HUB_TOKEN"; then
           "kind": .meta.kind | select("."),
           "name": .meta.name | select("."),
         },
-        "components": [select(.components != null).components|to_entries[]|.key],
-        "provides": [select(.provides != null).provides|to_entries[]|.key],
+        "components": [select(.components != null).components|to_entries[]|{name: .key, status: .value.status, timestamp: .value.timestamp}|select(.status=="deployed" or .status=="incomplete").name],
         "status" : {
           "status": .status | select("."),
           "timestamp": .timestamp | select("."),
