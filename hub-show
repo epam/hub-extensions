@@ -11,7 +11,7 @@ usage()
 {
 cat << EOF
 Print info about stack in JSON format. Stack parameters and outputs are merged by default with the precedence to the outputs. Execute current script with parameter "-o" to see outputs separately
-Usage: $HUB_EXTENSION -s STACK_DOMAIN [-o] [-t]
+Usage: $HUB_EXTENSION [COMPONENT]
 Parameters:
     -s --stack      domain name of the stack
     -o --split      split stack outpus from parameters
@@ -67,8 +67,16 @@ while [ "$1" != "" ]; do
         -h | --help )       usage
                             exit
                             ;;
-        * )                 usage
-                            exit 1
+        * )
+          if test -n "$HUB_COMPONENT"; then
+            color e "Error: unknown option: $1"
+            echo
+            usage
+            exit 1
+          fi
+          HUB_COMPONENT=$1
+          SPLIT_OUTPUTS=1
+          ;;
     esac
     shift
 done
