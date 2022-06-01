@@ -97,7 +97,7 @@ elif test -n "$HELM_REPO"; then
     fi
 
     echo -n "* Checking if helm repo exists: "
-    repo_url="$($helm repo list -o json | jq --arg repo "COMPONENT_NAME" '.[]|select(.name == $repo).url')"
+    repo_url="$($helm repo list -o json | jq --arg repo "$COMPONENT_NAME" '.[]|select(.name == $repo).url')"
     if test -z "$repo_url"; then
         echo "adding"
         # shellcheck disable=SC2086
