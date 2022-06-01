@@ -3,19 +3,19 @@
 
 usage() {
   cat << EOF
-Reads parameterы value from one or multiple hubfiles
+Reads parameters from one or multiple hubfiles
 
-$(basename "$0") <subcommand> PARAM -f HUB_FILE
+$(basename "$0") <subcommand> PARAM_NAME -f HUB_FILE
 
 Subcommands:
-  json   PARAM            Returns json string of the parameter
-  value  PARAM            Returns only value of the parameter
-  envvar ENVVAR           Returns param name by envvar
+  json   PARAM_NAME       Returns json string of the parameter
+  value  PARAM_NAME       Returns only value of the parameter
+  envvar ENVVAR           Returns parameter by envvar
   env    ENVVAR           Same as envvar
   flatten                 Returns flattended parameters
   listenv                 Returns list of environment variables
 
-Parameters:
+Flags:
   -f --file               Path to hubfile (can repeat, default HUB_FILES envvar)
   -d --dotenv             Path to the dotenv file (can repeat, default DOT_ENV envvar)
   -V --verbose            For debug purpose
@@ -51,7 +51,7 @@ while test -n "$1"; do
       continue
       ;;
     -d | --dotenv )
-      if test -f "$f"; then
+      if test -f "$1"; then
         unset DOT_ENV
         dot_env="$DOT_ENV $1"
       fi
@@ -62,7 +62,6 @@ while test -n "$1"; do
       usage
       exit
       ;;
-
     * )
       COMMAND_ARG="$ARG"
       continue;
