@@ -97,22 +97,20 @@ elif test -n "$HELM_REPO"; then
     fi
 
     echo -n "* Checking if helm repo exists: "
-    repo_url="$($helm repo list -o json | jq --arg repo "$COMPONENT_NAME" '.[]|select(.name == $repo).url')"
+    repo_url="$($helm repo list -o json | jq -cMr --arg repo "$COMPONENT_NAME" '.[]|select(.name == $repo).url')"
     if test -z "$repo_url"; then
         echo "adding"
         # shellcheck disable=SC2086
         $helm repo add "$COMPONENT_NAME" "$HELM_REPO" $HELM_REPO_ARGS
-        $helm repo update "$COMPONENT_NAME"
     elif test "$repo_url" = "$HELM_REPO"; then
         echo "arleady exist"
-        $helm repo update "$COMPONENT_NAME"
     else
         echo "updating"
         $helm repo remove "$COMPONENT_NAME"
         # shellcheck disable=SC2086
         $helm repo add "$COMPONENT_NAME" "$HELM_REPO" $HELM_REPO_ARGS
-        $helm repo update "$COMPONENT_NAME"
     fi
+    $helm repo update "$COMPONENT_NAME"
 
     if test -n "$HELM_CHART_VERSION"; then
         HELM_ARGS="$HELM_ARGS --version $HELM_CHART_VERSION"
