@@ -20,19 +20,19 @@ do_not_print_newline() {
     color -n h "$MESSAGE" && echo "TEST"
 }
 
-@test "Test color -n" {
+@test "color -n: should not print the trailing newline character" {
     run do_not_print_newline
     assert_success
     assert_output "${MESSAGE}TEST"
 }
 
-@test "Test color -e" {
+@test "color -e: should print to stderr" {
     run color -e "$MESSAGE"
     assert_success
     assert_output "$MESSAGE"
 }
 
-@test "Test color highlight" {
+@test "color highlight: should print message" {
     run color h "$MESSAGE"
     assert_success
     assert_output "$MESSAGE"
@@ -42,7 +42,7 @@ do_not_print_newline() {
     assert_output "$MESSAGE"
 }
 
-@test "Test color warning" {
+@test "color warning: should print message" {
     run color w "$MESSAGE"
     assert_success
     assert_output "$MESSAGE"
@@ -56,7 +56,7 @@ do_not_print_newline() {
     assert_output "$MESSAGE"
 }
 
-@test "Test color error" {
+@test "color error: should print message" {
     run color e "$MESSAGE"
     assert_success
     assert_output "$MESSAGE"
@@ -70,7 +70,7 @@ do_not_print_newline() {
     assert_output "$MESSAGE"
 }
 
-@test "Test color bold" {
+@test "color bold: should print message" {
     run color b "$MESSAGE"
     assert_success
     assert_output "$MESSAGE"
@@ -80,7 +80,7 @@ do_not_print_newline() {
     assert_output "$MESSAGE"
 }
 
-@test "Test color green" {
+@test "color green: should print message" {
     run color g "$MESSAGE"
     assert_success
     assert_output "$MESSAGE"

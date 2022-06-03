@@ -24,18 +24,20 @@ setup() {
     PATH="$DIR/../bin:$PATH"
 }
 
-@test "Test dotenv contains" {
+@test "dotenv contains: should exit with code 0 if envvar exist" {
     run dotenv contains "BATS_DOTENV_TEST_A"
     assert_success
 
     run dotenv contains "BATS_DOTENV_TEST_B"
     assert_success
+}
 
+@test "dotenv contains: should exit with code 1 if envvar does not exist" {
     run dotenv contains "BATS_DOTENV_TEST_C"
     assert_failure
 }
 
-@test "Test dotenv get" {
+@test "dotenv get: should return envvar value if exits or empty string" {
     run dotenv get "BATS_DOTENV_TEST_A"
     assert_success
     assert_output "TEST A"
@@ -49,14 +51,14 @@ setup() {
     assert_output ""
 }
 
-@test "Test dotenv keys" {
+@test "dotenv keys: should return list of envvars" {
     run dotenv keys
     assert_success
     assert_line --index 0 "BATS_DOTENV_TEST_A"
     assert_line --index 1 "BATS_DOTENV_TEST_B"
 }
 
-@test "Test dotenv merge" {
+@test "dotenv merge: should merge two or more .env files and print result" {
     run dotenv merge -f .env -f .merge.env
     assert_success
     assert_line --index 0 'BATS_DOTENV_TEST_A="TEST A"'
@@ -64,7 +66,7 @@ setup() {
     assert_line --index 2 'BATS_DOTENV_TEST_C="TEST C"'
 }
 
-@test "Test dotenv set" {
+@test "dotenv set: should append envvar to .env file" {
     run dotenv set 'BATS_DOTENV_TEST_C="TEST C"'
     assert_success
 
@@ -76,7 +78,7 @@ setup() {
     assert_output "TEST C"
 }
 
-@test "Test dotenv export" {
+@test "dotenv export: should print .env envvars with export command" {
     run dotenv export
     assert_success
     assert_line --index 0 'export BATS_DOTENV_TEST_A="TEST A"'
