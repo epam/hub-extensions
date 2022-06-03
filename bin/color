@@ -13,7 +13,7 @@ Parameters:
   -h --help               Show this message
 
 Subcommands:
-  h or hightlight    MSG  Prints bold white
+  h or highlight     MSG  Prints bold white
   w, warn or warning MSG  Prints bold yellow
   e, err or error    MSG  Prints bold red
   b, bold            MSG  Prints bold
