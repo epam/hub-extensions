@@ -26,7 +26,7 @@ EOF
 }
 
 FORMAT="${FORMAT:-json}"
-JQ_ARGS="${JQ_ARGS:- -S}"
+JQ_ARGS="${JQ_ARGS:- -Sr}"
 
 eval "$(dotenv -f $HUB_WORKDIR/.env export)"
 
