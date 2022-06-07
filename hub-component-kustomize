@@ -1,4 +1,5 @@
 #!/bin/sh -e
+# shellcheck disable=SC2086
 
 if test -z "$1"; then
   cat << EOF
@@ -8,6 +9,10 @@ Currently supported verbs: deploy, undeploy
 EOF
   exit 1;
 fi
+
+ident() {
+  sed 's/^/  /'
+}
 
 if test -n "$DOMAIN_NAME"; then
     color w "Environment variable: DOMAIN_NAME has been deprecated"
@@ -49,10 +54,12 @@ apply_crd_file() {
         if test -z "$crd" -o "$crd" = "null"; then
             continue
         fi
+        echo "  Checking presence of: $crd"
         if $kubectl get crd "$crd" > /dev/null; then
             echo "  $crd already exists"
         else
-            $kubectl create -f "$1"
+            echo "  (not an error) creating..."
+            $kubectl create -f "$1" | ident
         fi
     done
 }
@@ -123,20 +130,10 @@ fi
 # Special case for CRD
 if test -n "$(yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml")"; then
   $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml" > "$WORKDIR/crds.yaml"
-  max_di=$($yq e 'di' "$WORKDIR/crds.yaml" | tail -1)
   if test "$VERB" = deploy; then
     echo "* Processing CRDs before other kustomize resources:"
     for i in $(seq 0 "$max_di"); do
-      crd=$($yq e "select(di == $i).metadata.name" "$WORKDIR/crds.yaml")
-      if test -z "$crd" -o "$crd" = "null"; then
-        continue
-      fi
-
-      if $kubectl get crd "$crd" > /dev/null; then
-        echo "  - $crd already exists"
-      else
-        $yq e yq e "select(di == $i)" "$WORKDIR/crds.yaml" | $kubectl create -f -
-      fi
+      apply_crd_file "$WORKDIR/crds.yaml"
     done
   fi
 
