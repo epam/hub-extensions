@@ -90,17 +90,14 @@ if test "$VERB" = "deploy"; then
   fi
 fi
 
+if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
+  echo "* Downloading component base from: $HUB_KUSTOMIZE_TARBALL_URL"
+  files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATH"
+fi
+
 if test -x "pre-$VERB"; then
   echo "Running pre-$VERB hook..."
   "./pre-$VERB"
-fi
-
-if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
-  echo "* Downloading component base from: $HUB_KUSTOMIZE_TARBALL_URL"
-  "$(dirname "$0")/kustomize/download-tarball" \
-    -u "$HUB_KUSTOMIZE_TARBALL_URL" \
-    -s "$HUB_KUSTOMIZE_TARBALL_SUBPATH" \
-    -o "$(pwd)/kustomize"
 fi
 
 if which kustomize > /dev/null; then
