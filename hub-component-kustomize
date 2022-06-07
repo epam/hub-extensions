@@ -45,38 +45,41 @@ case "$VERB" in
 esac
 
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:?"Required variable HUB_DOMAIN_NAME has not been defined"}
-NAMESPACE=${NAMESPACE:?"Required variable DOMAIN_NAME has not been defined"}
+# NAMESPACE=${NAMESPACE:?"Required variable DOMAIN_NAME has not been defined"}
 
-apply_crd_file() {
+apply_k8s_resources_file() {
     max_di=$(yq e 'di' "$1" | tail -1)
     for i in $(seq 0 "$max_di"); do
-        crd=$(yq e "select(di == $i).metadata.name" "$1")
-        if test -z "$crd" -o "$crd" = "null"; then
+        kind=$(yq e "select(di == $i).kind | select(.) | downcase" "$1")
+        name=$(yq e "select(di == $i).metadata.name | select(.)" "$1")
+        if test -z "$name" -o -z "$kind"; then
             continue
         fi
-        echo "  Checking presence of: $crd"
-        if $kubectl get crd "$crd" > /dev/null; then
-            echo "  $crd already exists"
+        echo "  Checking $kind/$name"
+        if $kubectl get "$kind" "$name" > /dev/null; then
+            echo "  $name already exists"
         else
             echo "  (not an error) creating..."
-            $kubectl create -f "$1" | ident
+            yq e "select(di == $i)" | $kubectl create -f --
         fi
     done
 }
 
 if test "$VERB" = "deploy"; then
-  if ! $kubectl get namespace "$NAMESPACE" > /dev/null;  then
-    $kubectl create namespace "$NAMESPACE"
+  if test -n "$NAMESPACE"; then
+    if ! $kubectl get namespace "$NAMESPACE" > /dev/null;  then
+      $kubectl create namespace "$NAMESPACE"
+    fi
   fi
   if test -n "$CRD"; then
       if echo "$CRD" | grep -e '^https\?://' >/dev/null 2>&1; then
           echo "* Downloading CRD from: $CRD ..."
           temp=$(temp_file)
           files download "$CRD" "$temp"
-          apply_crd_file "$temp"
+          apply_k8s_resources_file "$temp"
       elif test -f "$CRD"; then
           echo "* Reading CRD from: $CRD"
-          apply_crd_file "$CRD"
+          apply_k8s_resources_file "$CRD"
       fi
   else
       color w "Warning: file not found ($CRD)"
@@ -85,7 +88,7 @@ if test "$VERB" = "deploy"; then
       for file in crds/*.yaml crds/*.yml; do
           if test ! -f "$file"; then continue; fi
           echo "* Reading CRD from: $file"
-          apply_crd_file "$file"
+          apply_k8s_resources_file "$file"
       done
   fi
 fi
@@ -119,9 +122,14 @@ $kustomize_build_cmd > "$WORKDIR/resources.yaml"
 
 if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/resources.yaml")"; then
   echo "* Removing shared resource Namespace from kustomize build"
-  echo "  HINT: consider to move Namespace to pre-$VERB script"
-  yq e '. | select(.kind == "Namespace").metadata.name | "  - " + .' "$WORKDIR/resources.yaml"
+  color g "  HINT: consider moving Namespace to pre-$VERB script"
+  yq e '. | select(.kind == "Namespace")' "$WORKDIR/resources.yaml" > "$WORKDIR/namespaces.yaml"
+  yq e '.metadata.name | "  - " + .' "$WORKDIR/namespaces.yaml" | color g
   yq e '. | select(.kind == "Namespace" | not)' -i "$WORKDIR/resources.yaml"
+  if test "$VERB" = deploy; then
+    echo "* Processing Namespaces before other kustomize resources:"
+    apply_k8s_resources_file "$WORKDIR/namespaces.yaml"
+  fi
 fi
 
 # Special case for CRD
@@ -129,9 +137,7 @@ if test -n "$(yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/r
   $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml" > "$WORKDIR/crds.yaml"
   if test "$VERB" = deploy; then
     echo "* Processing CRDs before other kustomize resources:"
-    for i in $(seq 0 "$max_di"); do
-      apply_crd_file "$WORKDIR/crds.yaml"
-    done
+    apply_k8s_resources_file "$WORKDIR/crds.yaml"
   fi
 
   echo "* Removing CustomResourceDefinition from kustomize build"
