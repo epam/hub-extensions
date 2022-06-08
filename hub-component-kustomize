@@ -60,7 +60,7 @@ apply_k8s_resources_file() {
             echo "  $name already exists"
         else
             echo "  (not an error) creating..."
-            yq e "select(di == $i)" | $kubectl create -f --
+            yq e "select(di == $i)" "$1" | $kubectl create -f -
         fi
     done
 }
