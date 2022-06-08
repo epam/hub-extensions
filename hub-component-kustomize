@@ -132,6 +132,18 @@ if test -n "$(yq e '. | select(.kind == "Namespace")' "$WORKDIR/resources.yaml")
   fi
 fi
 
+if test "$VERB" = deploy; then
+  for name in $(yq e '.metadata.namespace | ""+select(.)' $WORKDIR/resources.yaml | uniq ); do
+    printf '%s' "  Checking namespace $name... "
+    if $kubectl get namespace "$name" > /dev/null; then
+      echo "(already exists)"
+    else
+      echo "  (not an error) creating..."
+      $kubectl create namespace "$name"
+    fi
+  done
+fi
+
 # Special case for CRD
 if test -n "$(yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml")"; then
   $yq e '. | select(.kind == "CustomResourceDefinition")' "$WORKDIR/resources.yaml" > "$WORKDIR/crds.yaml"
