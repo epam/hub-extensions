@@ -84,7 +84,11 @@ if test -z "$HUB_WORKDIR"; then
   HUB_WORKDIR="$(dirname "$(files abspath .env)")"
 fi
 
-if test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
+if test "$HUB_INTERACTIVE" = "0"; then
+  INTERACTIVE=false
+elif test -n "HUB_INTERACTIVE"; then
+  INTERACTIVE=true
+elif test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
   INTERACTIVE=true
 else
   INTERACTIVE=false
@@ -222,7 +226,7 @@ if test "$EMPTY" = "allow"; then
   enabled="${enabled/random/}"
 fi
 
-HISTORY_FILE="$HUB_WORKDIR/.hub/env/.history"
+HISTORY_FILE="$HUB_WORKDIR/.hub/history.env"
 if test ! -f "$HISTORY_FILE"; then
   mkdir -p "$(dirname "$HISTORY_FILE")"
   touch "$HISTORY_FILE"
