@@ -132,16 +132,16 @@ fi
 # - When no other location is set a default location will be used based on the operating system
 #export HELM_HOME=$(pwd)/.helm
 
+echo "Checking namespace: $NAMESPACE"
+if ! $kubectl get namespace "$NAMESPACE" -o name > /dev/null;  then
+  $kubectl create namespace "$NAMESPACE"
+fi
+
 if test -x pre-deploy; then
     echo "Running pre-deploy..."
     pre_deploy=$(CHART_PATH=$chart_path ./pre-deploy)
     helmvars=$(grep -E '^export ' <<<"$pre_deploy" || exit 0)
     if test -n "$helmvars"; then eval "$helmvars"; fi
-fi
-
-echo "Checking namespace: $NAMESPACE"
-if ! $kubectl get namespace "$NAMESPACE" -o name > /dev/null;  then
-  $kubectl create namespace "$NAMESPACE"
 fi
 
 if test -n "$CRD"; then
