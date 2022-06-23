@@ -53,6 +53,7 @@ eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
 FULL_STACK=true
 WORKDIR=$(pwd)
 HUB_OPTS=
+VERBOSE=false
 
 while test "$1" != ""; do
     case $1 in
@@ -75,7 +76,7 @@ while test "$1" != ""; do
         --profile )         shift
                             export HUB_DEPLOY_PROFILE="$1"
                             ;;
-        -V | --verbose )    set -x
+        -V | --verbose )    VERBOSE=true
                             ;;
         -h | --help )       usage
                             exit
@@ -89,6 +90,10 @@ while test "$1" != ""; do
     esac
     shift
 done
+
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
 
 if test ! -f .env; then
 cat << EOF
@@ -123,7 +128,7 @@ fi
 
 if test "$HUB_AUTOCONFIGURE" = "1"; then
   echo -n "Proceeding with:"; color h "configure"
-  hub stack configure
+  hub stack configure "$(test "$VERBOSE" = "true" && echo "--verbose")"
   echo "Reloading .env file"
   eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
   echo -n "Proceeding with:"; color h "$verb"
