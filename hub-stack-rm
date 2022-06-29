@@ -11,7 +11,7 @@ cat << EOF
 Remove configuration from current stack
 
 Usage:
-$ $HUB_EXTENSION [DOMAIN_NAME]
+  $HUB_EXTENSION [DOMAIN_NAME]
 
 Parameters:
     -V  --verbose          Verbose outputs for debug purpose
@@ -20,12 +20,7 @@ Parameters:
 EOF
 }
 
-if test -f ".env"; then
-  DOT_ENV=".env"
-elif test -L ".env"; then
-  DOT_ENV=$(readlink ".env")
-fi
-
+DOT_ENV=".env"
 while [ "$1" != "" ]; do
     case $1 in
     -V | --verbose )    set -x
@@ -41,23 +36,22 @@ while [ "$1" != "" ]; do
     shift
 done
 
-if test -L "$HUB_WORKDIR/.env" -a ! -e "$HUB_WORKDIR/.env"; then
+if test -L "$DOT_ENV" -a ! -e "$DOT_ENV"; then
   echo "* Unlinking: .env"
   unlink "$HUB_WORKDIR/.env"
   exit
 fi
 
 if test ! -f "$DOT_ENV"; then
-  cat <<EOF
-* Nothing to remove
+  cat <<EOF | color w
+Nothing to remove
 
 EOF
-  usage
-  cat <<EOF
+  cat <<EOF | color g
 
 To see list of available stacks run
 
-  $ hub stack ls
+  hub stack ls
 
 EOF
   exit 1
@@ -65,7 +59,7 @@ fi
 dotenv="dotenv -f $DOT_ENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
 if test -z "$HUB_DOMAIN_NAME"; then
-  HUB_DOMAIN_NAME="$($dotenv get "HUB_STACK_NAME" --default "initialized")"
+  HUB_DOMAIN_NAME="$($dotenv get "HUB_STACK_NAME")"
   if test -L .env; then
     FILES="$FILES $(readlink -n .env)"
   fi
@@ -74,20 +68,38 @@ fi
 if test -n "$HUB_DOMAIN_NAME"; then
   # shellcheck disable=SC2086
   FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
+  echo "Removing configuration for: $HUB_DOMAIN_NAME"
 else
-  FILES="$(ls .hub/env/.env)"
+  echo "Removing configuration for: initialized"
 fi
 
-echo "Unconfiguring: $HUB_DOMAIN_NAME"
-FILES="$FILES $($dotenv get "HUB_STATE" | sed "s/,/ /g")"
-FILES="$FILES $($dotenv get "HUB_ELABORATE" | sed "s/,/ /g")"
-FILES="$FILES $($dotenv get "HUB_KUECONFIG")"
-FILES="$FILES $($dotenv get "HUB_BUBBLE_DNS")"
-FILES="$FILES $DOT_ENV"
+for key in $(dotenv keys); do
+  if test "$key" = "$HUB_WORKDIR" -o "$key" = "$HUB_FILES"; then
+    continue
+  fi
+  for v in $($dotenv get "$key" | sed 's/-/ /g'); do
+    if test -f "$v"; then
+      FILES="$FILES $v"
+    fi
+  done
+done
+
 for f in $FILES; do
-  test -f "$f" || continue
-  echo "* Removing $f"
-  rm -f "$f"
+  if ! test -f; then
+    color w  "* Skipping $f (not found)"
+    continue
+  elif test -L "$f"; then
+    link="$(readlink -n "$f")"
+    if test -f "$link"; then
+      echo "* Removing: $link"
+      rm -rf "$link"
+    fi
+    "* Unlinking: $f"
+    unlink "$f"
+  else
+    echo "* Removing: $f"
+    rm -rf "$f"
+  fi
 done
 
 if test -L ".env"; then
@@ -95,10 +107,9 @@ if test -L ".env"; then
   unlink "$HUB_WORKDIR/.env"
 fi
 
-cat <<EOF
+color w "This operation does not undeploy associated to the stack resources"
+cat << EOF | color g
 
-State has been removed.
-
-This operation does not undeploy associated to the stack resources
+Stack been removed
 
 EOF
