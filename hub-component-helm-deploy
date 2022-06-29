@@ -118,6 +118,10 @@ elif test -n "$HELM_REPO"; then
     chart_path=$charts/$(basename "$HELM_CHART")
     rm -rf "$chart_path"
     # shellcheck disable=SC2086
+    cat << EOF
+Running:
+    $helm fetch "$COMPONENT_NAME/$HELM_CHART" $HELM_ARGS --destination $charts --untar
+EOF
     $helm fetch "$COMPONENT_NAME/$HELM_CHART" $HELM_ARGS --destination $charts --untar
 else
     color e "Cannot find helm chart $HELM_CHART"

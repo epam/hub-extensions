@@ -215,9 +215,14 @@ export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 
 BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$BEFORE" | xargs -n1); do
-  hook=$(files find-in-path "$i/before-${verb}");
-  if test -z "$hook"; then
-    color warn "  Warning! cannot find before hook: $i"
+  if test -x "$i"; then
+    hook="$i"
+  else
+    hook=$(files find-in-path "$i/before-${verb}")
+    if test -z "$hook"; then
+      color warn "  Warning! cannot find before hook: $i"
+      continue
+    fi
   fi
   echo -n "  Running before ${verb} hook: "
   color bold "$i"
@@ -250,12 +255,17 @@ echo
 
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$AFTER" | xargs -n1); do
-  hook=$(files find-in-path "$i/after-${verb}");
-  if test -z "$hook"; then
-    color warn "  Warning! cannot find after hook: $i"
+  if test -x "$i"; then
+    hook="$i"
+  else
+    hook=$(files find-in-path "$i/after-${verb}")
+    if test -z "$hook"; then
+      color warn "  Warning! cannot find after hook: $i"
+      continue
+    fi
   fi
-  echo -n "  Running after ${verb} hook:"
-  color h "$i"
+  echo -n "  Running after ${verb} hook: "
+  color bold "$i"
   $hook
 done
 

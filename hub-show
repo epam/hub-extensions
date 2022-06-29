@@ -81,8 +81,19 @@ while [ "$1" != "" ]; do
     shift
 done
 
+if test ! -f .env; then
+  color error "Error: cannot find .env file"
+  exit 1
+fi
+
+HUB_STATE="$(dotenv get HUB_STATE --default "$HUB_STATE")"
+if test -z "$HUB_STATE"; then
+  color error "Error: undefined .env variable HUB_STATE"
+  exit 1
+fi
+
 if test -z "$HUB_TOKEN"; then
-  RESP=$(hub explain "${HUB_STATE:-.hub/$HUB_DOMAIN_NAME.state}" --json || echo "") # this will spill into stderr on error
+  RESP=$(hub explain "$HUB_STATE" --json || echo "") # this will spill into stderr on error
   if test -z "$RESP"; then
     if test -z "$HUB_FILES"; then
       HUB_FILES="$(dotenv get HUB_FILES)"
