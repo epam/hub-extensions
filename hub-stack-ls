@@ -8,13 +8,13 @@ if test -f ".env"; then
 fi
 
 if test ! -d .hub/env; then
-  echo "No stacks available"
+  color e  "No stacks available"
   exit 1
 fi
 
-echo "ACTIVE  STACK"
-for f in $HUB_WORKDIR/.hub/env/*.env $HUB_WORKDIR/.hub/env/.env; do
-  STACK=$(basename $f .env)
+echo "ACTIVE  STATUS      TIMESTAMP            NAME"
+for f in $(find .hub/env -type f -regex ".*\.env" -print0 | xargs -0); do
+  STACK=$(basename "$f" .env)
   if test ! -f "$f"; then
     continue
   fi
@@ -25,5 +25,18 @@ for f in $HUB_WORKDIR/.hub/env/*.env $HUB_WORKDIR/.hub/env/.env; do
   if test "$STACK" == ".env"; then
     STACK="initialized"
   fi
-  echo "$STAR       $STACK"
+  resp=""
+  hubstate=""
+  TIMESTAMP=""
+  STATUS=""
+  hubstate="$(dotenv -f "$f" get HUB_STATE)"
+  if test -n "$hubstate"; then
+    set +e
+    resp="$(hub stack explain --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}')"
+    STATUS=$(echo "$resp" | jq -cMr '.status')
+    TIMESTAMP=$(echo "$resp" | jq -cMr '.timestamp')
+    set -e
+  fi
+
+  echo "$STAR       $(printf '%-8s' "$STATUS" | cut -c1-8)    $(printf '%-19s' "$TIMESTAMP" | cut -c1-19)  $STACK"
 done
