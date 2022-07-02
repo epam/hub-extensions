@@ -36,6 +36,35 @@ while [ "$1" != "" ]; do
     shift
 done
 
+beginswith() {
+  case $2 in "$1"*) true;; *) false;; esac;
+}
+
+in_directory() {
+  file="$(files abspath "$1")"
+  if test -n "$2"; then
+    dir="$(files abspath "$2")"
+  else
+    dir="$(files abspath "$HUB_WORKDIR/.hub")"
+  fi
+  beginswith "$dir" "$file"
+}
+
+rm_in_workdir() {
+  if test -L "$1"; then
+    rm_in_workdir "$(readlinkreadlink -n "$1")"
+    echo "* Unlinking: $f"
+    unlink "$1"
+  elif test -f "$1"; then
+    if in_directory "$1"; then
+      echo "* Removing: $1"
+      rm -rf "$1"
+    else
+      color w "Skipping $1 (not in .hub directory)"
+    fi
+  fi
+}
+
 if test -L "$DOT_ENV" -a ! -e "$DOT_ENV"; then
   echo "* Unlinking: .env"
   unlink "$HUB_WORKDIR/.env"
@@ -66,18 +95,18 @@ if test -z "$HUB_DOMAIN_NAME"; then
 fi
 
 if test -n "$HUB_DOMAIN_NAME"; then
-  # shellcheck disable=SC2086
-  FILES=$(ls .hub/env/$HUB_DOMAIN_NAME.*)
   echo "Removing configuration for: $HUB_DOMAIN_NAME"
+  FILES="$FILES $(find .hub -name "$HUB_DOMAIN_NAME.*" -print0  | xargs -0)"
 else
   echo "Removing configuration for: initialized"
 fi
 
+echo "Using work dir: $HUB_WORKDIR"
 for key in $(dotenv keys); do
-  if test "$key" = "$HUB_WORKDIR" -o "$key" = "$HUB_FILES"; then
+  if test "$key" = "HUB_WORKDIR" -o "$key" = "HUB_FILES"; then
     continue
   fi
-  for v in $($dotenv get "$key" | sed 's/-/ /g'); do
+  for v in $($dotenv get "$key" | sed 's/,/ /g'); do
     if test -f "$v"; then
       FILES="$FILES $v"
     fi
@@ -88,21 +117,11 @@ for f in $FILES; do
   if ! test -f; then
     color w  "* Skipping $f (not found)"
     continue
-  elif test -L "$f"; then
-    link="$(readlink -n "$f")"
-    if test -f "$link"; then
-      echo "* Removing: $link"
-      rm -rf "$link"
-    fi
-    "* Unlinking: $f"
-    unlink "$f"
-  else
-    echo "* Removing: $f"
-    rm -rf "$f"
   fi
+  rm_in_workdir "$f"
 done
 
-if test -L ".env"; then
+if test -L ".env" -a ! -e ".env"; then
   echo "* Unlinking: .env"
   unlink "$HUB_WORKDIR/.env"
 fi
