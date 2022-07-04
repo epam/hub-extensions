@@ -3,3 +3,6 @@
 .DS_Store
 hub-state
 hub-state.version
+.vscode/*.json
+.vscode/*.log
+
