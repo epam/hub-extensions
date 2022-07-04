@@ -13,32 +13,37 @@ if test ! -d .hub/env; then
 fi
 
 print_stacks() {
+  local name star resp hubstate ts status
   echo "ACTIVE|NAME|STATUS|TIMESTAMP"
-  for f in $(find .hub/env -type f -regex ".*\.env" -print0 | xargs -0); do
-    STACK=$(basename "$f" .env)
-    if test ! -f "$f"; then
-      continue
-    fi
-    STAR=" "
-    if test "$CURRENT" = "$STACK"; then
-      STAR="*"
-    fi
-    if test "$STACK" == ".env"; then
-      STACK="initialized"
-    fi
-    resp=""
-    hubstate=""
-    TIMESTAMP=""
-    STATUS=""
-    hubstate="$(dotenv -f "$f" get HUB_STATE)"
-    if test -n "$hubstate"; then
-      resp="$(hub explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}')"
-      STATUS=$(echo "$resp" | jq -cMr '.status')
-      TIMESTAMP=$(echo "$resp" | jq -cMr '.timestamp')
-    fi
-
-    echo "$STAR|$STACK|$(printf '%-8s' "$STATUS")|$(printf '%-19s' "$TIMESTAMP")"
-  done
+  if test -d ".hub/env"; then
+    set +e
+    # shellcheck disable=SC2045
+    for f in $(ls -t .hub/env/*.env .hub/env/.env 2>/dev/null); do
+      if test ! -f "$f"; then
+        continue
+      fi
+      star=" "
+      name="$(basename "$f" .env)"
+      ts=""
+      status=""
+      resp=""
+      hubstate=""
+      if test "$CURRENT" = "$name"; then
+        star="*"
+      fi
+      if test "$(basename "$f")" = ".env"; then
+        name="initialized"
+      fi
+      hubstate="$(dotenv -f "$f" get HUB_STATE)"
+      if test -n "$hubstate"; then
+        resp="$(hub explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}')"
+        status=$(echo "$resp" | jq -cMr '.status')
+        ts=$(echo "$resp" | jq -cMr '.timestamp')
+      fi
+      echo "$star|$name|$status|$ts"
+    done
+    set -e
+  fi
 }
 
 print_stacks | column -t -s"|"
