@@ -1,12 +1,14 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH HUB_HOME HUB_EXTENSION
 
 CURRENT=""
 if test -f ".env"; then
@@ -20,7 +22,7 @@ fi
 
 print_stacks() {
   local name star resp hubstate ts status
-  echo "ACTIVE|NAME|STATUS|TIMESTAMP"
+  echo "ACTIVE|STACK|STATUS|TIMESTAMP"
   if test -d ".hub/env"; then
     set +e
     # shellcheck disable=SC2045
