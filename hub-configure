@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -306,3 +306,13 @@ fi
 
 dotenv set "HUB_TTY" "${HUB_TTY:-false}"
 dotenv set "HUB_FILES" "$HUB_FILES"
+
+if ! dotenv contains "HUB_STATE"; then
+  echo "* Setting hub state to local file"
+  dotenv set "HUB_STATE" "$(files abspath ".hub/$HUB_DOMAIN_NAME.state")"
+fi
+
+if ! dotenv contains "HUB_ELABORATE"; then
+  echo "* Setting hub elaborate to local file"
+  dotenv set  "HUB_ELABORATE" "$(files abspath ".hub/$HUB_DOMAIN_NAME.elaborate")"
+fi
