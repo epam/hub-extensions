@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -139,9 +139,9 @@ if test -z "$HUB_FILES" -a -f "hub.yaml"; then
 fi
 
 if test -f "$HUB_WORKDIR/.env" -a -z "$HUB_USE_FORCE"; then
+  color error "Error: Stack has been already initialized"
   cat << EOF
 
-Error: Stack has been already initialized
 Reason: .env file already exists
 
 If this is your intention: try to run the same command with --force flag
@@ -256,7 +256,11 @@ getParamValueByEnvVar() {
   fi
 }
 
-echo "Initializing a new stack"
+if test -n "$SOURCE_HUB_STATE"; then
+  echo "Initializing stack from: $SOURCE_HUB_STATE"
+else
+  echo "Initializing a new stack"
+fi
 echo "* Using working directory: $HUB_WORKDIR"
 if test -L "$HUB_WORKDIR/.env"; then
   echo "* Unlinking .env"
@@ -310,10 +314,10 @@ if test -n "$SOURCE_HUB_STATE"; then
     temp="$(temp_file)"
     if test -f "$state"; then
       echo "* State file $state: exist"
-      continue
-    fi
-
-    if echo "$state" | grep -e '^https\?://' >/dev/null 2>&1; then
+      HUB_STATE="$HUB_STATE $state"
+      #HACK: this is less invasive to the existing code
+      cat "$state" > "$temp"
+    elif echo "$state" | grep -e '^https\?://' >/dev/null 2>&1; then
       echo -n "* Downloading from: $state... "
       if test ! -f "$temp"; then
         files download "$state" "$temp"
@@ -335,7 +339,6 @@ if test -n "$SOURCE_HUB_STATE"; then
       color e "Error: file not found $state"
       exit 13
     fi
-
     HUB_DOMAIN_NAME=$(getParamFromState "$temp" "dns.domain")
     if test -z "$HUB_DOMAIN_NAME"; then
       HUB_DOMAIN_NAME="$(getParamValueByEnvVar "$temp" "HUB_DOMAIN_NAME")"
@@ -344,7 +347,7 @@ if test -n "$SOURCE_HUB_STATE"; then
       fi
     fi
     if test -n "$HUB_DOMAIN_NAME"; then
-      echo "* Discovered parameter for domain name: $HUB_DOMAIN_NAME"
+      echo "* Discovered stack name: $HUB_DOMAIN_NAME"
       DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
       echo "  Creaging .hub/env/$HUB_DOMAIN_NAME.env"
       mkdir -p "$(dirname "$DOT_ENV")"
@@ -361,6 +364,27 @@ if test -n "$SOURCE_HUB_STATE"; then
       echo "  Moving on"
     fi
   done
+elif test -z "$(params -f "$HUB_FILES" envvar HUB_DOMAIN_NAME)" \
+       -a -z "$(params -f "$HUB_FILES" envvar HUB_STACK_NAME)"; then
+  echo "Checking hub files for domain name parameters"
+  HUB_DOMAIN_NAME="$(params -f "$HUB_FILES" value "dns.domain")"
+  HUB_STACK_NAME="$(params -f "$HUB_FILES" value "dns.name")"
+  if test -z "$HUB_DOMAIN_NAME" -a -n "$HUB_STACK_NAME"; then
+    HUB_DOMAIN_NAME="$HUB_STACK_NAME"
+  elif test -n "$HUB_DOMAIN_NAME" -a -z "$HUB_STACK_NAME"; then
+    HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d "." -f1)"
+  fi
+  if test -n "$HUB_DOMAIN_NAME"; then
+    echo "* Using domain name: $HUB_DOMAIN_NAME"
+    dotenv set "HUB_DOMAIN_NAME" "$HUB_DOMAIN_NAME"
+    export HUB_DOMAIN_NAME
+  fi
+  export DOT_ENV
+  if test -n "$HUB_STACK_NAME"; then
+    echo "* Using stack name: $HUB_STACK_NAME"
+    dotenv set "HUB_STACK_NAME" "$HUB_STACK_NAME"
+    export HUB_DOMAIN_NAME
+  fi
 fi
 export HUB_STATE
 
@@ -379,7 +403,9 @@ if test -n "$HUB_STATE"; then
       state_val=$(getParamFromState "$state" "$param")
       if test -n "$state_val"; then
         dotenv set "$env" "$state_val"
-        echo "  Saving $env to .env file"
+        if ! dotenv contains "$env"; then
+          echo "  Saving $env to .env file"
+        fi
       fi
     done
   done
@@ -481,7 +507,7 @@ Stack has been initialized!
 EOF
 
 if test "$HUB_AUTOCONFIGURE" = "0"; then
-  cat << EOF
+  cat << EOF | color g
 Next step: apply deployment configuration
 
 Run:
