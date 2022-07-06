@@ -28,22 +28,21 @@ if test -z "$1"; then
   exit 1
 fi
 
-if test "$1" = "unconfigured"; then
+if test "$1" = "initialized"; then
   dotfile="$HUB_WORKDIR/.hub/env/.env"
 else
   dotfile="$HUB_WORKDIR/.hub/env/$1.env"
 fi
 
-echo "Setting $1 as current"
-
 if test ! -d .hub/env; then
-  echo "Error: no stacks available"
+  color error "Error: no stacks available"
   exit 2
 fi
 
+echo "Setting $1 as current"
 if test ! -f "$dotfile"; then
+  color error "Error: cannot find $1 stack"
   cat << EOF
-Error: cannot find $1 stack
 
 To see list of available stacks run
 
