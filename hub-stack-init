@@ -413,6 +413,11 @@ if test -n "$HUB_STATE"; then
   eval $(dotenv export -f "$DOT_ENV")
 fi
 
+GIT_OPTS="--quiet"
+if $VERBOSE; then
+  GIT_OPTS=""
+fi
+
 echo "Checking components"
 for hubfile in $HUB_FILES; do
   if test ! -f $hubfile; then
@@ -438,15 +443,19 @@ for hubfile in $HUB_FILES; do
       echo "  Retrieving from git source repository"
       echo "  Running: git clone $git_repo"
       mkdir -p "$temp_dir";
-      git clone "$git_repo" "$temp_dir" > /dev/null
+      git clone $GIT_OPTS "$git_repo" "$temp_dir" >/dev/null
       (
         cd "$temp_dir";
         head="$(git rev-parse --abbrev-ref HEAD)";
+        echo -n "  Using ref: ";
         if test "$ref" = "__auto__"; then
-          echo -n "  Using branch: ";
           color b "$head";
-        elif test "$head" != "$ref"; then
-          git checkout "origin/$ref";
+        else
+          color b "$ref";
+          if test "$head" != "$ref"; then
+            git fetch $GIT_OPTS --all --tags >/dev/null;
+            git checkout $GIT_OPTS "$ref" -b "$ref" >/dev/null;
+          fi
         fi
       )
       echo "  Saving component: $comp_dir"
@@ -466,11 +475,15 @@ for hubfile in $HUB_FILES; do
       (
         cd "$temp_dir";
         head="$(git rev-parse --abbrev-ref HEAD)";
+        echo -n "  Using ref: ";
         if test "$ref" = "__auto__"; then
-          echo -n "  Using branch: ";
           color b "$head";
-        elif test "$head" != "$ref"; then
-          git checkout "$ref";
+        else
+          color b "$ref";
+          if test "$head" != "$ref"; then
+            git fetch $GIT_OPTS --all --tags >/dev/null;
+            git checkout $GIT_OPTS "$ref" -b "$ref" >/dev/null;
+          fi
         fi
       )
       echo "  Saving component: $comp_dir"
