@@ -1,6 +1,8 @@
-## Hub CLI extensions
+# Hub CLI extensions
 
 Extensions are scripts written to extend [Hub CLI] functionality.
+
+## Description
 
 Extensions usually resides in `~/.hub/` directory and they are installed there with `hub extensions install` command. Extensions follow simple calling convention where Hub CLI searches for `<extension-name>` by looking for `hub-<extension-name>` executable in `./.hub/`, `$HUB_EXTENSIONS` (could be a relative path), `~/.hub/`, `/usr/(local/)share/hub`, and finally in `$PATH`. Exit code of Hub CLI is that of the extension; stdin, stdout, stderr are passed through.
 
@@ -23,14 +25,15 @@ Extensions search algorithm is greedy. When `hub <extension name> <probably sub-
 
 CLI flags and arguments are not parsed by Hub CLI - they are passed as is to the extension. To set Hub CLI logging level to _debug_ use:
 
-    HUB_DEBUG=1 hub ext ...
+```shell
+HUB_DEBUG=1 hub ext ...
+```
 
 Not all extensions supports all Hub CLI global flags, like `--debug`, `trace`, or `--force`. It's recommended to still parse those flags and ignore if not implemented.
 
-### Requirements
+## Requirements
 
-Hub CLI Extensions require [AWS CLI], [kubectl], [eksctl], [jq], [yq v4]. Optionally install [Node.js] and NPM for `hub pull` extension.
-
+Hub CLI Extensions require [jq], [yq v4]. Optionally install [AWS CLI], [kubectl], [eksctl] and [Node.js], [NPM] for `hub pull` extension.
 
 [Hub CLI]: https://github.com/agilestacks/hub
 [AWS CLI]: https://aws.amazon.com/cli/
