@@ -446,6 +446,7 @@ for hubfile in $HUB_FILES; do
       git clone $GIT_OPTS "$git_repo" "$temp_dir" >/dev/null
       (
         cd "$temp_dir";
+        git config advice.detachedHead "false" >/dev/null
         head="$(git rev-parse --abbrev-ref HEAD)";
         echo -n "  Using ref: ";
         if test "$ref" = "__auto__"; then
@@ -454,7 +455,7 @@ for hubfile in $HUB_FILES; do
           color b "$ref";
           if test "$head" != "$ref"; then
             git fetch $GIT_OPTS --all --tags >/dev/null;
-            git checkout $GIT_OPTS "$ref" -b "$ref" >/dev/null;
+            git checkout $GIT_OPTS "$ref" >/dev/null;
           fi
         fi
       )
