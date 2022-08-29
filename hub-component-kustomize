@@ -1,6 +1,6 @@
 #!/bin/sh -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -86,9 +86,9 @@ if test "$VERB" = "deploy"; then
       elif test -f "$CRD"; then
           echo "* Reading CRD from: $CRD"
           apply_k8s_resources_file "$CRD"
+      else
+        color w "Warning: file not found ($CRD)"
       fi
-  else
-      color w "Warning: file not found ($CRD)"
   fi
   if test -d "crds"; then
       for file in crds/*.yaml crds/*.yml; do
@@ -101,7 +101,24 @@ fi
 
 if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
   echo "* Downloading component base from: $HUB_KUSTOMIZE_TARBALL_URL"
-  files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATH"
+  if test -n "$HUB_KUSTOMIZE_TARBALL_SUBPATH"; then
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATH"
+  elif test -n "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"; then
+    # HUB_KUSTOMIZE_TARBALL_SUBPATHS is an array of paths divided by space (tarball_source_path:destination_path tarball_source_path:destination_path)
+    rm -rf "$(pwd)/kustomize"
+    temp="$(mktemp)"
+    trap 'rm -rf $temp' EXIT
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$temp"
+    for subpath in $HUB_KUSTOMIZE_TARBALL_SUBPATHS; do
+      dst=${subpath#*:}
+      src=${subpath%?"$dst"}
+      dst="$(pwd)/kustomize/$dst"
+      mkdir -p "$dst"
+      cp -r "$temp/$src/" "$dst/"
+    done
+  else
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize"
+  fi
 fi
 
 if test -x "pre-$VERB"; then
@@ -113,7 +130,7 @@ if which kustomize > /dev/null; then
   echo "* Using kustomize"
   kustomize_build_cmd="kustomize build ."
 elif which kubectl > /dev/null; then
-  echo "* Using kubectl (kustomize found found)"
+  echo "* Using kubectl (kustomize found)"
   kustomize_build_cmd="kubectl kustomize ."
 else
   echo "Error: kustomize or kubectl has not been found!"
