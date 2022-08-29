@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -156,19 +156,21 @@ case "$op"  in
     trap 'rm -f $temp' EXIT
     echo -n "Downloading $arg... "
     download_file "$arg" "$temp"
-    if test -n "$tar_subpath"; then
+    if test -n "$arg2"; then
       echo " extracting $tar_subpath "
-      ROOT=$(tar -tvf "$temp" | awk 'NR==1{print substr($NF, 1, length($NF)-1)}')
-      STRIP=$(echo "$ROOT/$tar_subpath" | tr / " " | wc -w)
+      ROOT=$(tar -tvf "$temp" | awk 'NR==1{print $NF}')
+      STRIP=$(echo "$ROOT$tar_subpath" | tr / " " | wc -w | awk '{$1=$1};NF')
       rm -rf "$arg2"
       mkdir -p "$arg2"
-      tar -xf "$temp" --strip-components "$STRIP" -C "$arg2" "$ROOT/$tar_subpath"
+      if test "${ROOT##*[^/]}" = '/'; then
+        tar -xf "$temp" --strip-components "$STRIP" -C "$arg2" "$ROOT$tar_subpath"
+      else
+        tar -xf "$temp" -C "$arg2" "*"
+      fi
     else
-      color e "Error: download-tar without subpath is not implemented yet!"
+      color e "Error: EXTRACT_TO not provided"
       exit 1
     fi
-
-    # files copy "$temp" "$arg2"
   ;;
 
   "copy" )
