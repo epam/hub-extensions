@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -31,7 +31,7 @@ Parameters:
 EOF
 }
 
-FORMAT="${FORMAT:-json}"
+FORMAT="${FORMAT:-yaml}"
 JQ_ARGS="${JQ_ARGS:- -Sr}"
 
 eval "$(dotenv -f $HUB_WORKDIR/.env export)"
@@ -54,7 +54,8 @@ while [ "$1" != "" ]; do
                             ;;
         -m | --machine )    TRANSFORM=1
                             ;;
-        -y | --yaml )       FORMAT="yaml"
+        --format )          shift
+                            FORMAT="$1"
                             ;;
         -r | --raw )        RAW_OUTPUT=1
                             ;;
@@ -253,7 +254,8 @@ else
 fi
 
 if test "$FORMAT" = "yaml"; then
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) '"$JQ_QUERY" | yq e -P
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)" \
+    | yq e -P 'del(.. | select((tag == "!!map" and length == 0) or (tag == "!!seq" and length == 0) or (. == null)))' -
 else
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)"
 fi
