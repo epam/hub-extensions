@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -79,7 +79,7 @@ else
   fi
 fi
 GOOGLE_PROJECT="$(dotenv get GOOGLE_PROJECT)"
-active_projects="$(gcloud projects list --format='json' | jq -cMr '[.[]][] | select(.lifecycleState == "ACTIVE").projectId | select(.)')"
+active_projects="$(gcloud projects list --format='json' | jq -cMr '[.[]][] | select(.lifecycleState == "ACTIVE") | .projectId | select(.)')"
 if ! contains "$GOOGLE_PROJECT" "$active_projects"; then
     cat <<EOF | ident | color warn
 Warning: entered GCP project ID has not been listed in active projects.
@@ -110,7 +110,7 @@ EOF
   trying ADC (Application Default Credentials) to authenticate
   please give consent in the browser
 EOF
-    if gcloud auth application-default login >/dev/null 2>&1; then
+    if gcloud auth application-default login 2>&1; then
       echo "* Consent has been given. $CREDS created"
     else
       color e "gcloud auth application-default login command failed" | ident
