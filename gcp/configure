@@ -155,22 +155,32 @@ STATE_FUNCTION_REGION="us-central1"
 STATE_FUNCTION_REPO="https://github.com/agilestacks/hub-state.git"
 STATE_FUNCTION_REF="master"
 echo "Configuring state management cloud function "
-if gcloud functions describe stacks --region "$STATE_FUNCTION_REGION" > /dev/null 2>&1 && test -z "$FORCE_FUNCTION_UPDATE"; then
-  echo "* State management cloud function already deployed to $GOOGLE_PROJECT. Use --force flag to redeploy"
+
+version=$(git ls-remote --head $STATE_FUNCTION_REPO $STATE_FUNCTION_REF | awk '{print $1}' | cut -c-7)
+current_version=$(gcloud functions describe stacks --region $STATE_FUNCTION_REGION --format='value(labels.version)' 2>&1)
+
+if test "$version" = "$current_version" && test -z "$FORCE_FUNCTION_UPDATE"; then
+  echo "* State management cloud function already deployed to $GOOGLE_PROJECT ($current_version). Use --force flag to redeploy"
 else
-  echo -n "* Deploying the function to $GOOGLE_PROJECT (it could take up to 2 minutes). "
+  echo -n "* Deploying the function version $version to $GOOGLE_PROJECT (it could take up to 2 minutes). "
   TEMP_DIR=$(mktemp -d || exit 2)
   mkdir -p "$TEMP_DIR"
   trap 'rm -rf $TEMP_DIR' EXIT
   git clone --depth 1 "$STATE_FUNCTION_REPO" "$TEMP_DIR" > /dev/null 2>&1
   git -C "$TEMP_DIR" checkout "$STATE_FUNCTION_REF" > /dev/null 2>&1
-  if RESULT=$(gcloud functions deploy stacks --runtime nodejs16 --trigger-http \
-    --allow-unauthenticated --memory 4096MB \
-    --source "$TEMP_DIR"/api --entry-point stacks 2>&1); then
+  if RESULT=$(gcloud functions deploy stacks \
+    --runtime nodejs16 \
+    --trigger-http \
+    --memory 4096MB \
+    --update-labels "version=$version" \
+    --source "$TEMP_DIR"/api \
+    --entry-point stacks 2>&1); then
     echo "Deployed"
   else
-    color err "Error occured, see the details below:"
-    color err "$RESULT"
+    cat << EOF | color err
+Error occured, see the details below:
+$RESULT
+EOF
     exit 1
   fi
 fi
