@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -96,6 +96,26 @@ while test "$1" != ""; do
     esac
     shift
 done
+
+finalize() {
+  status="$(hub show -- '.status.status')"
+  echo -n "Deployment status: "
+  if test "$1" = "0"; then
+cat << EOF | color green
+$status
+Done!
+
+EOF
+  else
+    cat << EOF | color e
+$status
+See error above!
+
+EOF
+  fi
+}
+
+trap 'finalize $?' EXIT
 
 if test "$VERBOSE" = "true"; then
   set -x
@@ -237,7 +257,7 @@ done
 
 lifecycle=$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE/${verb}");
 if test -z "$lifecycle"; then
- cat << EOF
+ cat << EOF | color e
 Cannot find deployment profile: $HUB_DEPLOY_PROFILE
 
 Completed with errors!
@@ -274,5 +294,3 @@ for i in $(echo "$AFTER" | xargs -n1); do
   color bold "$i"
   $hook
 done
-
-color g "Done!"
