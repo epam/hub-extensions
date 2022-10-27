@@ -40,7 +40,7 @@ if ! test -t 0; then
     HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
 fi
 
-JQ_QUERY="."
+JQ_QUERY=""
 while [ "$1" != "" ]; do
     case $1 in
         -s | --stack )      shift
@@ -91,6 +91,11 @@ done
 if test ! -f .env; then
   color error "Error: cannot find .env file"
   exit 1
+fi
+
+if test -n "$JQ_QUERY"; then
+  #shellcheck disable=SC2089
+  JQ_ARGS="$JQ_ARGS \"$JQ_QUERY | select(.)\""
 fi
 
 HUB_STATE="$(dotenv get HUB_STATE --default "$HUB_STATE")"
@@ -254,8 +259,12 @@ else
 fi
 
 if test "$FORMAT" = "yaml"; then
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)" \
+    # shellcheck disable=SC2090
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
+    | jq $JQ_ARGS \
     | yq e -P 'del(.. | select((tag == "!!map" and length == 0) or (tag == "!!seq" and length == 0) or (. == null)))' -
 else
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' | jq $JQ_ARGS "$JQ_QUERY | select(.)"
+    # shellcheck disable=SC2090
+    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
+    | jq $JQ_ARGS
 fi
