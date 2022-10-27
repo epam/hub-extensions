@@ -114,7 +114,7 @@ else
     echo "not found"
     echo "  Creating (takes a minute)... "
     gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
-      --description="Managed by Superhub" \
+      --description="Managed by hubctl" \
       --dns-name="$HUB_DOMAIN_NAME" 2>&1 | ident;
     # FIXME: bubble-dns/include should be implemented as CLI and available in bin directory
     updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
@@ -140,7 +140,7 @@ else
     exit 1
 	fi
 fi
-gsutil label ch -l "managed-by":"superhub" "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1
+gsutil label ch -l "managed-by":"hubctl" "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1
 
 HUB_STATE_FILE="$(files abspath ".hub/$HUB_DOMAIN_NAME.state"),gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
 HUB_ELABORATE_FILE="$(files abspath ".hub/$HUB_DOMAIN_NAME.elaborate"),gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
