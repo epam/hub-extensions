@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -139,9 +139,13 @@ readField() {
   jq -cMr --arg field "$1" '. | select(.[$field]) | .[$field]'
 }
 
+first() {
+  jq -s '.|first|select(.)'
+}
+
 getParamValue() {
   local value envval envname default
-  result="$(json $HUB_FILES | flatten | withName "$1")"
+  result="$(json $HUB_FILES | flatten | withName "$1" | first)"
   if test -n "$result"; then
     value="$(echo "$result" | readField "value")"
     if test -n "$value"; then
