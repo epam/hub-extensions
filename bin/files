@@ -36,10 +36,12 @@ while test -n "$1"; do
         usage
         exit ;;
     -e | --fail | --error )
+        shift
         err=true
         continue
         ;;
     -V | --verbose )
+        shift
         set -x
         continue
     ;;

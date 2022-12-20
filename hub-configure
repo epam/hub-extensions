@@ -225,11 +225,6 @@ if $HELP; then
   exit
 fi
 
-if test -z "$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE")"; then
-  color e "Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE" | ident
-  exit 44
-fi
-
 HUB_FILES="$(real_files $HUB_FILES)"
 export HUB_FILES
 trap 'finalize $?' EXIT
@@ -288,7 +283,10 @@ EOF
 done
 
 if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
-  HUB_DEPLOY_PROFILE="local"
+  if test -n "$HUB_DEPLOY_PROFILE"; then
+    HUB_DEPLOY_PROFILE="local"
+  fi
+
   # We don't want run pod if inside of the pod
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
       r="$(yq e '' $HUB_FILES -o=json | jq -cMr --arg a "kubernetes" '.requires|select(.)[]|select(.==$a)')"
@@ -302,6 +300,11 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
 - pod: to run a toolbox container as a kubernetes pod
 See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
   ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$BRIEF"
+fi
+
+if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" -e; then
+  color e "Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE" | ident
+  exit 44
 fi
 
 dotenv set "HUB_TTY" "${HUB_TTY:-false}"
