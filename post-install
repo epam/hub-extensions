@@ -1,6 +1,6 @@
 #!/bin/sh -xe
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,7 @@ fi
 which npm && npm ci --omit=dev --ignore-scripts || echo "'hub pull' is not available until you install Node.js and NPM"
 
 # Install Hub state extension
-HUB_STATE_VERSION=$(curl -s -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/agilestacks/hub-state/releases/latest" | jq -crM '.tag_name')
+HUB_STATE_VERSION=$(curl -sLH "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/agilestacks/hub-state/releases/latest" | jq -crM '.tag_name')
 if ! ./hub-state -v > /dev/null 2>&1 || test "$(cat ./hub-state.version)" != "$HUB_STATE_VERSION"; then
     TEMP_DIR=$(mktemp -d || exit 2)
     mkdir -p "$TEMP_DIR"
