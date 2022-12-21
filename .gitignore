@@ -6,3 +6,4 @@ hub-state.version
 .vscode/*.json
 .vscode/*.log
 
+.env
