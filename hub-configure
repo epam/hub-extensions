@@ -303,6 +303,8 @@ See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documenta
 fi
 
 if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" -e; then
+  echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
+else
   color e "Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE" | ident
   exit 44
 fi
