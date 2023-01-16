@@ -1,6 +1,6 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -30,7 +30,7 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 trap "rm -f $TEMP" EXIT
 
 echo -n "* Resolving new domain name: "
-HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://bubbles.tools.epam.devops.delivery/"}
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://dns.bubbles.devops.delivery/"}
 HTTP_CODE=$( \
   curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
       -w "%{http_code}" \
