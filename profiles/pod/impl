@@ -20,6 +20,16 @@ Parameters:
 EOF
 }
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 if test -f ".env"; then
   eval "$(dotenv -f $HUB_WORKDIR/.env export -f ".env" )"
 fi
@@ -63,7 +73,7 @@ finalize() {
   # Will be better but harder to implement
   for f in ${STATE_FILE//,/ }; do
     if ! echo "$f" | grep -F :// >/dev/null; then
-      echo -n "* Downloading hub state to $(basename "$f"): "
+      echo -n "* Downloading hubctl state to $(basename "$f"): "
       $kubectl cp "toolbox-$ID:$f" "$f" >/dev/null 2>&1
       echo "Done"
     fi
@@ -198,6 +208,6 @@ if test -t 0; then
 fi
 echo -n "* Executing: "
 # shellcheck disable=SC2086
-echo $kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hub $HUB_ARGS
+echo $kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hubctl $HUB_ARGS
 # shellcheck disable=SC2086
-$kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hub $HUB_ARGS
+$kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hubctl $HUB_ARGS

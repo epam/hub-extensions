@@ -11,6 +11,16 @@ dotenv="dotenv -f $HUB_WORKDIR/.env"
 
 export PATH
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 usage() {
   echo "Check Kubernetes cluster is reachable"
 }
@@ -93,7 +103,7 @@ cat << EOF
 * Trying kubeconfig from state: $STATEFILE
 * Running CLI command:
 
-  $ hub kubeconfig -k $HUB_STATE -c $HUB_DOMAIN_NAME
+  $ hubctl kubeconfig -k $HUB_STATE -c $HUB_DOMAIN_NAME
 
 EOF
 {
@@ -102,7 +112,7 @@ EOF
   export KUBECONFIG="$_temp"
   # shellcheck disable=SC2064
   trap "rm -f $_temp" EXIT
-  if hub kubeconfig -k "$HUB_STATE" -c "$HUB_DOMAIN_NAME"; then
+  if $hubctl kubeconfig -k "$HUB_STATE" -c "$HUB_DOMAIN_NAME"; then
     if checkClusterAndSave "$KUBECONFIG" ; then
       exit 0
     fi

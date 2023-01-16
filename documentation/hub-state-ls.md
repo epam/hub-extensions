@@ -1,4 +1,4 @@
-# Command: `hub state ls`
+# Command: `hubctl state ls`
 
 List all stacks states within a project
 
@@ -23,12 +23,12 @@ These parameters applies across all extension commands
 ## Usage examples
 
 ```bash
-hub state ls
-hub state ls --filter="latestOperation.timestamp[after]=2022-05-19,status=incomplete,initiator=akranga"
-hub state ls --filter="latestOperation.timestamp[before]=2022-05-19"
+hubctl state ls
+hubctl state ls --filter="latestOperation.timestamp[after]=2022-05-19,status=incomplete,initiator=akranga"
+hubctl state ls --filter="latestOperation.timestamp[before]=2022-05-19"
 ```
 
 ## See also
 
-* [`hub state show`](hub-state-show.md)
-* [`hub stack rm`](hub-state-rm.md)
+* [`hubctl state show`](hub-state-show.md)
+* [`hubctl stack rm`](hub-state-rm.md)

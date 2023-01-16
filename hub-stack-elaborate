@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,7 +19,7 @@ Assemble hub.yaml.elaborate stack deployment manifest from hub.yaml,
 params.yaml-s, and hub-components.yaml-s
 
 Usage:
-$ hub stack elaborate
+$ hubctl stack elaborate
 
 Parameters:
     -V  --verbose          Verbose outputs for debug purpose
@@ -27,6 +27,17 @@ Parameters:
 
 EOF
 }
+
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
 
 if test ! -f .env; then
   echo "* Error: configuration '.env' has not been found"
@@ -60,12 +71,12 @@ echo "* Using domain name: $HUB_DOMAIN_NAME"
 
 if test -z "$HUB_FILES"; then
   cat << EOF
-Error: cannot find hub definition files (HUB_FILES)"
+Error: cannot find hubctl definition files (HUB_FILES)"
 
 Probably because stack has not been configured for deployment yet!
 
 Example:
-  $ hub configure -f hub.yaml
+  $ hubctl configure -f hub.yaml
 
 EOF
 
@@ -79,7 +90,7 @@ if test -z "$HUB_STATE"; then
 fi
 
 # if test -n "$HUB_STATE"; then
-#   echo "* Using hub state: $HUB_STATE"
+#   echo "* Using hubctl state: $HUB_STATE"
 #   HUB_OPTS="$HUB_OPTS -s $HUB_STATE"
 # fi
 
@@ -93,7 +104,7 @@ Proceeding with: elaborate
 * Result will be saved saved to: $HUB_ELABORATE
 * Running CLI command:
 
-  $ hub elaborate $HUB_FILES -o $HUB_ELABORATE $HUB_OPTS
+  $ hubctl elaborate $HUB_FILES -o $HUB_ELABORATE $HUB_OPTS
 
 EOF
 
@@ -118,7 +129,7 @@ done
 
 
 # shellcheck disable=SC2086
-hub elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS
+$hubctl elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS
 
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$AFTER" | xargs -n1); do

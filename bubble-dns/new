@@ -63,7 +63,7 @@ cat $TEMP > $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble
 
 cat << EOF >> $DOT_ENV
 # Bubble DNS record TTL 72 hours. To renew run:
-# hub configure -r aws --dns-update
+# hubctl configure -r aws --dns-update
 HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
 HUB_DOMAIN_NAME="$HUB_DOMAIN_NAME"
 HUB_DOMAIN_SECRET="$HUB_DOMAIN_SECRET"

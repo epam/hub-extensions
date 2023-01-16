@@ -1,4 +1,4 @@
-# Command: `hub stack init`
+# Command: `hubctl stack init`
 
 Initialize a new stack configuration in the user working directory
 
@@ -26,11 +26,11 @@ Example on how to initialize a new stack to deploy a GKE cluster
 ```bash
 mkdir "my-gke-cluster"
 cd "my-gke-cluster"
-hub stack init -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml"
+hubctl stack init -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml"
 ```
 
 ## See also
 
-* [`hub stack configure`](hub-stack-configure.md)
-* [`hub stack depoy`](hub-stack-deploy.md)
-* [`hub stack unconfiugre`](hub-stack-unconfiugre.md)
+* [`hubctl stack configure`](hub-stack-configure.md)
+* [`hubctl stack depoy`](hub-stack-deploy.md)
+* [`hubctl stack unconfiugre`](hub-stack-unconfiugre.md)

@@ -80,7 +80,7 @@ while [ "$1" != "" ]; do
       cat << EOF | color w
 Warning: "$HUB_EXTENSION --file $1" has been deprecated. It will be removed in the future releases
 Please use:
-  hub stack init --file $1
+  hubctl stack init --file $1
 EOF
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
       ;;
@@ -175,9 +175,9 @@ Done!
 Next step: start deploy or undeploy operations
 
 Run:
-  hub stack deploy
+  hubctl stack deploy
 or:
-  hub stack undeploy
+  hubctl stack undeploy
 
 EOF
 }
@@ -198,12 +198,12 @@ fi
 export HUB_WORKDIR
 if test -z "$HUB_FILES"; then
   cat << EOF
-Cannot find hub files! Please run "hub stack init"
+Cannot find hubctl files! Please run "hubctl stack init"
 
 Example:
-  hub stack init -f hub.yaml
+  hubctl stack init -f hub.yaml
 or
-  hub stack init -f https://raw.githubusercontent.com/agilestacks/stack-ml-eks/master/hub.yaml
+  hubctl stack init -f https://raw.githubusercontent.com/agilestacks/stack-ml-eks/master/hub.yaml
 
 EOF
   exit 1
@@ -246,7 +246,7 @@ else
 Error: cannot find .env file
 
 Did you run?
-  hub stack init
+  hubctl stack init
 EOF
   exit 1
 fi
@@ -302,7 +302,7 @@ See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documenta
   ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$BRIEF"
 fi
 
-if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" -e; then
+if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" -e >/dev/null; then
   echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 else
   color e "Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE" | ident
@@ -313,11 +313,11 @@ dotenv set "HUB_TTY" "${HUB_TTY:-false}"
 dotenv set "HUB_FILES" "$HUB_FILES"
 
 if ! dotenv contains "HUB_STATE"; then
-  echo "* Setting hub state to local file"
+  echo "* Setting hubctl state to local file"
   dotenv set "HUB_STATE" "$(files abspath ".hub/$HUB_DOMAIN_NAME.state")"
 fi
 
 if ! dotenv contains "HUB_ELABORATE"; then
-  echo "* Setting hub elaborate to local file"
+  echo "* Setting hubctl elaborate to local file"
   dotenv set  "HUB_ELABORATE" "$(files abspath ".hub/$HUB_DOMAIN_NAME.elaborate")"
 fi

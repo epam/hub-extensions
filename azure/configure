@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,7 @@ usage() {
 Azure parameters:
   --azure-region                Azure Region (defaults to value from: AZURE_REGION, AZURE_DEFAULTS_LOCATION)
   --azure-resource-group        Azure Resource Group (defaults to value from: AZURE_RESOURCE_GROUP_NAME, AZURE_DEFAULTS_GROUP)
-  --azure-subscription          Azure Subscription (defaults to value from: AZURE_SUBSCRIPTION_ID)
+  --azure-subscription          Azure Subscription (defaults to value from: AZURE_SUBSCRIPTION_ID, ARM_SUBSCRIPTION_ID)
   --dry-run                     Do not deploy cloud resources, show what will happen
   --domain-name                 Custom DNS domain name under existing base domain
   --base-domain-resource-group  Resource Group for base domain (in case base domain
@@ -27,13 +27,13 @@ Bubble DNS parameters:
   --dns-update  Request to update DNS registration
 
   New DNS record request:
-    --parent-domain       Parent domain for stack (defaults to: bubble.superhub.io)
+    --parent-domain       Parent domain for stack (defaults to: epam.devops.delivery)
 
   Request to update DNS record:
     --domain-name         Previously issued DNS name
     --bubbles-secret-key  Secret key passed during domain name creation
 
-  Use: hub configure -r azure --dns-update
+  Use: hubctl configure -r azure --dns-update
 
 EOF
 }
@@ -92,70 +92,213 @@ if test "$VERBOSE" = "true"; then
 fi
 
 if test -z "$DOT_ENV"; then
-  echo "Error: please run with option: $0 --output FILE"
+  color error "Error: please run with option: $0 --output FILE"
   exit 2
 fi
-
-source $(dirname "$0")/../bubble-dns/include
-
+jq="jq -cMr"
 dotenv="dotenv -f $DOT_ENV"
+
+getParamFromState() {
+  # shellcheck disable=SC2016
+  hubctl explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
+}
+
+getParamValueByEnvVar() {
+  param="$(params envvar "$2" | jq -cMr '.name')"
+  if test -n "$param"; then
+    getParamFromState "$1" "$param"
+  fi
+}
+
+param_name() {
+  local result
+  result="$(params env "$1" | jq -r '.name | select(.)')"
+  if test -z "$result" -a -n "$2"; then
+    result="$(params json "$2" | jq -r '.name | select(.)')"
+  fi
+  echo "$result"
+}
+
+stackname_param="$(param_name HUB_STACK_NAME dns.name)"
+dnsdomain_param="$(param_name HUB_DOMAIN_NAME dns.domain)"
+# hubfile does not have "dns.domain"
+if test -z "$dnsdomain_param"; then
+  # in this case we don't want bubble dns to autogenerate
+  DNS_MANAGER="user"
+  if test -n "$stackname_param"; then
+    # taking dns.domain from stack name
+    HUB_STACK_NAME="$(params value "$stackname_param" -d "$DOT_ENV" -d "$HUB_WORKDIR/.env")"
+    if test -n "$HUB_STACK_NAME"; then
+      echo -n "Using stack name: "
+      color b "$HUB_STACK_NAME"
+      HUB_DOMAIN_NAME="$HUB_STACK_NAME"
+    fi
+  fi
+fi
+
+# shellcheck disable=SC1091
+source "$(dirname "$0")/../bubble-dns/include"
+if test "DNS_MANAGER" = "bubbles"; then
+  if test -n "$HUB_DOMAIN_SECRET"; then
+    DNS_ACTION="update"
+  fi
+fi
 
 if test "$DNS_ACTION" = "update"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
   exit $?
 fi
-
 if test -z "$HUB_DOMAIN_NAME"; then
   configureBubbleDNS
 elif test -z "$HUB_DOMAIN_SECRET"; then
   DNS_MANAGER=user
-  echo "* Using domain name provided by user: $HUB_DOMAIN_NAME"
+  echo -n "* Using domain name provided by user: "; color b "$HUB_DOMAIN_NAME"
 fi
 
-# https://docs.microsoft.com/en-us/cli/azure/azure-cli-configuration
-# AZURE_DEFAULTS_* automatically recognized up by `az`
-eval $(az configure --list-defaults | jq -r '.[] | "AZURE_CONFIG_DEFAULTS_" + (.name | ascii_upcase) + "=" + .value')
+if test -n "$AZURE_SUBSCRIPTION_ID"; then
+  echo "* Using Azure subscription from AZURE_SUBSCRIPTION_ID"
+  AZ_OPTS="$AZ_OPTS --subscription $AZURE_SUBSCRIPTION_ID"
+else
+  AZURE_SUBSCRIPTION_ID="$(params value 'azure.azureSubscriptionId')"
+  if test -z "$AZURE_SUBSCRIPTION_ID"; then
+    subscription_param="$(param_name AZURE_SUBSCRIPTION_ID)"
+    if test -n "$subscription_param"; then
+      AZURE_SUBSCRIPTION_ID="$(params value "$subscription_param")"
+    fi
+    if test -z "$AZURE_SUBSCRIPTION_ID"; then
+      subscription_param="$(param_name ARM_SUBSCRIPTION_ID)"
+      if test -n "$subscription_param"; then
+        AZURE_SUBSCRIPTION_ID="$(params value "$subscription_param")"
+      fi
+    fi
+  fi
+  if test -n "$AZURE_SUBSCRIPTION_ID"; then
+    echo "* Using Azure subscription from hubfile"
+    AZ_OPTS="$AZ_OPTS --subscription $AZURE_SUBSCRIPTION_ID"
+  fi
+fi
 
-location=${AZURE_REGION:-${AZURE_DEFAULTS_LOCATION:-$AZURE_CONFIG_DEFAULTS_LOCATION}}
-if test -z "$location"; then
-  echo "Error: please run with option: $0 --azure-region REGION"
+if test -z "$AZURE_SUBSCRIPTION_ID" -a -n "$ARM_SUBSCRIPTION_ID"; then
+  echo "* Using Azure subscription from ARM_SUBSCRIPTION_ID"
+  AZURE_SUBSCRIPTION_ID="$ARM_SUBSCRIPTION_ID"
+  AZ_OPTS="$AZ_OPTS --subscription $ARM_SUBSCRIPTION_ID"
+else
+  AZURE_SUBSCRIPTION_ID="$(az account list --query '[?isDefault].id' -o tsv)"
+  if test -n "$AZURE_SUBSCRIPTION_ID"; then
+    echo "* Using Azure default subscription from azure config"
+  else
+    AZURE_SUBSCRIPTION_ID=$(az account show -o json | jq -r .id)
+    if test -n "$AZURE_SUBSCRIPTION_ID"; then
+      echo "* Using Azure subscription from account"
+    fi
+  fi
+fi
+if test -z "$AZURE_SUBSCRIPTION_ID"; then
+  color error "Error: please run with option: $0 --azure-subscription SUBSCRIPTION_ID"
   exit 2
 fi
-echo "* Using Azure location: $location"
-AZ_LOCATION_OPTS=
-if test -n "$AZURE_REGION"; then
-  AZ_LOCATION_OPTS="--location $AZURE_REGION"
-fi
 
-resource_group=${AZURE_RESOURCE_GROUP_NAME:-${AZURE_DEFAULTS_GROUP:-$AZURE_CONFIG_DEFAULTS_GROUP}}
+echo -n "  Setting Azure subscription: "; color b "$AZURE_SUBSCRIPTION_ID"
+resource_group="$(params value 'azure.resourceGroup')"
 if test -z "$resource_group"; then
-  echo "Error: please run with option: $0 --azure-resource-group RESOURCE_GROUP"
+  resource_group_param="$(param_name AZURE_RESOURCE_GROUP_NAME)"
+  if test -n "$resource_group_param"; then
+    resource_group="$(params value "$resource_group_param")"
+  fi
+fi
+
+if test -n "$resource_group"; then
+  echo "* Using Azure resource group from hubfile"
+else
+  resource_group=${AZURE_RESOURCE_GROUP_NAME:-${AZURE_DEFAULTS_GROUP:-$AZURE_CONFIG_DEFAULTS_GROUP}}
+  if test -n "$resource_group"; then
+    echo "* Using Azure resource group from environment variables"
+  else
+    set +e
+    resource_group=$(az config get defaults.group --query 'value' -o tsv 2>/dev/null)
+    set -e
+    if test -n "$resource_group"; then
+      echo "* Using Azure resource group from azure config defaults.group"
+    fi
+  fi
+fi
+
+if test -z "$resource_group"; then
+  color error "Error: please run with option: $0 --azure-resource-group RESOURCE_GROUP"
   exit 2
 fi
-echo "* Using Azure resource group: $resource_group"
+
+echo -n "  Setting Azure resource group: "; color b "$resource_group"
+AZURE_RESOURCE_GROUP_NAME="$resource_group"
 if test -n "$AZURE_RESOURCE_GROUP_NAME"; then
   AZ_OPTS="$AZ_OPTS --resource-group $AZURE_RESOURCE_GROUP_NAME"
 fi
 
-if test -n "$AZURE_SUBSCRIPTION_ID"; then
-  AZ_OPTS="$AZ_OPTS --subscription $AZURE_SUBSCRIPTION_ID"
-else
-  AZURE_SUBSCRIPTION_ID=$(az account show -o json | jq -r .id)
-fi
-echo "* Using Azure subscription: $AZURE_SUBSCRIPTION_ID"
+
 export AZ_OPTS
+
+if test -z "$AZURE_REGION"; then
+  AZURE_REGION="$(params value 'azure.location')"
+  if test -z "$AZURE_REGION"; then
+    region_param="$(param_name AZURE_REGION)"
+    if test -n "$region_param"; then
+      AZURE_REGION="$(params value "$region_param")"
+    fi
+    region_param="$(param_name AZURE_LOCATION)"
+    if test -n "$region_param"; then
+      AZURE_REGION="$(params value "$region_param")"
+    fi
+  fi
+  if test -n "$AZURE_REGION"; then
+    echo "* Using Azure location from hubfile"
+    location="$AZURE_REGION"
+  fi
+fi
+
+if test -z "$AZURE_REGION"; then
+  # https://docs.microsoft.com/en-us/cli/azure/azure-cli-configuration
+  # AZURE_DEFAULTS_* automatically recognized up by `az`
+  eval $(az configure --list-defaults | jq -r '.[] | "AZURE_CONFIG_DEFAULTS_" + (.name | ascii_upcase) + "=" + .value')
+
+  location=${AZURE_REGION:-${AZURE_DEFAULTS_LOCATION:-$AZURE_CONFIG_DEFAULTS_LOCATION}}
+  if test -n "$location"; then
+    echo "* Using Azure location from environment variables"
+  else
+    location="$(az group show $AZ_OPTS -o tsv --query 'location')"
+    if test -n "$location"; then
+      echo "* Using Azure location from resource group $AZURE_RESOURCE_GROUP_NAME"
+    else
+      set +e
+      location=$(az config get defaults.location --query 'value' -o tsv 2>/dev/null)
+      set -e
+      if test -n "$location"; then
+        echo "* Using Azure location from azure config defaults.location"
+      fi
+    fi
+  fi
+fi
+if test -z "$location"; then
+  color error "Error: please run with option: $0 --azure-region REGION"
+  exit 2
+fi
+
+echo -n "  Setting Azure location: "; color b "$location"
+AZ_LOCATION_OPTS=""
+if test -n "$AZURE_REGION"; then
+  AZ_LOCATION_OPTS="--location $AZURE_REGION"
+fi
 
 # TODO state storage account per region?
 echo "Configuring Azure Storage Account"
 if test -z "$HUB_STATE_BUCKET"; then
-  HUB_STATE_BUCKET="superhub$(echo $AZURE_SUBSCRIPTION_ID | cut -d- -f1)"
+  HUB_STATE_BUCKET="hubctl$(echo $AZURE_SUBSCRIPTION_ID | cut -d- -f1)"
 fi
 if test -z "$HUB_STATE_CONTAINER"; then
-  HUB_STATE_CONTAINER=superhub
+  HUB_STATE_CONTAINER=hubctl
 fi
 
 echo -n "* Checking presence of storage account $resource_group/$HUB_STATE_BUCKET: "
-if az storage account show $AZ_OPTS -n $HUB_STATE_BUCKET -o none 2>/dev/null; then
+if az storage account show $AZ_OPTS -n "$HUB_STATE_BUCKET" -o none 2>/dev/null; then
   echo "exist"
 else
   if $DRY_RUN; then
@@ -167,11 +310,11 @@ else
     if test -n "$HUB_STATE_REGION"; then
       AZ_STORAGE_LOCATION_OPTS="--location $HUB_STATE_REGION"
     fi
-    az storage account create $AZ_OPTS $AZ_STORAGE_LOCATION_OPTS --sku Standard_ZRS --kind StorageV2 -n $HUB_STATE_BUCKET -o none
+    az storage account create $AZ_OPTS $AZ_STORAGE_LOCATION_OPTS --sku 'Standard_ZRS' --kind 'StorageV2' -n "$HUB_STATE_BUCKET" -o none
   fi
 fi
 echo -n "* Checking presence of storage account $resource_group/$HUB_STATE_BUCKET blob container $HUB_STATE_CONTAINER: "
-if az storage container show $AZ_OPTS --account-name $HUB_STATE_BUCKET -n $HUB_STATE_CONTAINER -o none 2>/dev/null; then
+if az storage container show $AZ_OPTS --account-name "$HUB_STATE_BUCKET" -n "$HUB_STATE_CONTAINER" -o 'none' 2>/dev/null; then
   echo "exist"
 else
   if $DRY_RUN; then
@@ -217,7 +360,7 @@ and creating a zone "$HUB_DOMAIN_NAME" or "$PARENT_DOMAIN".
 
 Then run again:
 
-$ hub configure -r azure --domain-name $HUB_DOMAIN_NAME
+$ hubctl configure -r azure --domain-name $HUB_DOMAIN_NAME
 
 Abort!
 EOF
@@ -247,13 +390,15 @@ else
 fi
 
 export HUB_CLOUD_PROVIDER=azure
-$dotenv set 'HUB_CLOUD_PROVIDER="azure"'
-test -z "$AZURE_REGION"              || $dotenv set "AZURE_REGION=\"$AZURE_REGION\""
-test -z "$AZURE_RESOURCE_GROUP_NAME" || $dotenv set "AZURE_RESOURCE_GROUP_NAME=\"$AZURE_RESOURCE_GROUP_NAME\""
-test -z "$AZURE_SUBSCRIPTION_ID"     || $dotenv set "AZURE_SUBSCRIPTION_ID=\"$AZURE_SUBSCRIPTION_ID\""
-test -z "$HUB_STATE_BUCKET"          || $dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
-test -z "$HUB_STATE_CONTAINER"       || $dotenv set "HUB_STATE_CONTAINER=\"$HUB_STATE_CONTAINER\""
-test -z "$HUB_STATE_REGION"          || $dotenv set "HUB_STATE_REGION=\"$HUB_STATE_REGION\""
+$dotenv set 'HUB_CLOUD_PROVIDER' 'azure'
+
+$dotenv contains 'AZURE_REGION'              || $dotenv set 'AZURE_REGION' "$AZURE_REGION"
+$dotenv contains 'AZURE_RESOURCE_GROUP_NAME' || $dotenv set 'AZURE_RESOURCE_GROUP_NAME' "$AZURE_RESOURCE_GROUP_NAME"
+$dotenv contains 'AZURE_SUBSCRIPTION_ID'     || $dotenv set 'AZURE_SUBSCRIPTION_ID' "$AZURE_SUBSCRIPTION_ID"
+$dotenv contains 'ARM_SUBSCRIPTION_ID'       || $dotenv set 'ARM_SUBSCRIPTION_ID' "$AZURE_SUBSCRIPTION_ID"
+$dotenv contains 'HUB_STATE_BUCKET'          || $dotenv set 'HUB_STATE_BUCKET' "$HUB_STATE_BUCKET"
+$dotenv contains 'HUB_STATE_CONTAINER'       || $dotenv set 'HUB_STATE_CONTAINER' "$HUB_STATE_CONTAINER"
+$dotenv contains 'HUB_STATE_REGION'          || $dotenv set 'HUB_STATE_REGION' "$HUB_STATE_REGION"
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
   # TODO supply NS records as args
@@ -261,25 +406,25 @@ if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
   cat <<EOF
 * DNS record has time to live: 72 hours
 
-# Hint! To refresh DNS: hub configure -r azure --dns-update
+# Hint! To refresh DNS: hubctl configure -r azure --dns-update
 
 EOF
 fi
 
 STACK=${STACK:-$(basename "$(pwd)")}
 if test -z "$HUB_STATE"; then
-  echo "* Setting hub state file location"
+  echo "* Setting hubctl state file location"
   HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
   if ! $PREFER_LOCAL_STATE; then
     HUB_STATE_FILE="$HUB_STATE_FILE,az://$HUB_STATE_BUCKET/$HUB_STATE_CONTAINER/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
   fi
-  $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
+  $dotenv set 'HUB_STATE' "$HUB_STATE_FILE"
 fi
 if test -z "$HUB_ELABORATE"; then
-  echo "* Setting hub elaborate file location"
+  echo "* Setting hubctl elaborate file location"
   HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
   if ! $PREFER_LOCAL_STATE; then
     HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,az://$HUB_STATE_BUCKET/$HUB_STATE_CONTAINER/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
   fi
-  $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""
+  $dotenv set 'HUB_ELABORATE' "$HUB_ELABORATE_FILE"
 fi

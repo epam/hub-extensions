@@ -21,7 +21,7 @@ Kubernetes parameters:
   --current-kubecontext   Use current kubecontext existing
                           configuration (mandatory)
 
-Use: hub configure [-c _] or [--current-kubecontext] for current kubecontext
+Use: hubctl configure [-c _] or [--current-kubecontext] for current kubecontext
 
 EOF
 }
@@ -43,7 +43,7 @@ fi
 echo "Finalizing stack deployment"
 
 if test ! -f ".env"; then
-  echo "Error: cannot find .env file. Please run 'hub configure'"
+  echo "Error: cannot find .env file. Please run 'hubctl configure'"
   exit 1
 fi
 set +a

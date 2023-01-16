@@ -1,4 +1,4 @@
-# Command: `hub state show`
+# Command: `hubctl state show`
 
 Show details of a stack states by Stack ID
 
@@ -17,10 +17,10 @@ These parameters applies across all extension commands
 ## Usage examples
 
 ```bash
-hub state show <Stack ID>
+hubctl state show <Stack ID>
 ```
 
 ## See also
 
-* [`hub state ls`](hub-state-ls.md)
-* [`hub stack rm`](hub-state-rm.md)
+* [`hubctl state ls`](hub-state-ls.md)
+* [`hubctl stack rm`](hub-state-rm.md)

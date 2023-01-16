@@ -8,7 +8,7 @@
 
 usage() {
   cat << EOF
-Usage: hub stack backup <sub command>
+Usage: hubctl stack backup <sub command>
 
 Parameters:
     create          Create backup for entire stack or individual components

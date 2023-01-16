@@ -1,18 +1,18 @@
-# Command: `hub stack set`
+# Command: `hubctl stack set`
 
 Set stack by it's name as a current.
 
 Example
 
 ```bash
-hub stack ls
+hubctl stack ls
 # ACTIVE  STACK
 # *       abc.example.com
 #         cde.example.com
 
-hub stack set "cde.example.com"
+hubctl stack set "cde.example.com"
 
-hub stack ls
+hubctl stack ls
 # ACTIVE  STACK
 #         abc.example.com
 # *       cde.example.com
@@ -20,7 +20,7 @@ hub stack ls
 
 ## See also
 
-* [`hub stack init`](hub-stack-init.md)
-* [`hub stack configure`](hub-stack-configure.md)
-* [`hub stack ls`](hub-stack-ls.md)
-* [`hub stack unconfigure`](hub-stack-unconfigure.md)
+* [`hubctl stack init`](hub-stack-init.md)
+* [`hubctl stack configure`](hub-stack-configure.md)
+* [`hubctl stack ls`](hub-stack-ls.md)
+* [`hubctl stack unconfigure`](hub-stack-unconfigure.md)

@@ -13,6 +13,17 @@ HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 usage()
 {
 cat << EOF
@@ -33,14 +44,12 @@ EOF
 
 FORMAT="${FORMAT:-yaml}"
 JQ_ARGS="${JQ_ARGS:- -Sr}"
-JQ_QUERY="${JQ_QUERY:-.}"
 eval "$(dotenv -f $HUB_WORKDIR/.env export)"
 
 if ! test -t 0; then
     HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
 fi
 
-JQ_QUERY=""
 while [ "$1" != "" ]; do
     case $1 in
         -s | --stack )      shift
@@ -61,13 +70,14 @@ while [ "$1" != "" ]; do
                             ;;
         -q | -jq |--query ) shift
                             TRANSFORM=1
-                            JQ_QUERY="$1"
+                            JQ_ARGS="$JQ_ARGS $1"
                             ;;
         -v | --verbose )    set -x
                             ;;
         - )                 HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1)
                             ;;
         -- )                shift
+                            # pass all the rest to jq
                             JQ_ARGS="$JQ_ARGS $*"
                             break
                             ;;
@@ -100,7 +110,7 @@ if test -z "$HUB_STATE"; then
 fi
 
 if test -z "$HUB_TOKEN"; then
-  RESP=$(hub explain "$HUB_STATE" --json || echo "") # this will spill into stderr on error
+  RESP=$($hubctl explain "$HUB_STATE" --json || echo "") # this will spill into stderr on error
   if test -z "$RESP"; then
     if test -z "$HUB_FILES"; then
       HUB_FILES="$(dotenv get HUB_FILES)"
@@ -136,7 +146,7 @@ if test -z "$HUB_TOKEN"; then
     fi
   fi
 else
-  RESP=$(hub api instance get -j \
+  RESP=$($hubctl api instance get -j \
       | jq -S '. | if type=="array" then . else [.] end' \
       | jq -cMr '.[] | select(.domain=="'$HUB_DOMAIN_NAME'")')
 fi
@@ -256,10 +266,10 @@ fi
 if test "$FORMAT" = "yaml"; then
     # shellcheck disable=SC2090
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
-    | jq $JQ_ARGS "$JQ_QUERY | select(.)" \
+    | jq $JQ_ARGS \
     | yq e -P 'del(.. | select((tag == "!!map" and length == 0) or (tag == "!!seq" and length == 0) or (. == null)))' -
 else
     # shellcheck disable=SC2090
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
-    | jq $JQ_ARGS "$JQ_QUERY | select(.)"
+    | jq $JQ_ARGS
 fi

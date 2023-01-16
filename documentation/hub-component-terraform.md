@@ -4,7 +4,7 @@ Terraform is a popular infrastruture as code technology often used to deploy clo
 
 ## Component Conventions
 
-If component follows the conventions below, then hub will know how to deploy  it.
+If component follows the conventions below, then hubctl will know how to deploy  it.
 
 ### Terraform Detection
 
@@ -17,7 +17,7 @@ requires:
 
 and place one one of the following files in the component directory:  `kustomization.yaml`, `kustomization.yaml.template` or `kustomization.yaml.gotemplate`
 
-Then hub will be able detect this component as helm component and call provisioning script: [hub-component-kustomize](https://github.com/agilestacks/hub-extensions/blob/master/hub-component-kustomize) .
+Then hubctl will be able detect this component as helm component and call provisioning script: [hub-component-kustomize](https://github.com/agilestacks/hub-extensions/blob/master/hub-component-kustomize) .
 
 ### Input parameters
 
@@ -27,7 +27,7 @@ As every script, helm deployment scripts has been controlled via set off well-kn
 | :-------- | :-------- | :-: | :--:
 | `COMPONENT_NAME` | Corresponds to parameter `hub.componentName` parameter, however can be overriden in `hub-component.yaml`. Hub will use this variable as a helm release name | x | |
 | `HUB_DOMAIN_NAME` | [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name) of a stack. We use this parameter as a natural id of the deployment | x | x |
-| `HUB_CLOUD_PROVIDER` | Tells hub to use different backends for terraform. We currently support: `aws`, `azure` or `gcp` | x | x |
+| `HUB_CLOUD_PROVIDER` | Tells hubctl to use different backends for terraform. We currently support: `aws`, `azure` or `gcp` | x | x |
 | `HUB_STATE_BUCKET` | Object storage bucket to be be used for terraform state  | x | x |
 | `HUB_STATE_REGION` | Region for terraform state bucket  | x | x |
 
@@ -42,7 +42,7 @@ Terraform variables can be supplied in two ways:
 
 #### AWS specific variables
 
-These variables has been set during `hub stack configure` state and defined in `.env` file. You don't have to refer it for your component, however you can overwrite.
+These variables has been set during `hubctl stack configure` state and defined in `.env` file. You don't have to refer it for your component, however you can overwrite.
 
 | Variable   | Description | Required
 | :-------- | :-------- | :-: |
@@ -50,7 +50,7 @@ These variables has been set during `hub stack configure` state and defined in `
 
 #### Azure specific variables
 
-These variables has been set during `hub stack configure` state and defined in `.env` file. These are the minimum viable variables expected by our terraform deploymenet script
+These variables has been set during `hubctl stack configure` state and defined in `.env` file. These are the minimum viable variables expected by our terraform deploymenet script
 
 | Variable   | Description | Required
 | :-------- | :-------- | :-: |

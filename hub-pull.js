@@ -10,7 +10,7 @@ const yaml = require('js-yaml');
 const {difference, get, isEmpty, kebabCase, partition, trimEnd, uniq, uniqBy} = require('lodash');
 
 function usage(code = 1) {
-    console.log('`hub pull -h` for help');
+    console.log('`hubctl pull -h` for help');
     process.exit(code);
 }
 

@@ -1,4 +1,4 @@
-# Command: `hub stack undeploy`
+# Command: `hubctl stack undeploy`
 
 Runs a reversive to un-deployment for operation for entire stack or one component
 
@@ -13,7 +13,7 @@ lifecycle:
   - componentN
 ```
 
-Because `undeploy` is a reversive operation to `deploy`, you might want to check out article for [`hub stack deploy`](hub-stack-deploy.md) sections about __deployment profiles__ and __deployment hooks__.
+Because `undeploy` is a reversive operation to `deploy`, you might want to check out article for [`hubctl stack deploy`](hub-stack-deploy.md) sections about __deployment profiles__ and __deployment hooks__.
 
 ## Command Parameters
 
@@ -39,18 +39,18 @@ These parameters applies across all extension commands
 To un-deploy all components in the runlist:
 
 ```bash
-hub stack undeploy
+hubctl stack undeploy
 ```
 
 To un-deploy specific components with order defined in the runlist
 
 ```bash
-hub stack undeploy -c "external-dns,cert-manager"
+hubctl stack undeploy -c "external-dns,cert-manager"
 ```
 
 
 ## See also
 
-* [`hub stack deploy`](hub-stack-deploy.md)
-* [`hub stack init`](hub-stack-init.md)
-* [`hub stack configure`](hub-stack-configure.md)
+* [`hubctl stack deploy`](hub-stack-deploy.md)
+* [`hubctl stack init`](hub-stack-init.md)
+* [`hubctl stack configure`](hub-stack-configure.md)

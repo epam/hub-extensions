@@ -5,13 +5,17 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-# Simple wrapper script around hub undeploy
+# Simple wrapper script around hubctl undeploy
 
-HUB=$(which hub)
-if test -z "$HUB"; then
-  echo "Error: hub cli cannot be found"
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
   exit 1
 fi
 
 # shellcheck disable=SC2068
-$HUB undeploy $@
+$hubctl undeploy $@

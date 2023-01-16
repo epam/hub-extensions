@@ -17,10 +17,21 @@ export PATH HUB_HOME HUB_EXTENSION
 HUB_WORKDIR="$(files abspath "$HUB_WORKDIR")"
 export HUB_WORKDIR
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 jq="jq -cMr "
 
 hub_state_cli_exist() {
-  hub state --help >/dev/null 2>&1
+  hubctl state --help >/dev/null 2>&1
 }
 
 real_files() {
@@ -39,7 +50,7 @@ toJson() {
 # shellcheck disable=SC2120
 usage() {
   cat << EOF
-Initializes a brand new stack from existing hub file
+Initializes a brand new stack from existing hubctl file
 
 Usage:
   $HUB_EXTENSION [flags] <state-ref>
@@ -52,7 +63,7 @@ Example:
   $HUB_EXTENSION <state-ref> -f <path-or-url-hub.yaml> --force
 
 State ref:
-  State can be referenced as a file, http, gs url or id (see "hub state ls")
+  State can be referenced as a file, http, gs url or id (see "hubctl state ls")
 
 EOF
 
@@ -246,7 +257,7 @@ componentSourceRef() {
 }
 
 getParamFromState() {
-  hub explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
+  hubctl explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
 }
 
 getParamValueByEnvVar() {
@@ -300,7 +311,7 @@ done
 if test -n "$SOURCE_HUB_STATE"; then
   # backward compatibility for users who have not installed new hub-state extension
   if hub_state_cli_exist; then
-    _state="$(hub state show "$SOURCE_HUB_STATE" -o json | $jq '.stateLocation.uri | select(.)')"
+    _state="$($hubctl state show "$SOURCE_HUB_STATE" -o json | $jq '.stateLocation.uri | select(.)')"
     if test -n "$_state"; then
       echo "Found state file: $_state"
       SOURCE_HUB_STATE="$_state"
@@ -309,7 +320,7 @@ if test -n "$SOURCE_HUB_STATE"; then
 fi
 
 if test -n "$SOURCE_HUB_STATE"; then
-  echo "Checking hub state"
+  echo "Checking hubctl state"
   for state in $(echo "$SOURCE_HUB_STATE" |tr ',' ' '); do
     temp="$(temp_file)"
     if test -f "$state"; then
@@ -328,10 +339,10 @@ if test -n "$SOURCE_HUB_STATE"; then
       gsutil -q cp "$state" "$temp"
       echo "done"
 
-      state_name="$(hub explain "$temp" --json | $jq '.meta.name | select(.)')"
-      state_status="$(hub explain "$temp" --json | $jq '.status | select(.)')"
+      state_name="$($hubctl explain "$temp" --json | $jq '.meta.name | select(.)')"
+      state_status="$($hubctl explain "$temp" --json | $jq '.status | select(.)')"
       echo "  Downloaded state: $state_name (status: $state_status)"
-      state_msg="$(hub explain "$temp" --json | $jq '.message | select(.)')"
+      state_msg="$($hubctl explain "$temp" --json | $jq '.message | select(.)')"
       if test -n "$state_msg"; then
         echo "  Message: $state_msg"
       fi
@@ -366,7 +377,7 @@ if test -n "$SOURCE_HUB_STATE"; then
   done
 elif test -z "$(params -f "$HUB_FILES" envvar HUB_DOMAIN_NAME)" \
        -a -z "$(params -f "$HUB_FILES" envvar HUB_STACK_NAME)"; then
-  echo "Checking hub files for domain name parameters"
+  echo "Checking hubctl files for domain name parameters"
   HUB_DOMAIN_NAME="$(params -f "$HUB_FILES" value "dns.domain")"
   HUB_STACK_NAME="$(params -f "$HUB_FILES" value "dns.name")"
   if test -z "$HUB_DOMAIN_NAME" -a -n "$HUB_STACK_NAME"; then
@@ -525,10 +536,10 @@ if test "$HUB_AUTOCONFIGURE" = "0"; then
 Next step: apply deployment configuration
 
 Run:
-  hub stack configure
+  hubctl stack configure
 
 For more details:
-  hub stack configure --help
+  hubctl stack configure --help
 
 EOF
 else
@@ -536,13 +547,13 @@ else
 Next step: start deploy or undeploy operations
 
 Run:
-  hub stack deploy
+  hubctl stack deploy
 or:
-  hub stack undeploy
+  hubctl stack undeploy
 
 For more details:
-  hub stack deploy --help
-  hub stack undeploy --help
+  hubctl stack deploy --help
+  hubctl stack undeploy --help
 
 EOF
 fi

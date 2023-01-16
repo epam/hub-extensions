@@ -1,4 +1,4 @@
-# Command: `hub state`
+# Command: `hubctl state`
 
 Helps you to manage stacks states
 
@@ -8,9 +8,9 @@ Extensions provides following commands:
 
 | Command   | Description |
 | --------- | ---------   |
-| [`hub state ls`](hub-state-ls.md) | List all stacks states within a project |
-| [`hub state rm`](hub-state-rm.md) | Removes stack state from the project by Stack ID |
-| [`hub state show`](hub-state-show.md) | Show details of a stack states by Stack ID |
+| [`hubctl state ls`](hub-state-ls.md) | List all stacks states within a project |
+| [`hubctl state rm`](hub-state-rm.md) | Removes stack state from the project by Stack ID |
+| [`hubctl state show`](hub-state-show.md) | Show details of a stack states by Stack ID |
 
 ## Flags
 
@@ -29,17 +29,17 @@ These parameters applies across all extension commands
 List all stacks states
 
 ```bash
-hub state ls
+hubctl state ls
 ```
 
 Show details of a stack
 
 ```bash
-hub state show "<stack ID>"
+hubctl state show "<stack ID>"
 ```
 
 Remove stack state
 
 ```bash
-hub state rm "<stack ID>"
+hubctl state rm "<stack ID>"
 ```

@@ -8,4 +8,4 @@ This extension will also enable user to access some previous content, something 
 
 At present there is only one hook, that will be triggered before user will deploy a stack or component(s) of a stack.
 
-This script will rely to `aws-metering.productCode` extension parameters defined in the hub file
+This script will rely to `aws-metering.productCode` extension parameters defined in the hubctl file

@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -175,19 +175,31 @@ if test -x pre-$verb; then
     if test -n "$tfvars"; then eval "$tfvars"; fi
 fi
 
-echo
-
 for filename in *.tfvars; do
     if test ! -f "$filename"; then continue; fi
     echo -n "* Using terraform variables from file:  "
     color b "$filename"
     TF_CLI_ARGS_plan="$TF_CLI_ARGS_plan -var-file=$filename"
+    TF_CLI_ARGS_import="$TF_CLI_ARGS_import -var-file=$filename"
 done
 
 for tfvar in $(printenv | awk 'BEGIN{for(v in ENVIRON) print v}' | grep '^TF_VAR_' | cat); do
     echo -n "* Using terraform environemnt variable: "
     color b "$tfvar"
 done
+
+if test -x "import"; then
+    echo "Running pre Terraform import script..."
+    echo
+    set +e
+    export TF_CLI_ARGS_import="$TF_CLI_ARGS_import -input=false"
+    ./import
+    rv="$?"
+    if test "$rv" != 0; then
+        color w "Terraform Import finished with non-zero exit code"
+    fi
+    set -e
+fi
 
 export TF_CLI_ARGS_plan
 

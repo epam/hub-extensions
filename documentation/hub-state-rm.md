@@ -1,4 +1,4 @@
-# Command: `hub state rm`
+# Command: `hubctl state rm`
 
 Removes stack state from the project by stack ID
 
@@ -17,10 +17,10 @@ These parameters applies across all extension commands
 ## Usage examples
 
 ```bash
-hub state rm <Stack ID>
+hubctl state rm <Stack ID>
 ```
 
 ## See also
 
-* [`hub state show`](hub-state-show.md)
-* [`hub stack ls`](hub-state-ls.md)
+* [`hubctl state show`](hub-state-show.md)
+* [`hubctl stack ls`](hub-state-ls.md)

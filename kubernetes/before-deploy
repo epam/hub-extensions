@@ -14,7 +14,7 @@ EOF
 }
 
 if test ! -f ".env"; then
-  color err "Error: cannot find .env file. Please run 'hub configure'"
+  color err "Error: cannot find .env file. Please run 'hubctl stack configure'"
   exit 1
 fi
 
