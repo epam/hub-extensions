@@ -34,7 +34,7 @@ Bubble DNS parameters:
     --domain-name         Previously issued DNS name
     --bubbles-secret-key  Secret key passed during domain name creation
 
-  Use: hub configure -r aws --dns-update
+  Use: hubctl configure -r aws --dns-update
 
 EOF
 }
@@ -188,7 +188,7 @@ and creating a hosted zone "$HUB_DOMAIN_NAME" or "$PARENT_DOMAIN".
 
 Then run again:
 
-$ hub configure -r aws --domain-name $HUB_DOMAIN_NAME
+$ hubctl configure -r aws --domain-name $HUB_DOMAIN_NAME
 
 Abort!
 EOF
@@ -234,14 +234,14 @@ if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
   cat <<EOF
 * DNS record has time to live: 72 hours
 
-# Hint! To refresh DNS: hub configure -r aws --dns-update
+# Hint! To refresh DNS: hubctl configure -r aws --dns-update
 
 EOF
 fi
 
 STACK=${STACK:-$(basename "$(pwd)")}
 if test -z "$HUB_STATE"; then
-  echo "* Setting hub state file location"
+  echo "* Setting hubctl state file location"
   HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
   if ! $PREFER_LOCAL_STATE; then
     HUB_STATE_FILE="$HUB_STATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
@@ -249,7 +249,7 @@ if test -z "$HUB_STATE"; then
   $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
 fi
 if test -z "$HUB_ELABORATE"; then
-  echo "* Setting hub elaborate file location"
+  echo "* Setting hubctl elaborate file location"
   HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
   if ! $PREFER_LOCAL_STATE; then
     HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"

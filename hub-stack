@@ -8,7 +8,7 @@
 
 usage() {
   cat << EOF
-Usage: hub stack <sub command>
+Usage: hubctl stack <sub command>
 
 Management commands:
     init            Initialize a brand new stack

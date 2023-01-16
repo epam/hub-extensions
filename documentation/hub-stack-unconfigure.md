@@ -1,6 +1,6 @@
-# Command: `hub stack rm`
+# Command: `hubctl stack rm`
 
-This command is basically deletes stack configuration created via `hub stack init` or `hub stack configure` commands.
+This command is basically deletes stack configuration created via `hubctl stack init` or `hubctl stack configure` commands.
 
 This command won't undeploy a stack if it has been deployed
 
@@ -8,7 +8,7 @@ Common usage scenario is actually a clean up your working directory from stacks 
 
 ## See also
 
-* [`hub stack init`](hub-stack-init.md)
-* [`hub stack configure`](hub-stack-configure.md)
-* [`hub stack ls`](hub-stack-ls.md)
-* [`hub stack set`](hub-stack-set.md)
+* [`hubctl stack init`](hub-stack-init.md)
+* [`hubctl stack configure`](hub-stack-configure.md)
+* [`hubctl stack ls`](hub-stack-ls.md)
+* [`hubctl stack set`](hub-stack-set.md)

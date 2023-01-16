@@ -24,7 +24,7 @@ Parameters:
 
 Usage:
 
-    hub stack backup tag TAG_NAME
+    hubctl stack backup tag TAG_NAME
 
 EOF
 }

@@ -4,7 +4,7 @@ Helm is a popular packaging technology for Kubernetes applications. We do provid
 
 ## Component Conventions
 
-If component follows the conventions below, then hub will know how to deploy  it.
+If component follows the conventions below, then hubctl will know how to deploy  it.
 
 ### Helm Detection
 
@@ -18,7 +18,7 @@ requires:
 
 and place one one of the following files in the component directory:  `values.yaml`, `values.yaml.template` or `values.yaml.gotemplate`
 
-Then hub will be able detect this component as helm component and call provisioning script: [helm-component-deploy](https://github.com/agilestacks/hub-extensions/blob/master/hub-component-helm-deploy) .
+Then hubctl will be able detect this component as helm component and call provisioning script: [helm-component-deploy](https://github.com/agilestacks/hub-extensions/blob/master/hub-component-helm-deploy) .
 
 ### Input parameters
 
@@ -30,10 +30,10 @@ As every script, helm deployment scripts has been controlled via set off well-kn
 | `COMPONENT_NAME` | Corresponds to parameter `hub.componentName` parameter, however can be overriden in `hub-component.yaml`. Hub will use this variable as a helm release name | x |
 | `NAMESPACE` | Target kubernetes namespace | x |
 | `HELM_CHART` | This can have multiple values, that corresponds to the helm chart location. Corresponds to the helm chart tarball, directory or a chart name in the repository | x |
-| `HELM_REPO` | Instructs hub to download helm chart from the helm repository | |
+| `HELM_REPO` | Instructs hubctl to download helm chart from the helm repository | |
 | `HELM_CHART_VERSION` | Addes a version constraint to the helm chart install. This variable works in conjunction with `HELM_REPO` | |
 | `HELM_CHART_USERNAME` and `HELM_CHART_PASSWORD`| Username and password for helm chart repository basic auth | |
-| `CHART_VALUES_FILE` | Instructs hub that it must use concrete values file inside of the helm chart as the base and only override with parameters from `values.yaml` in the component root directory. Alternatively if this variable has prefix `http` or `https` then the file. Additional values files can be referenced by adding a whitespace (or new line) separated reference | |
+| `CHART_VALUES_FILE` | Instructs hubctl that it must use concrete values file inside of the helm chart as the base and only override with parameters from `values.yaml` in the component root directory. Alternatively if this variable has prefix `http` or `https` then the file. Additional values files can be referenced by adding a whitespace (or new line) separated reference | |
 | `CRD` | URL or local path to the CRD file (if not located in `<component root>/crds` directory)  | |
 | `HELM_OPTS` | Helm command arguments, defautls to `--create-namespace --wait` | |
 

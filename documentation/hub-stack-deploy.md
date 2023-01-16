@@ -1,4 +1,4 @@
-# Command: `hub stack deploy`
+# Command: `hubctl stack deploy`
 
 Runs deployment for entire stack or updates deployment of one or few components
 
@@ -123,18 +123,18 @@ If you want to build your own deployment profile, then put a script into the `.h
 To deploy all components in the runlist:
 
 ```bash
-hub stack deploy
+hubctl stack deploy
 ```
 
 To deploy specific components with order defined in the runlist
 
 ```bash
-hub stack deploy -c "external-dns,cert-manager"
+hubctl stack deploy -c "external-dns,cert-manager"
 ```
 
 
 ## See also
 
-* [`hub stack undeploy`](hub-stack-undeploy.md)
-* [`hub stack configure`](hub-stack-configure.md)
-* [`hub stack init`](hub-stack-init.md)
+* [`hubctl stack undeploy`](hub-stack-undeploy.md)
+* [`hubctl stack configure`](hub-stack-configure.md)
+* [`hubctl stack init`](hub-stack-init.md)

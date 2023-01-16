@@ -1,4 +1,4 @@
-# Command: `hub toolbox`
+# Command: `hubctl toolbox`
 
 This command will run a toolbox container in interactive mode and will let you to deploy stack without having to install all necessary tools besides a docker
 
@@ -28,14 +28,14 @@ These parameters applies across all extension commands
 To start a toolbox container and run a deployment from inside
 
 ```bash
-hub toolbox
+hubctl toolbox
 # wait a doker pull
 # see a docker shell instead
-hub stack deploy
+hubctl stack deploy
 exit
 ```
 
 ## See also
 
-* [`hub stack`](hub-stack.md)
-* [`hub stack deploy`](hub-stack-deploy.md)
+* [`hubctl stack`](hub-stack.md)
+* [`hubctl stack deploy`](hub-stack-deploy.md)

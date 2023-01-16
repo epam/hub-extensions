@@ -16,6 +16,17 @@ export PATH HUB_WORKDIR
 DOT_ENV="$(files abspath .env)"
 export DOT_ENV
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 verb=deploy/undeploy
 
 usage() {
@@ -39,9 +50,9 @@ Parameters:
     -l --limit            Component to stop ${verb} at
     --profile             Deployment profile, one of: local, toolbox, pod
     -V  --verbose         Verbose outputs for debug purpose
-    --tty                 Use TTY (terminal) mode for hub ${verb}
-    --no-tty              Do not use TTY (terminal) mode for hub ${verb}
-    --                    Separator to define "hub ${verb}" low level parameters (see: "hub ${verb} --help")
+    --tty                 Use TTY (terminal) mode for hubctl ${verb}
+    --no-tty              Do not use TTY (terminal) mode for hubctl ${verb}
+    --                    Separator to define "hubctl ${verb}" low level parameters (see: "hubctl ${verb} --help")
     -h  --help            Print this message
 
 EOF
@@ -98,7 +109,7 @@ while test "$1" != ""; do
 done
 
 finalize() {
-  status="$(hub show -- '.status.status')"
+  status="$($hubctl show -- '.status.status')"
   echo -n "Deployment status: "
   if test "$1" = "0"; then
 cat << EOF | color green
@@ -126,10 +137,10 @@ cat << EOF
 Stack configuration (.env)
 
 To resolve please run:
-  $ hub configure -f hub.yaml
+  $ hubctl configure -f hub.yaml
 
 To explore more configuration options:
-  $ hub configure -f hub.yaml --help
+  $ hubctl configure -f hub.yaml --help
 
 EOF
   exit 1
@@ -137,15 +148,15 @@ fi
 
 if test -z "$HUB_FILES"; then
   cat << EOF
-Error: cannot find hub definition files (HUB_FILES) in .env"
+Error: cannot find hubctl definition files (HUB_FILES) in .env"
 
 Probably because stack has not been initialized for deployment yet!
 
 Example:
-  $ hub stack init -f hub.yaml
+  $ hubctl stack init -f hub.yaml
 
 To explore more configuration options:
-  $ hub stack init -f hub.yaml --help
+  $ hubctl stack init -f hub.yaml --help
 
 EOF
 
@@ -154,7 +165,7 @@ fi
 
 if test "$HUB_AUTOCONFIGURE" = "1"; then
   echo -n "Proceeding with:"; color h "configure"
-  hub stack configure "$(test "$VERBOSE" = "true" && echo "--verbose")"
+  $hubctl stack configure "$(test "$VERBOSE" = "true" && echo "--verbose")"
   echo "Reloading .env file"
   eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
   echo -n "Proceeding with:"; color h "$verb"
@@ -166,15 +177,15 @@ fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
 cat << EOF
-Error: cannot find hub definition files (HUB_DOMAIN_NAME) in .env"
+Error: cannot find hubctl definition files (HUB_DOMAIN_NAME) in .env"
 
 Probably because stack has not been configured for deployment yet!
 
 Example:
-  $ hub stack configure
+  $ hubctl stack configure
 
 To explore more configuration options:
-  $ hub stack configure --help
+  $ hubctl stack configure --help
 
 EOF
 
@@ -200,7 +211,7 @@ HUB=${HUB:-hub}
 if test -z "$HUB_STATE"; then
   HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
 fi
-echo "* Using hub state:"
+echo "* Using hubctl state:"
 for i in ${HUB_STATE//,/ }; do
   echo "  - $i"
 done
@@ -208,7 +219,7 @@ done
 if test -z "$HUB_ELABORATE"; then
   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
 fi
-echo "* Using hub elaborate:"
+echo "* Using hubctl elaborate:"
 for i in ${HUB_ELABORATE//,/ }; do
   echo "  - $i"
   if ! grep :// <<<$i >/dev/null; then
@@ -227,7 +238,7 @@ elif test -n "$HUB_ELABORATE_FILE"; then
   if ! check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
     if test -z "$HUB_MANUAL_ELABORATE"; then
       echo    "Run this command:"
-      color h "    hub stack elaborate"
+      color h "    hubctl stack elaborate"
       echo    "or update elaborate file timestamp:"
       echo    "    touch $HUB_ELABORATE_FILE"
       echo
@@ -271,7 +282,7 @@ Proceeding with: ${verb}
 * Using profile: $HUB_DEPLOY_PROFILE
 * Running CLI command:
 
-  $ hub ${verb} $HUB_ELABORATE -s $HUB_STATE $HUB_OPTS
+  $ hubctl ${verb} $HUB_ELABORATE -s $HUB_STATE $HUB_OPTS
 
 EOF
 

@@ -77,6 +77,7 @@ while test -n "$1"; do
       _tput setaf 3
       _tput bold
       shift
+      stderr="1"
       message="$*"
       delay="2"
       break

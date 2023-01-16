@@ -1,4 +1,4 @@
-`hub pull` is to read `hub.yaml` `components[].source.git` stanzas and emit `git` shell commands to pull updates from upstream. If no Git subtree exist then it will be added.
+`hubctl pull` is to read `hub.yaml` `components[].source.git` stanzas and emit `git` shell commands to pull updates from upstream. If no Git subtree exist then it will be added.
 
 Usage:
 
@@ -7,7 +7,7 @@ Usage:
 `--show` is to show commands to be executed without running them.
 
 Temporary `worktree` is necessary to perform subtree split for components that resides under `subDir` in a Git repo.
-If not supplied then a temporary worktree under `$TMPDIR/hub-pull.*` will be created and reused for subsequent `hub pull` invocations.
+If not supplied then a temporary worktree under `$TMPDIR/hub-pull.*` will be created and reused for subsequent `hubctl pull` invocations.
 In case it is removed from filesystem but is still registered in Git repo metadata then you'll get an error from Git and you must correct the issue manually using `git worktree list` and `git worktree remove`.
 
 To manually add new component as Git subtree - for component occupying whole repository, for example:

@@ -64,8 +64,8 @@ lifecycle:
 5. And we are ready to deploy
 
 ```bash
-hub stack init -f `hub.yaml`
-hub stack deploy
+hubctl stack init -f `hub.yaml`
+hubctl stack deploy
 ```
 
 ### Add a parameter
@@ -114,7 +114,7 @@ parameters:
 4. Run a deployment
 
 ```bash
-hub stack deploy
+hubctl stack deploy
 #
 # Component my-first-component is saying: bar
 # Component my-first-component deployed successfully!
@@ -153,7 +153,7 @@ parameters:
 2. Run deployment
 
 ```bash
-hub stack deploy
+hubctl stack deploy
 # Component my-first-component is saying: bar
 # Component my-first-component deployed successfully!
 # Component my-second-component is saying: baz
@@ -198,7 +198,7 @@ echo "Component $COMPONENT_NAME deployed successfully!"
 4. Deploy the stack
 
 ```
-hub stack deploy
+hubctl stack deploy
 # Component my-first-component is saying: bar
 # The cryptic message says: bar
 # Component my-first-component deployed successfully!

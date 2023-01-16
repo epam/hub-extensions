@@ -12,17 +12,28 @@ HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 usage() {
 cat << EOF
 
 Create backup for current stack
 
 Usage:
-$ hub stack backup create
+$ hubctl stack backup create
 
 Creates a backup for entire stack
 
-$  hub stack backup create -c component1,component2
+$  hubctl stack backup create -c component1,component2
 
 Creates a backup for two components
 
@@ -30,9 +41,9 @@ Parameters:
     -t --tag              Backup tags
     -c --component        Components to backup
     -V  --verbose         Verbose outputs for debug purpose
-    --tty                 Use TTY (terminal) mode for hub ${verb}
-    --no-tty              Do not use TTY (terminal) mode for hub ${verb}
-    --                    Separator to define "hub ${verb}" low level parameters (see: "hub ${verb} --help")
+    --tty                 Use TTY (terminal) mode for hubctl ${verb}
+    --no-tty              Do not use TTY (terminal) mode for hubctl ${verb}
+    --                    Separator to define "hubctl ${verb}" low level parameters (see: "hubctl ${verb} --help")
     -h  --help            Print this message
 
 EOF
@@ -100,7 +111,7 @@ fi
 if test -z "$HUB_STATE"; then
   HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
 fi
-echo "* Using hub state:"
+echo "* Using hubctl state:"
 for i in ${HUB_STATE//,/ }; do
   echo "  - $i"
 done
@@ -108,7 +119,7 @@ done
 if test -z "$HUB_ELABORATE"; then
   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
 fi
-echo "* Using hub elaborate:"
+echo "* Using hubctl elaborate:"
 for i in ${HUB_ELABORATE//,/ }; do
   echo "  - $i"
   if ! grep :// <<<$i >/dev/null; then
@@ -128,7 +139,7 @@ if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; t
 elif test -n "$HUB_ELABORATE_FILE"; then
   if ! "$script_dir"/check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
     echo "Call:"
-    echo "    $ hub stack elaborate"
+    echo "    $ hubctl stack elaborate"
     echo "or update elaborate file timestamp:"
     echo "    $ touch $HUB_ELABORATE_FILE"
     echo
@@ -160,12 +171,12 @@ trap "rm_empty $HUB_BACKUP_DIR" EXIT
 cat << EOF
 * Running CLI command:
 
-  $ hub backup create $HUB_ELABORATE -s $HUB_STATE -o $HUB_BACKUP_DIR/hub-bundle.yaml.gz $HUB_OPTS
+  $ hubctl backup create $HUB_ELABORATE -s $HUB_STATE -o $HUB_BACKUP_DIR/hub-bundle.yaml.gz $HUB_OPTS
 
 EOF
 
 # shellcheck disable=SC2086
-hub backup create "$HUB_ELABORATE" -s "$HUB_STATE" -o "$HUB_BACKUP_DIR/hub-bundle.yaml.gz" $HUB_OPTS
+$hubctl backup create "$HUB_ELABORATE" -s "$HUB_STATE" -o "$HUB_BACKUP_DIR/hub-bundle.yaml.gz" $HUB_OPTS
 
 if test -n "$HUB_BACKUP_TAG"; then
   echo "* Tagging backup: $HUB_BACKUP_TAG"

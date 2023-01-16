@@ -24,8 +24,8 @@ Parameters:
 
 Usage:
 
-    hub stack backup show BACKUP_NAME
-    hub stack backup show BACKUP_TAG
+    hubctl stack backup show BACKUP_NAME
+    hubctl stack backup show BACKUP_TAG
 
 EOF
 }

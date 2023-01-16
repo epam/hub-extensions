@@ -10,6 +10,16 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_HOME HUB_EXTENSION
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 CURRENT=""
 if test -f ".env"; then
   CURRENT=$(basename "$(readlink .env)" .env)
@@ -44,7 +54,7 @@ print_stacks() {
       fi
       hubstate="$(dotenv -f "$f" get HUB_STATE)"
       if test -n "$hubstate"; then
-        resp="$(hub explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}')"
+        resp="$($hubctl explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}')"
         status=$(echo "$resp" | jq -cMr '.status')
         ts=$(echo "$resp" | jq -cMr '.timestamp')
       fi

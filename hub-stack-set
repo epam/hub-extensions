@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,13 +12,13 @@ usage() {
   cat << EOF
 Set or change currently active stack
 
-Usage: hub stack set STACK
+Usage: hubctl stack set STACK
 
   where STACK is the name of the stack to set as an active
 
 Note: to see list of available stacks run
 
-  $ hub stack ls
+  $ hubctl stack ls
 
 EOF
 }
@@ -46,7 +46,7 @@ if test ! -f "$dotfile"; then
 
 To see list of available stacks run
 
-  $ hub stack ls
+  $ hubctl stack ls
 
 EOF
   exit 3

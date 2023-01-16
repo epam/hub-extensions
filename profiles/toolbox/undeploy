@@ -5,5 +5,26 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-echo "if test -e .env; then set -a; . .env; fi; exec hub undeploy $*" >.hub-toolbox
-exec hub toolbox bash .hub-toolbox
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
+cat << EOF >.hub-toolbox
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "\$hubctl"; then
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+
+if test -e .env; then 
+    set -a; 
+    . .env; 
+fi; 
+exec \$hubctl undeploy $*
+EOF
+exec $hubctl toolbox bash .hub-toolbox

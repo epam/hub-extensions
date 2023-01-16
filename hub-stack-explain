@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -29,6 +29,17 @@ Parameters:
 EOF
 }
 
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
+
 HUB_OPTS=
 while [ "$1" != "" ]; do
     case $1 in
@@ -48,4 +59,4 @@ if test ! -f .env; then
 fi
 eval "$(dotenv export -f "$HUB_WORKDIR/.env" )"
 
-hub explain "$HUB_ELABORATE" "$HUB_STATE" $HUB_OPTS | less -R
+$hubctl explain "$HUB_ELABORATE" "$HUB_STATE" $HUB_OPTS | less -R

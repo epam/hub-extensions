@@ -38,7 +38,7 @@ if test "$VERBOSE" = "true"; then
 fi
 
 if test ! -f ".env"; then
-  echo "Error: cannot find .env file. Please run 'hub configure'"
+  echo "Error: cannot find .env file. Please run 'hubctl configure'"
   exit 1
 fi
 set +a

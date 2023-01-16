@@ -10,10 +10,10 @@ Extensions provides following commands:
 
 | Command   | Description
 | --------- | ---------
-| [`hub stack <subcommand>`](hub-stack.md) | Commands to manage your deployment |
-| [`hub show`](hub-show.md) | Show parameters of a deployed stack |
-| [`hub toolbox`](hub-toolbox.md) | Starts a local toolbox container and mounts current file system inside |
-| [`hub state`](hub-state.md) | Helps you to manage stacks states |
+| [`hubctl stack <subcommand>`](hub-stack.md) | Commands to manage your deployment |
+| [`hubctl show`](hub-show.md) | Show parameters of a deployed stack |
+| [`hubctl toolbox`](hub-toolbox.md) | Starts a local toolbox container and mounts current file system inside |
+| [`hubctl state`](hub-state.md) | Helps you to manage stacks states |
 
 ## Free form component
 
@@ -21,7 +21,7 @@ Free form component provides maximum flexibility. There are no specific extensio
 
 | Command   | Description | Selected when |
 | --------- | ----------- | --------- |
-| [`hub compoent`](hub-component.md) | Free form component. Can use any provisionoing tool or technology. Only one limietation, this tool must be delivered inside a toolbox (custom image ok) or be intalled on your workstation | `deploy` and `undeploy` or `deploy.sh` and `undeploy.sh` |
+| [`hubctl compoent`](hub-component.md) | Free form component. Can use any provisionoing tool or technology. Only one limietation, this tool must be delivered inside a toolbox (custom image ok) or be intalled on your workstation | `deploy` and `undeploy` or `deploy.sh` and `undeploy.sh` |
 
 ## Extensions for Component provisioning
 
@@ -29,6 +29,6 @@ Extensions can also provide an opinionated way on how to deploy a component usin
 
 | Command   | Description | Selected when |
 | --------- | ----------- | --------- |
-| [`hub compoent terraform`](hub-component-terraform.md) | Deploys component using terraform | `*.tf` |
-| [`hub compoent helm`](hub-component-helm.md) | Deploys component with helm chart | `values.yaml` |
-| [`hub compoent kustomize`](hub-component-kustomize.md)| Deploys component with kustomize | `kustomization.yaml` |
+| [`hubctl compoent terraform`](hub-component-terraform.md) | Deploys component using terraform | `*.tf` |
+| [`hubctl compoent helm`](hub-component-helm.md) | Deploys component with helm chart | `values.yaml` |
+| [`hubctl compoent kustomize`](hub-component-kustomize.md)| Deploys component with kustomize | `kustomization.yaml` |
