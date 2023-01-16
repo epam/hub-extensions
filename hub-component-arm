@@ -1,0 +1,150 @@
+#!/bin/bash -e
+
+verb=${1:-"deploy"}
+
+cat << EOF | color w
+Starting Azure Deployment...
+This is alpha software. Use at your own risk.
+EOF
+
+echo "* Using Resource Group: $AZURE_RESOURCE_GROUP_NAME"
+
+ARM_DEPLOYMENT_KIND="${ARM_DEPLOYMENT_KIND:-"group"}"
+DEPLOYMENT_ARGS="$DEPLOYMENT_ARGS --verbose --output table"
+
+is_uri() {
+    echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+}
+
+deployment_status() {
+    local depl_status
+    set +e
+    # shellcheck disable=SC2086
+    depl_status="$(az deployment $ARM_DEPLOYMENT_KIND show -n "$1" -g "$2" -o tsv --query '[properties.provisioningState]' 2>/dev/null)"
+    if test "$?" = "3" -o -z "$depl_status"; then
+        depl_status="Not found"
+    fi
+    set -e
+    echo "$depl_status"
+}
+
+find_by_schema() {
+    local found
+    local file
+    for file in *.json; do
+        if test -f "$file"; then
+            found="$(jq -r --arg a "$1" '.["$schema"] | split("/") | last | split(".") | first == $a' < "$file")"
+            if test "$found" = "true"; then
+                echo "$file"
+            fi
+        fi
+    done
+}
+
+if test -x "pre-$verb"; then
+  echo "Running pre-$verb hook..."
+  "./pre-$verb"
+fi
+
+if test -z "$ARM_TEMPLATE"; then
+    ARM_TEMPLATE="$(find_by_schema "deploymentTemplate" | xargs | head -n1 | cut -d " " -f1)"
+fi
+
+if test -n "$ARM_DEPLOYMENT_NAME"; then
+    echo "* Using deployment name from ARM_DEPLOYMENT_NAME"
+else
+    ARM_DEPLOYMENT_NAME="$HUB_COMPONENT"
+    if test -n "ARM_DEPLOYMENT_NAME"; then
+        echo "* Using deployment name from component name"
+    elif test -n "$ARM_TEMPLATE"; then
+        echo "* Using deployment name from template"
+        ARM_DEPLOYMENT_NAME="$(basename "$ARM_TEMPLATE" .json)"
+    else
+        echo "* Using deployment name from current directory"
+        ARM_DEPLOYMENT_NAME="$(basename "$(pwd)")"
+    fi
+fi
+echo "  Setting deployment name: $ARM_DEPLOYMENT_NAME"
+
+if test "$verb" = "deploy"; then
+    if test -f "$ARM_TEMPLATE"; then
+        echo "* Using deployment template from file: $ARM_TEMPLATE"
+        DEPLOYMENT_ARGS="$DEPLOYMENT_ARGS --template-file $ARM_TEMPLATE"
+    elif is_uri "$ARM_TEMPLATE"; then
+        echo "* Using deployment template from URI: $ARM_TEMPLATE"
+        DEPLOYMENT_ARGS="$DEPLOYMENT_ARGS --template-uri $ARM_TEMPLATE"
+    else
+        color error "* Cannot find template: $ARM_TEMPLATE"
+        exit 1
+    fi
+
+    for file in $ARM_PARAMETER_FILES $(find_by_schema "deploymentParameters"); do
+        if test ! -f "$file"; then
+            continue
+        fi
+        echo "- Using ARM parameters from file: $file"
+        DEPLOYMENT_ARGS="$DEPLOYMENT_ARGS --parameters @$file"
+    done
+
+    for paramvar in $(printenv | awk 'BEGIN{for(v in ENVIRON) print v}' | grep '^ARM_PARAM_' | cat); do
+        echo "- Using environment variable: $paramvar"
+        DEPLOYMENT_VARS="$DEPLOYMENT_VARS --parameters ${paramvar#ARM_PARAM_}=${!paramvar}"
+    done
+
+    for paramvar in $(printenv | awk 'BEGIN{for(v in ENVIRON) print v}' | grep '^ARM_PARAMETER_' | cat); do
+        echo "- Using environment variable: $paramvar"
+        DEPLOYMENT_VARS="$DEPLOYMENT_VARS --parameters ${paramvar#ARM_PARAMETER_}=${!paramvar}"
+    done
+    DEPLOYMENT_ARGS="$DEPLOYMENT_ARGS --no-prompt"
+    echo -n "* Checking previous deployment status... "
+    depl_status="$(deployment_status "$ARM_DEPLOYMENT_NAME" "$AZURE_RESOURCE_GROUP_NAME")"
+    echo "$depl_status"
+    COMMAND="group create"
+
+elif test "$verb" = "undeploy"; then
+    echo "* Using Deployment Name: $ARM_DEPLOYMENT_NAME"
+    echo -n "* Checking previous deployment status... "
+    depl_status="$(deployment_status "$ARM_DEPLOYMENT_NAME" "$AZURE_RESOURCE_GROUP_NAME")"
+    echo "$depl_status"
+    if test "$depl_status" = "Not found"; then
+        color error "Nothing to undeploy"
+        exit 0
+    fi
+
+    if test "$depl_status" = "Running"; then
+        echo "Cancelling current deployment..."
+        cat << EOF | color h
+
+Running:
+    az deployment $ARM_DEPLOYMENT_KIND cancel --resource-group "$AZURE_RESOURCE_GROUP_NAME" --name "$ARM_DEPLOYMENT_NAME"
+
+EOF
+        # shellcheck disable=SC2086
+        az deployment $ARM_DEPLOYMENT_KIND cancel --resource-group "$AZURE_RESOURCE_GROUP_NAME" --name "$ARM_DEPLOYMENT_NAME"
+        echo -n "* Waiting for deployment to cancel..."
+        while test "$(deployment_status "$ARM_DEPLOYMENT_NAME" "$AZURE_RESOURCE_GROUP_NAME")" != "Canceled"; do
+            echo -n "."
+            sleep 3
+        done
+        echo " Canceled"
+    fi
+    COMMAND="$ARM_DEPLOYMENT_KIND delete"
+else
+    color err "ERROR: Unknown verb: $verb"
+    exit 1
+fi
+
+cat <<EOF | color h
+
+Running:
+    az deployment $COMMAND --resource-group "$AZURE_RESOURCE_GROUP_NAME" --name "$ARM_DEPLOYMENT_NAME" $DEPLOYMENT_ARGS
+
+EOF
+
+# shellcheck disable=SC2086
+az deployment $COMMAND --resource-group "$AZURE_RESOURCE_GROUP_NAME" --name "$ARM_DEPLOYMENT_NAME" $DEPLOYMENT_ARGS $DEPLOYMENT_VARS
+
+if test -x "post-$verb"; then
+  echo "Running post-$verb hook..."
+  "./post-$verb"
+fi
