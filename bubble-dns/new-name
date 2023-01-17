@@ -25,7 +25,7 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 # shellcheck disable=SC2064
 trap "rm -f $TEMP" EXIT
 
-HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://dns.bubbles.devops.delivery/"}
+HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://prod-dns.bubbles.devops.delivery/"}
 HTTP_CODE=$( \
   curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
       -w "%{http_code}" \
