@@ -216,3 +216,4 @@ At present we support following technologies
 * [Component Helm](hub-component-helm.md)
 * [Component Kustomize](hub-component-kustomize.md)
 * [Component Terraform](hub-component-terraform.md)
+* [Component ARM Deployment Template](hub-component-arm.md)
