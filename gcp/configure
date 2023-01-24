@@ -157,7 +157,7 @@ STATE_FUNCTION_REF="master"
 echo "Configuring state management cloud function "
 
 version=$(git ls-remote --head $STATE_FUNCTION_REPO $STATE_FUNCTION_REF | awk '{print $1}' | cut -c-7)
-current_version=$(gcloud functions describe stacks --region $STATE_FUNCTION_REGION --format='value(labels.version)' 2>&1)
+current_version=$(gcloud functions describe stacks --region $STATE_FUNCTION_REGION --format='value(labels.version)' 2>&1 || true)
 
 if test "$version" = "$current_version" && test -z "$FORCE_FUNCTION_UPDATE"; then
   echo "* State management cloud function already deployed to $GOOGLE_PROJECT ($current_version). Use --force flag to redeploy"
