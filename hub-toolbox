@@ -23,7 +23,7 @@ Usage:
   $HUB_EXTENSION [DOMAIN_NAME]
 
 Parameters:
-    -i  --toolbox-image ARG  Toolbox docker image (default: HUB_TOOLBOX_IMAGE and agilestacks/toolbox:stable)
+    -i  --toolbox-image ARG  Toolbox docker image (default: HUB_TOOLBOX_IMAGE and ghcr.io/epam/hub-toolbox:base)
     -V  --verbose            Verbose outputs for debug purpose
     -h --help                Show this message
 
@@ -31,6 +31,7 @@ EOF
 }
 
 TOOLBOX_SHELL="${TOOLBOX_SHELL:-"/bin/bash"}"
+ARGS=
 
 while [ "$1" != "" ]; do
     case $1 in
@@ -46,8 +47,7 @@ while [ "$1" != "" ]; do
         exit
     ;;
     * )
-        usage
-        exit 1
+        ARGS=$*
     ;;
     esac
     shift
@@ -69,7 +69,7 @@ if test "$HUB_WORKDIR" = "/"; then
 fi
 
 if test -z "$HUB_TOOLBOX_IMAGE"; then
-    HUB_TOOLBOX_IMAGE=$(dotenv get "HUB_TOOLBOX_IMAGE" --default "docker.io/agilestacks/toolbox:stable")
+    HUB_TOOLBOX_IMAGE=$(dotenv get "HUB_TOOLBOX_IMAGE" --default "ghcr.io/epam/hub-toolbox:base")
 fi
 
 finalize() {
@@ -84,22 +84,15 @@ finalize() {
 
 if test -z "$HUB_WORKDIR"; then
   FIRST_FILE="$(echo "$HUB_FILES" | awk '{print $1;}')"
-  if test -f $FIRST_FILE; then
+  if test -f "$FIRST_FILE"; then
     HUB_WORKDIR=$(dirname "$FIRST_FILE")
   else
     HUB_WORKDIR=$(pwd)
   fi
 fi
 
-if  test -z "${AWS_PROFILE}" && \
-    test -x "$(which aws)" && \
-    aws sts get-caller-identity > /dev/null 2>&1; then
-    AWS_PROFILE=$(aws configure list | awk  '$1 ~ /^profile$/ {print $2}')
-    export AWS_PROFILE
-fi
-
 envfile=$(mktemp)
-env | grep -E '^(AWS_|GOOGLE_|AZURE_|HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)' >"$envfile"
+env | grep -E '^(HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)' >"$envfile"
 envadd=""
 if test -s "$envfile"; then
     envadd="--env-file $envfile"
@@ -108,9 +101,9 @@ fi
 trap 'finalize $?' EXIT
 
 docker_config="$HOME/.docker/config.json"
-if test -f $docker_config && grep -E '(osxkeychain|desktop)"' $docker_config >/dev/null; then
+if test -f "$docker_config" && grep -E '(osxkeychain|desktop)"' "$docker_config" >/dev/null; then
     pruned_docker_config_dir=$(mktemp -d /tmp/docker.XXXXXX)
-    sed -E -e 's/(osxkeychain|desktop)"/"/g' $docker_config > $pruned_docker_config_dir/config.json
+    sed -E -e 's/(osxkeychain|desktop)"/"/g' "$docker_config" > "$pruned_docker_config_dir/config.json"
     maybe_docker_config="-v $pruned_docker_config_dir:$HOME/.docker"
 fi
 
@@ -118,28 +111,27 @@ if test -e /var/run/docker.sock; then
     maybe_docker_socket="-v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
-# direnv hook is strictly for interactive shell
-# ask direnv to set environment explicitly to allow
-#   $ hubctl toolbox make deploy
-if test $# -gt 0 -a -n "$TOOLBOX_DIRENV"; then
-    args="direnv exec . $*"
-fi
-
-docker run -ti --rm \
-    -h toolbox-"$(tty|sed -e 's|/dev/||')" \
-    -e TMPDIR=/tmp \
-    -e "USER=$USER" \
-    -e "UID=$(id -u)" \
-    -e "GID=$(id -g)" \
-    -e "HOME=$HOME" \
-    -e "SHELL=${TOOLBOX_SHELL}" \
-    -e 'PS1=\u@\e[92m\h\e[0m \w $ ' \
-    -v "$HOME:$HOME" \
-    -v "$HUB_WORKDIR:$HUB_WORKDIR" \
+# shellcheck disable=SC2086
+docker run \
+    --hostname toolbox-"$(tty|sed -e 's|/dev/||')" \
+    --env TMPDIR="/tmp" \
+    --env USER="$USER" \
+    --env UID="$(id -u)" \
+    --env GID="$(id -g)" \
+    --env HOME="$HOME" \
+    --env SHELL="$TOOLBOX_SHELL" \
+    --env PS1="\u@\e[92m\h\e[0m \w $ " \
+    --env HUB_WORKDIR="$HUB_WORKDIR" \
+    --volume "$HOME:$HOME" \
+    --volume "$HUB_WORKDIR:$HUB_WORKDIR" \
+    --workdir "$HUB_WORKDIR" \
+    $envadd \
     $maybe_docker_socket \
     $maybe_docker_config \
-    --privileged=true \
+    --privileged \
     --cap-add=NET_ADMIN \
-    -w "$HUB_WORKDIR" \
+    --rm \
+    --interactive \
+    --tty \
     "$HUB_TOOLBOX_IMAGE" \
-    $envadd $args
+    $ARGS
