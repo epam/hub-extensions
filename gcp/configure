@@ -166,15 +166,17 @@ else
   TEMP_DIR=$(mktemp -d || exit 2)
   mkdir -p "$TEMP_DIR"
   trap 'rm -rf $TEMP_DIR' EXIT
-  git clone --depth 1 "$STATE_FUNCTION_REPO" "$TEMP_DIR" > /dev/null 2>&1
-  git -C "$TEMP_DIR" checkout "$STATE_FUNCTION_REF" > /dev/null 2>&1
-  if RESULT=$(gcloud functions deploy stacks \
-    --runtime nodejs16 \
+  git clone --depth 1 "$STATE_FUNCTION_REPO" "$TEMP_DIR" >/dev/null 2>&1
+  git -C "$TEMP_DIR" checkout "$STATE_FUNCTION_REF" >/dev/null 2>&1
+  if gcloud functions deploy stacks \
+    --region="$STATE_FUNCTION_REGION" \
+    --quiet \
+    --runtime=nodejs18 \
     --trigger-http \
-    --memory 4096MB \
-    --update-labels "version=$version" \
-    --source "$TEMP_DIR"/api \
-    --entry-point stacks 2>&1); then
+    --memory=4096MB \
+    --update-labels="version=$version" \
+    --source="$TEMP_DIR/api" \
+    --entry-point=stacks 2>&1; then
     echo "Deployed"
   else
     cat << EOF | color err
