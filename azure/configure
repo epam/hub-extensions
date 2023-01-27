@@ -291,7 +291,7 @@ fi
 # TODO state storage account per region?
 echo "Configuring Azure Storage Account"
 if test -z "$HUB_STATE_BUCKET"; then
-  HUB_STATE_BUCKET="hubctl$(echo $AZURE_SUBSCRIPTION_ID | cut -d- -f1)"
+  HUB_STATE_BUCKET="hubctl $(echo $AZURE_SUBSCRIPTION_ID | cut -d- -f1)"
 fi
 if test -z "$HUB_STATE_CONTAINER"; then
   HUB_STATE_CONTAINER=hubctl
@@ -314,7 +314,7 @@ else
   fi
 fi
 echo -n "* Checking presence of storage account $resource_group/$HUB_STATE_BUCKET blob container $HUB_STATE_CONTAINER: "
-if az storage container show $AZ_OPTS --account-name "$HUB_STATE_BUCKET" -n "$HUB_STATE_CONTAINER" -o 'none' 2>/dev/null; then
+if az storage container show --account-name "$HUB_STATE_BUCKET" -n "$HUB_STATE_CONTAINER" -o 'none' 2>/dev/null; then
   echo "exist"
 else
   if $DRY_RUN; then
