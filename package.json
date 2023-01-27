@@ -1,10 +1,10 @@
 {
   "name": "hub-extensions-js",
   "version": "0.0.1",
-  "license": "GPL-3.0-or-later",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agilestacks/hub-extensions.git"
+    "url": "https://github.com/epam/hub-extensions.git"
   },
   "private": true,
   "scripts": {

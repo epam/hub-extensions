@@ -35,7 +35,7 @@ Not all extensions supports all Hub CLI global flags, like `--debug`, `trace`, o
 
 Hub CLI Extensions require [jq], [yq v4]. Optionally install [AWS CLI], [kubectl], [eksctl] and [Node.js], [NPM] for `hubctl pull` extension.
 
-[Hub CLI]: https://github.com/agilestacks/hub
+[Hub CLI]: https://github.com/epam/hubctl
 [AWS CLI]: https://aws.amazon.com/cli/
 [kubectl]: https://kubernetes.io/docs/reference/kubectl/overview/
 [eksctl]: https://eksctl.io
