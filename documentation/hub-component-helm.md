@@ -18,7 +18,7 @@ requires:
 
 and place one one of the following files in the component directory:  `values.yaml`, `values.yaml.template` or `values.yaml.gotemplate`
 
-Then hubctl will be able detect this component as helm component and call provisioning script: [helm-component-deploy](https://github.com/agilestacks/hub-extensions/blob/master/hub-component-helm-deploy) .
+Then hubctl will be able detect this component as helm component and call provisioning script: [helm-component-deploy](https://github.com/epam/hub-extensions/blob/master/hub-component-helm-deploy) .
 
 ### Input parameters
 
@@ -65,30 +65,57 @@ We do advise not to deploy CRD with the helm chart. Because component `undeploy`
 
 ## Examples
 
-Nginx web server example. This is an example of a `hub-component.yaml` that will install a helm chart without any modifications. Complete code for nginx component can be found [here](https://github.com/agilestacks/components/tree/master/nginxing)
+Nginx web server example. This is an example of a `hub-component.yaml` that will install a helm chart without any modifications. Complete code for nginx component can be found [here](https://github.com/epam/hub-google-components/tree/main/nginx)
 
 ```yaml
+---
+version: 1
 kind: component
+
 requires:
-  - kubernetes
   - helm
+
+provides:
+  - nginx
+  - ingress
+
 parameters:
-- name: dns.domain
-  env: DOMAIN_NAME
-- name: kubernetes.namespace
-  value: kube-ingress
-- name: helm.chart.name
-  value: ingress-nginx
-  env: HELM_CHART
-- name: helm.chart.repo
-  value: https://kubernetes.github.io/ingress-nginx
-  env: HELM_REPO
-- name: helm.chart.version
-  value: 3.12.0
-  env: HELM_CHART_VERSION
+  - name: component.ingress
+    parameters:
+      - name: namespace
+        value: ingress
+        env: NAMESPACE
+      - name: class
+        value: nginx
+
+  - name: component.nginx
+    parameters:
+      - name: isDefaultIngress
+        value: false
+      - name: replicaCount
+        value: 1
+      - name: serviceType
+        value: LoadBalancer
+      - name: image
+        value: nginx/nginx-ingress
+      - name: imageTag
+        value: 2.2.2
+
+  - name: component.nginx.helm
+    parameters:
+      - name: chart
+        value: "nginx-ingress"
+        env: HELM_CHART
+      - name: repo
+        value: https://helm.nginx.com/stable
+        env: HELM_REPO
+      - name: version
+        value: 0.13.2
+        env: HELM_CHART_VERSION
+
 templates:
   files:
-  - '*.template'
+    - "*.template"
 ```
 
 > Note: helm chart parameters values must be defined in the `values.yaml`, `values.yaml.template` or `values.yaml.gotemplate` file

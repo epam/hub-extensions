@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,14 +13,14 @@ Emit toolbox pod template
 
 Parameters:
     --label               Use these labels for toolbox pod (can repeat multiple)
-    --image               Image of toolbox (default: agilestacks/toolbox:latest)
+    --image               Image of toolbox (default: ghcr.io/epam/hub-toolbox:base)
     -e  --pass-env        Pass environment variables VAR1,VAR2,...
     -V  --verbose         Verbose outputs for debug purpose
     -h  --help            Print this message
 EOF
 }
 
-IMAGE=${IMAGE:-agilestacks/toolbox}
+IMAGE=${IMAGE:-ghcr.io/epam/hub-toolbox\:base}
 NAMESPACE="automation-tasks"
 PASS_ENV=
 while [ "$1" != "" ]; do
@@ -71,7 +71,7 @@ metadata:
   name: toolbox-$ID
   namespace: $NAMESPACE
   labels:
-    provider: agilestacks.com
+    provider: epam.com
     app: toolbox
     exec-id: "$ID"
 ---
@@ -80,7 +80,7 @@ kind: ClusterRoleBinding
 metadata:
   name: toolbox-$ID
   labels:
-    provider: agilestacks.com
+    provider: epam.com
     app: toolbox
     exec-id: "$ID"
 subjects:
@@ -98,7 +98,7 @@ metadata:
   name: toolbox-$ID
   namespace: $NAMESPACE
   labels:
-    provider: agilestacks.com
+    provider: epam.com
     app: toolbox
     exec-id: "$ID"
 spec:

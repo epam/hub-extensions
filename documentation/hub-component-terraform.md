@@ -17,7 +17,7 @@ requires:
 
 and place one one of the following files in the component directory:  `kustomization.yaml`, `kustomization.yaml.template` or `kustomization.yaml.gotemplate`
 
-Then hubctl will be able detect this component as helm component and call provisioning script: [hub-component-kustomize](https://github.com/agilestacks/hub-extensions/blob/master/hub-component-kustomize) .
+Then hubctl will be able detect this component as helm component and call provisioning script: [hub-component-kustomize](https://github.com/epam/hub-extensions/blob/master/hub-component-kustomize) .
 
 ### Input parameters
 

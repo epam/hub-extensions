@@ -12,7 +12,7 @@ Actually this command performs the following actions
 
 | Flag   | Description | Default
 | :-------- | :-------- | :-- |
-| `-i --toolbox-image <docker-image>` | Use docker image for a docker toolbox | var: `HUB_TOOLBOX_IMAGE` or `agilestacks/toolbox:stable` |
+| `-i --toolbox-image <docker-image>` | Use docker image for a docker toolbox | var: `HUB_TOOLBOX_IMAGE` or `ghcr.io/epam/hub-toolbox:base` |
 
 ## Common Parameters
 

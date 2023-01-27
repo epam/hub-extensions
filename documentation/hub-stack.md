@@ -34,7 +34,7 @@ Deploy a new GKE cluster with External DNS
 
 ```bash
 hubctl stack init \
-    -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml"
+    -f "https://raw.githubusercontent.com/epam/hub-google-stacks/main/gke-empty-cluster/hub.yaml"
 hubctl stack configure
 hubctl stack deploy
 ```
@@ -43,7 +43,7 @@ Undeploy stack deployed by someone else
 
 ```bash
 hubctl stack init \
-    -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml" \
+    -f "https://raw.githubusercontent.com/epam/hub-google-stacks/main/gke-empty-cluster/hub.yaml" \
     -s "gs://<gs path to the state file>"
 hubctl stack configure
 hubctl stack undeploy

@@ -152,7 +152,7 @@ fi
 
 ### State function
 STATE_FUNCTION_REGION="us-central1"
-STATE_FUNCTION_REPO="https://github.com/agilestacks/hub-state.git"
+STATE_FUNCTION_REPO="https://github.com/epam/hub-state.git"
 STATE_FUNCTION_REF="master"
 echo "Configuring state management cloud function "
 

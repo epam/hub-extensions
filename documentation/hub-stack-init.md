@@ -26,7 +26,7 @@ Example on how to initialize a new stack to deploy a GKE cluster
 ```bash
 mkdir "my-gke-cluster"
 cd "my-gke-cluster"
-hubctl stack init -f "https://raw.githubusercontent.com/agilestacks/google-stacks/main/hub-just-gke.yaml"
+hubctl stack init -f "https://raw.githubusercontent.com/epam/hub-google-stacks/main/gke-empty-cluster/hub.yaml"
 ```
 
 ## See also

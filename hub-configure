@@ -203,7 +203,7 @@ Cannot find hubctl files! Please run "hubctl stack init"
 Example:
   hubctl stack init -f hub.yaml
 or
-  hubctl stack init -f https://raw.githubusercontent.com/agilestacks/stack-ml-eks/master/hub.yaml
+  hubctl stack init -f https://raw.githubusercontent.com/epam/hub-google-stacks/main/gke-empty-cluster/hub.yaml
 
 EOF
   exit 1
@@ -298,7 +298,7 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
 - local: run everything locally
 - toolbox: run a docker container with all tools inside in interactive shell
 - pod: to run a toolbox container as a kubernetes pod
-See: https://github.com/agilestacks/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
+See: https://github.com/epam/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
   ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$BRIEF"
 fi
 
