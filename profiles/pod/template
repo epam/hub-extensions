@@ -20,7 +20,7 @@ Parameters:
 EOF
 }
 
-IMAGE=${IMAGE:-ghcr.io/epam/hub-toolbox\:base}
+IMAGE=${IMAGE:-ghcr.io\/epam\/hub-toolbox\:base}
 NAMESPACE="automation-tasks"
 PASS_ENV=
 while [ "$1" != "" ]; do
@@ -114,8 +114,7 @@ spec:
     - {name: "UID", value: "$(id -u)"}
     - {name: "GID", value: "$(id -g)"}
     - {name: "HOME", value: "$HOME"}
-    - {name: "TF_PLUGIN_CACHE_DIR", value: "$HOME/.terraform.d/plugin-cache"}
-$(env | grep -E "^(HUB_EXTENSIONS=|KUBECONFIG=|AWS_(SHARED_CREDENTIALS_FILE|CONFIG_FILE|PROFILE)=|GOOGLE_|AZURE_|ARM_|TF_|HUB_CRYPTO_|HUB_EXTENSIONS=|TERM=|LANG=|LC_)|^(${PASS_ENV//,/|})=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
+$(env | grep -E "^(HUB_EXTENSIONS=|HUB_CRYPTO_|KUBECONFIG=|AWS_(SHARED_CREDENTIALS_FILE|CONFIG_FILE|PROFILE)=|GOOGLE_|AZURE_|ARM_|TF_|TERM=|LANG=|LC_)|^(${PASS_ENV//,/|})=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
 $($dotenv keys | grep -v ^HUB_DEPLOY_PROFILE | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
     - {name: "HUB_DEPLOY_PROFILE", value: "pod"}
     volumeMounts:
