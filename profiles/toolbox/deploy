@@ -30,14 +30,16 @@ if test -z "\$hubctl"; then
   hubctl="\$(which hub 2>/dev/null || true)"
 fi
 
-if test -e .env; then
-    set -a;
-    source .env;
+if test -e ".env"; then
+    set -a
+    source .env
+    set +a
 fi;
 
-PATH="\$HUB_WORKDIR:\$HUB_WORKDIR/bin:/usr/local/share/hub/bin:\$PATH"
+export PATH="\$HUB_WORKDIR:\$HUB_WORKDIR/bin:/usr/local/share/hub/bin:\$PATH"
 
 exec \$hubctl $verb $*
 EOF
+chmod +x .hub-toolbox
 
-exec $hubctl toolbox bash .hub-toolbox
+exec $hubctl toolbox bash ./.hub-toolbox

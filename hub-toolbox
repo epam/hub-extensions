@@ -30,7 +30,7 @@ Parameters:
 EOF
 }
 
-TOOLBOX_SHELL="${TOOLBOX_SHELL:-"/bin/bash"}"
+TOOLBOX_SHELL="${TOOLBOX_SHELL:-"/bin/sh"}"
 ARGS=
 
 while [ "$1" != "" ]; do
@@ -92,7 +92,7 @@ if test -z "$HUB_WORKDIR"; then
 fi
 
 envfile=$(mktemp)
-env | grep -E '^(HUB_CRYPTO_|TF_|TERM=|LANG=|LC_)' >"$envfile"
+env | grep -E '^(KUBECONFIG|AWS_|GOOGLE_|AZURE_|HUB_|TF_|TERM=|LANG=|LC_)' >"$envfile"
 envadd=""
 if test -s "$envfile"; then
     envadd="--env-file $envfile"
@@ -121,7 +121,6 @@ docker run \
     --env HOME="$HOME" \
     --env SHELL="$TOOLBOX_SHELL" \
     --env PS1="\u@\e[92m\h\e[0m \w $ " \
-    --env HUB_WORKDIR="$HUB_WORKDIR" \
     --volume "$HOME:$HOME" \
     --volume "$HUB_WORKDIR:$HUB_WORKDIR" \
     --workdir "$HUB_WORKDIR" \
