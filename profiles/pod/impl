@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,11 +12,14 @@ set -o pipefail
 usage() {
     cat << EOF
 
-Launch Hub CLI in a Toolbox pod
+Launch Hub CTL in a Toolbox pod
 
 Parameters:
-    -V  --verbose         Verbose outputs for debug purpose
-    -h  --help            Print this message
+    -i  --image.......Image of toolbox (default: ghcr.io/epam/hub-toolbox:base)
+    -s  --state.......State file will be pass as -s flag to hubctl
+    -e  --pass-env    Pass environment variables VAR1,VAR2,...
+    -V  --verbose     Verbose outputs for debug purpose
+    -h  --help        Print this message
 EOF
 }
 
@@ -31,7 +34,7 @@ if test -z "$hubctl"; then
 fi
 
 if test -f ".env"; then
-  eval "$(dotenv -f $HUB_WORKDIR/.env export -f ".env" )"
+  eval "$(dotenv -f "$HUB_WORKDIR/.env" export -f ".env" )"
 fi
 
 TOOLBOX_NAMESPACE=${TOOLBOX_NAMESPACE:-automation-tasks}
@@ -41,6 +44,10 @@ HUB_ARGS=
 PASS_ENV=
 while [ "$1" != "" ]; do
   case $1 in
+    -i | --image )
+      shift
+      HUB_TOOLBOX_IMAGE=$1
+    ;;
     -s | --state )
       shift
       STATE_FILE=$1
@@ -88,6 +95,10 @@ finalize() {
   fi
 }
 
+if test -z "$HUB_TOOLBOX_IMAGE"; then
+    HUB_TOOLBOX_IMAGE=$(dotenv get "HUB_TOOLBOX_IMAGE" --default "ghcr.io/epam/hub-toolbox:base")
+fi
+
 if test -z "$HUB_EXTENSIONS"; then
   if test -n "$HOME"; then
     HUB_EXTENSIONS="$HOME/.hub"
@@ -108,6 +119,7 @@ fi
 # shellcheck disable=SC2086
 "$(dirname "$0")/template" \
   $PASS_ENV \
+  --image "$HUB_TOOLBOX_IMAGE" \
   --exec-id "$ID" \
   $hub_kubeconfig_flag \
   --namespace "$TOOLBOX_NAMESPACE" > "$temp"
@@ -158,7 +170,7 @@ find -L "." \
   ! -path './.kubeconfig' \
   -print0 \
   | tar cz --null -T - \
-  | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar xz
+  | $kubectl exec -i "toolbox-$ID" -- tar xz
 echo "Done"
 
 if test -n "$HUB_CLOUD_PROVIDER"; then
@@ -184,21 +196,19 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   esac
 fi
 
-hub=hub
 if test -n "$TOOLBOX_HUB_CLI_REPLACEMENT" -a -f "$TOOLBOX_HUB_CLI_REPLACEMENT"; then
   echo -n "* Replacing Hub CLI binary: "
   gzip -c "$TOOLBOX_HUB_CLI_REPLACEMENT" \
-    | $kubectl exec -i "toolbox-$ID" -- sh -c "gzip -dc >hub; chmod +x hub"
+    | $kubectl exec -i "toolbox-$ID" -- sh -c "gzip -dc >hubctl; chmod +x hubctl"
   echo "Done"
-  hub=./hub
 fi
 
 if test -d "$HUB_EXTENSIONS"; then
   echo -n "* Synchronizing Hub CLI extensions from $HUB_EXTENSIONS: "
-  $kubectl exec -i "toolbox-$ID" -- gosu "$USER" mkdir -p "$HUB_EXTENSIONS"
+  $kubectl exec -i "toolbox-$ID" -- mkdir -p "$HUB_EXTENSIONS"
   find -L "$HUB_EXTENSIONS" -type f ! -path '*/.git/*' ! -path '*/node_modules/*' -print0 \
     | tar cz -P --null -T -\
-    | $kubectl exec -i "toolbox-$ID" -- gosu "$USER" tar xz -C / 2>/dev/null
+    | $kubectl exec -i "toolbox-$ID" -- tar xz -C / 2>/dev/null
   echo "Done"
 fi
 
@@ -208,6 +218,6 @@ if test -t 0; then
 fi
 echo -n "* Executing: "
 # shellcheck disable=SC2086
-echo $kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hubctl $HUB_ARGS
+$kubectl exec -i$maybe_tty "toolbox-$ID" -- sh -c "PATH=/usr/local/share/hub/bin:\$HUB_WORKDIR:\$HUB_WORKDIR/bin:\$PATH; hubctl $HUB_ARGS"
 # shellcheck disable=SC2086
-$kubectl exec -i$maybe_tty "toolbox-$ID" -- gosu "$USER" tini -s -- $hubctl $HUB_ARGS
+$kubectl exec -i$maybe_tty "toolbox-$ID" -- sh -c "PATH=/usr/local/share/hub/bin:\$HUB_WORKDIR:\$HUB_WORKDIR/bin:\$PATH; hubctl $HUB_ARGS"
