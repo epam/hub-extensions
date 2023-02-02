@@ -406,6 +406,7 @@ $dotenv contains 'ARM_SUBSCRIPTION_ID'       || $dotenv set 'ARM_SUBSCRIPTION_ID
 $dotenv contains 'HUB_STATE_BUCKET'          || $dotenv set 'HUB_STATE_BUCKET' "$HUB_STATE_BUCKET"
 $dotenv contains 'HUB_STATE_CONTAINER'       || $dotenv set 'HUB_STATE_CONTAINER' "$HUB_STATE_CONTAINER"
 $dotenv contains 'HUB_STATE_REGION'          || $dotenv set 'HUB_STATE_REGION' "$HUB_STATE_REGION"
+$dotenv contains "$HUB_TOOLBOX_IMAGE"        || $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:azure"
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET" -a -n "$has_dnsdomain_param"; then
   # TODO supply NS records as args
