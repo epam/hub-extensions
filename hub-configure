@@ -299,7 +299,7 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
 - toolbox: run a docker container with all tools inside in interactive shell
 - pod: to run a toolbox container as a kubernetes pod
 See: https://github.com/epam/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
-  ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "$HUB_DEPLOY_PROFILE" --brief "$BRIEF"
+  ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "local" --brief "$BRIEF"
 fi
 
 if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" -e >/dev/null; then
