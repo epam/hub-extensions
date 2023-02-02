@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -223,11 +223,17 @@ else
 fi
 
 export HUB_CLOUD_PROVIDER=aws
-$dotenv set 'HUB_CLOUD_PROVIDER="aws"'
-test -z "$AWS_PROFILE"      || $dotenv set "AWS_PROFILE=\"$AWS_PROFILE\""
-test -z "$AWS_REGION"       || $dotenv set "AWS_REGION=\"$AWS_REGION\""
-test -z "$HUB_STATE_BUCKET" || $dotenv set "HUB_STATE_BUCKET=\"$HUB_STATE_BUCKET\""
-test -z "$HUB_STATE_REGION" || $dotenv set "HUB_STATE_REGION=\"$HUB_STATE_REGION\""
+$dotenv set 'HUB_CLOUD_PROVIDER' "aws"
+$dotenv contains"$AWS_PROFILE"        || $dotenv set "AWS_PROFILE" "$AWS_PROFILE"
+$dotenv contains"$AWS_REGION"         || $dotenv set "AWS_REGION" "$AWS_REGION"
+$dotenv contains"$HUB_STATE_BUCKET"   || $dotenv set "HUB_STATE_BUCKET" "$HUB_STATE_BUCKET"
+$dotenv contains "$HUB_STATE_REGION"  || $dotenv set "HUB_STATE_REGION" "$HUB_STATE_REGION"
+
+# TODO: currently aws toolbox is not available
+if ! $dotenv contains "$HUB_TOOLBOX_IMAGE"; then
+  color w "Toolbox image for AWS is not yet available.. using toolbox base image for now"
+  $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:base"
+fi
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
