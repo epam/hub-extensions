@@ -1,8 +1,12 @@
 # Command: `hub stack deploy`
 
-Runs deployment for entire stack or updates deployment of one or few components
+Execute `deploy` command for all stack or separate components
 
-Component runlist order has been defined in hubfile. It looks like the following:
+## Components order
+
+By default `hubctl` automatically defines component runlist respective to the  `depends` attribute in the component definition and component definition order. 
+
+You can customize and set your own runlist by declaring lifecycle order in the hubfile, see below 
 
 ```yaml
 lifecycle:
