@@ -20,6 +20,14 @@ ident() {
   sed 's/^/  /'
 }
 
+TEMP_DIR=$(mktemp -d || exit 1)
+mkdir -p "$TEMP_DIR"
+trap 'rm -rf $TEMP_DIR' EXIT
+
+temp_file() {
+  echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]')"
+}
+
 if test -n "$DOMAIN_NAME"; then
     color w "Environment variable: DOMAIN_NAME has been deprecated"
     color w "Use HUB_DOMAIN_NAME instead"
@@ -119,6 +127,21 @@ if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
   else
     files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize"
   fi
+fi
+
+if test -n "$HUB_KUSTOMIZE_RESOURCES"; then
+  echo "* Downloading component resources..."
+  for res in $HUB_KUSTOMIZE_RESOURCES; do
+    if echo "$res" | grep -e '^https\?://' >/dev/null 2>&1; then
+      echo "  Downloading from: $res"
+      files download "$res" "$(pwd)/kustomize/$(basename "$res")"
+    elif test -f "$res"; then
+      echo "  Copying from: $res"
+      files copy "$res" "$(pwd)/kustomize/$(basename "$res")"
+    else
+      color w "  Warning: file not found ($res)"
+    fi
+  done
 fi
 
 if test -x "pre-$VERB"; then
