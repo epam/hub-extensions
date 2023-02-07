@@ -132,9 +132,22 @@ if test -z "$has_dnsdomain_param"; then
       echo -n "Using stack name: "
       color b "$HUB_STACK_NAME"
       HUB_DOMAIN_NAME="$HUB_STACK_NAME"
+    else
+      echo -n "Generating new stack name: "
+      new_name="$(files find-in-path bubble-dns/new-name)"
+      HUB_STACK_NAME="$(eval "$new_name" | cut -d. -f1)"
+      color b "$HUB_STACK_NAME"
+      echo "* Saving also as HUB_DOMAIN_NAME for compatibiltiy"
+      HUB_DOMAIN_NAME="$HUB_STACK_NAME"
+      cat << EOF | color g
+If you want to enable domain name generation. Please add following parameter to your hubfile
+- name: dns.domain
+  fromEnv: HUB_DOMAIN_NAME
+EOF
     fi
   fi
 fi
+
 
 # shellcheck disable=SC1091
 source "$(dirname "$0")/../bubble-dns/include"
