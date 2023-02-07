@@ -27,6 +27,7 @@ As every script, helm deployment scripts has been controlled via set off well-kn
 | `NAMESPACE` | Target kubernetes namespace | x |
 | `HUB_KUSTOMIZE_TARBALL_URL` | Download kustomize base from the tarball. It will unpack tarball into `<component root>/kustomize` directory. Then you can refer resources or bases from this directory in your `kustomization.yaml` file | |
 | `HUB_KUSTOMIZE_TARBALL_SUBPATH` | Works in conjuction with `HUB_KUSTOMIZE_TARBALL_URL`, it instructs to unpack to the `<component root>/kustomize` a subpath inside the tarball | |
+| `HUB_KUSTOMIZE_RESOURCES` | Necessary when resources referenced in `kustomize.yaml` file must be downloaded before deployment. This variable contains whitespace separted list of URI or local file locations | |
 | `CRD` | URL or local path to the CRD file (if not located in `<component root>/crds` directory)  | |
 
 ### Deployment hooks

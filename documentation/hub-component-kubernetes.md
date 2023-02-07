@@ -13,7 +13,7 @@ requires:
 - kubernetes
 parameters:
 - name: dns.domain
-  env: DOMAIN_NAME
+  env: HUB_DOMAIN_NAME
 - name: kubernetes.namespace # this parameter name can be anything
   value: kube-system         # this is example of kubenretes namespace
   env: NAMESPACE
@@ -29,7 +29,7 @@ As every script, helm deployment scripts has been controlled via set off well-kn
 
 | Variable   | Description | Required | Passed from `.env`
 | :-------- | :-------- | :-: | :--:
-| `DOMAIN_NAME` | Hub naming convention requires `dns.domain` parameter to match to kubeconfig context that corresponds to the stack | x |
+| `HUB_DOMAIN_NAME` | Hub naming convention requires `dns.domain` parameter to match to kubeconfig context that corresponds to the stack, fallbacks to legacy `DOMAIN_NAME` env var. If not defined in `hub-component.yaml` manifest will be derived from stack | x |
 | `NAMESPACE` | Target kubernetes namespace | x |
 
 There are additional environment variables, depends on your cloud type
@@ -51,7 +51,7 @@ There are various ways how Kubenretes cluster can be deployed. So, information i
 
 ### Example for `GKE`
 
-The minimalistic GKE cluster should provide following 
+The minimalistic GKE cluster should provide following
 
 ```yaml
 provides:
