@@ -412,6 +412,8 @@ fi
 export HUB_CLOUD_PROVIDER=azure
 $dotenv set 'HUB_CLOUD_PROVIDER' 'azure'
 
+$dotenv contains 'HUB_STACK_NAME'            || $dotenv set 'HUB_STACK_NAME' "$HUB_STACK_NAME"
+$dotenv contains 'HUB_DOMAIN_NAME'           || $dotenv set 'HUB_DOMAIN_NAME' "$HUB_DOMAIN_NAME"
 $dotenv contains 'AZURE_REGION'              || $dotenv set 'AZURE_REGION' "$AZURE_REGION"
 $dotenv contains 'AZURE_RESOURCE_GROUP_NAME' || $dotenv set 'AZURE_RESOURCE_GROUP_NAME' "$AZURE_RESOURCE_GROUP_NAME"
 $dotenv contains 'AZURE_SUBSCRIPTION_ID'     || $dotenv set 'AZURE_SUBSCRIPTION_ID' "$AZURE_SUBSCRIPTION_ID"
