@@ -1,5 +1,5 @@
 #!/bin/sh -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -20,9 +20,23 @@ ident() {
   sed 's/^/  /'
 }
 
+OLD_NS="$(kubectl config view --minify --output 'jsonpath={..namespace}')"
 TEMP_DIR=$(mktemp -d || exit 1)
 mkdir -p "$TEMP_DIR"
-trap 'rm -rf $TEMP_DIR' EXIT
+
+finalize() {
+  rv=$?
+  if test -n "$1"; then
+    rm -rf "$1"
+  fi
+  if test -n "$2"; then
+    echo "Restoring previous namespace: $2"
+    kubectl config set-context --current --namespace="$2"
+  fi
+  exit $rv
+}
+
+trap 'finalize $TEMP_DIR $OLD_NS' EXIT
 
 temp_file() {
   echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]')"
@@ -42,7 +56,8 @@ if test -n "$HUB_DOMAIN_NAME"; then
   kubectl="$kubectl --context=$HUB_DOMAIN_NAME"
 fi
 if test -n "$NAMESPACE"; then
-  kubectl="$kubectl --namespace=$NAMESPACE"
+  echo "Setting current namespace: $NAMESPACE"
+  kubectl config set-context --current --namespace="$NAMESPACE"
 fi
 
 case "$VERB" in
