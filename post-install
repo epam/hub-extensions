@@ -11,7 +11,12 @@ if ! ./check-tools; then
     echo "... then run 'hubctl extensions update' again"
     exit 1
 fi
-which npm && npm ci --omit=dev --ignore-scripts || echo "'hubctl pull' is not available until you install Node.js and NPM"
+
+if which npm >/dev/null 2>&1; then
+    npm ci --omit=dev --ignore-scripts --audit=false --fund=false
+else
+    ./bin/color w "'hubctl pull' is not available until you install Node.js and NPM"
+fi
 
 # Install Hub state extension
 HUB_STATE_VERSION=$(curl -sLH "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/epam/hub-state/releases/latest" | jq -crM '.tag_name')
