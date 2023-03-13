@@ -59,11 +59,11 @@ case "$HUB_CLOUD_PROVIDER" in
         STATE_BACKEND_TYPE=s3
         ;;
     azure )
-        if test -z "$STATE_CONTAINER" -o -z "$AZURE_RESOURCE_GROUP_NAME"; then
-            echo "STATE_CONTAINER, AZURE_RESOURCE_GROUP_NAME must be set"
+        if test -z "$HUB_STATE_CONTAINER" -o -z "$AZURE_RESOURCE_GROUP_NAME"; then
+            echo "HUB_STATE_CONTAINER, AZURE_RESOURCE_GROUP_NAME must be set"
             exit 1
         fi
-        STATE_BACKEND_CONFIG="-backend-config=storage_account_name=$HUB_STATE_BUCKET -backend-config=container_name=$STATE_CONTAINER -backend-config=resource_group_name=$AZURE_RESOURCE_GROUP_NAME -backend-config=key=$STATE_PREFIX/terraform.tfstate"
+        STATE_BACKEND_CONFIG="-backend-config=storage_account_name=$HUB_STATE_BUCKET -backend-config=container_name=$HUB_STATE_CONTAINER -backend-config=resource_group_name=$AZURE_RESOURCE_GROUP_NAME -backend-config=key=$STATE_PREFIX/terraform.tfstate"
         STATE_BACKEND_TYPE=azurerm
         ;;
     gcp )

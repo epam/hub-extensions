@@ -236,20 +236,36 @@ else
   fi
 fi
 
+# If still no luck to discover the resource group, ask user to provide one
 if test -z "$resource_group"; then
-  color error "Error: please run with option: $0 --azure-resource-group RESOURCE_GROUP"
-  exit 2
+  groups="$(az group list --query '[].name' -o table)"
+  if test -n "$groups"; then
+    echo "* List of Azure Resource Groups:"
+    echo "$groups"
+  fi
+  suggestion="$(az group list --query '[0].name' | xargs)"
+  ask env AZURE_RESOURCE_GROUP_NAME \
+    -m "Azure Resource Group name" \
+    --suggest "$suggestion" -random -empty
+  AZURE_RESOURCE_GROUP_NAME=$(dotenv get AZURE_RESOURCE_GROUP_NAME)
+else
+  echo -n "  Setting Azure resource group: "; color b "$resource_group"
+  AZURE_RESOURCE_GROUP_NAME="$resource_group"
 fi
 
-echo -n "  Setting Azure resource group: "; color b "$resource_group"
-AZURE_RESOURCE_GROUP_NAME="$resource_group"
 if test -n "$AZURE_RESOURCE_GROUP_NAME"; then
   AZ_OPTS="$AZ_OPTS --resource-group $AZURE_RESOURCE_GROUP_NAME"
 fi
 
-
 export AZ_OPTS
 
+# AZURE_REGION is already present?
+if test -n "$AZURE_REGION"; then
+  echo "* Using Azure location from envfile"
+  location="$AZURE_REGION"
+fi
+
+# Trying to discover AZURE_REGION from hubfile
 if test -z "$AZURE_REGION"; then
   AZURE_REGION="$(params value 'azure.location')"
   if test -z "$AZURE_REGION"; then
@@ -268,6 +284,7 @@ if test -z "$AZURE_REGION"; then
   fi
 fi
 
+# Trying to discover AZURE_REGION from 'az defaults'
 if test -z "$AZURE_REGION"; then
   # https://docs.microsoft.com/en-us/cli/azure/azure-cli-configuration
   # AZURE_DEFAULTS_* automatically recognized up by `az`
@@ -280,16 +297,20 @@ if test -z "$AZURE_REGION"; then
     location="$(az group show $AZ_OPTS -o tsv --query 'location')"
     if test -n "$location"; then
       echo "* Using Azure location from resource group $AZURE_RESOURCE_GROUP_NAME"
+      AZURE_REGION="$location"
     else
       set +e
       location=$(az config get defaults.location --query 'value' -o tsv 2>/dev/null)
       set -e
       if test -n "$location"; then
         echo "* Using Azure location from azure config defaults.location"
+        AZURE_REGION="$location"
       fi
     fi
   fi
 fi
+
+# TODO: if no AZURE_REGION has not been discovered by this point, ask user to type it in?
 if test -z "$location"; then
   color error "Error: please run with option: $0 --azure-region REGION"
   exit 2
