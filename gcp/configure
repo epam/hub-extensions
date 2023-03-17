@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -187,14 +187,15 @@ EOF
   fi
 fi
 
-$dotenv contains "HUB_CLOUD_PROVIDER" || $dotenv set "HUB_CLOUD_PROVIDER" "$HUB_CLOUD_PROVIDER"
-$dotenv contains "HUB_STATE_BUCKET"   || $dotenv set "HUB_STATE_BUCKET" "$HUB_STATE_BUCKET"
-$dotenv contains "STATE_BUCKET"       || $dotenv set "STATE_BUCKET" "$HUB_STATE_BUCKET"
-$dotenv contains "GOOGLE_PROJECT"     || $dotenv set "GOOGLE_PROJECT" "$GOOGLE_PROJECT"
-$dotenv contains "HUB_DOMAIN_NAME"    || $dotenv set "HUB_DOMAIN_NAME" "$HUB_DOMAIN_NAME"
-$dotenv contains "HUB_STATE"          || $dotenv set "HUB_STATE" "$HUB_STATE_FILE"
-$dotenv contains "HUB_ELABORATE"      || $dotenv set "HUB_ELABORATE" "$HUB_ELABORATE_FILE"
-$dotenv contains "$HUB_TOOLBOX_IMAGE" || $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:gcp"
+$dotenv contains 'HUB_CLOUD_PROVIDER'   || $dotenv set 'HUB_CLOUD_PROVIDER' "$HUB_CLOUD_PROVIDER"
+$dotenv contains 'HUB_STATE_BUCKET'     || $dotenv set 'HUB_STATE_BUCKET' "$HUB_STATE_BUCKET"
+$dotenv contains 'STATE_BUCKET'         || $dotenv set 'STATE_BUCKET' "$HUB_STATE_BUCKET"
+$dotenv contains 'GOOGLE_PROJECT'       || $dotenv set 'GOOGLE_PROJECT' "$GOOGLE_PROJECT"
+$dotenv contains 'GOOGLE_CLOUD_PROJECT' || $dotenv set 'GOOGLE_PROJECT' "$GOOGLE_PROJECT"
+$dotenv contains 'HUB_DOMAIN_NAME'      || $dotenv set 'HUB_DOMAIN_NAME' "$HUB_DOMAIN_NAME"
+$dotenv contains 'HUB_STATE'            || $dotenv set 'HUB_STATE' "$HUB_STATE_FILE"
+$dotenv contains 'HUB_ELABORATE'        || $dotenv set 'HUB_ELABORATE' "$HUB_ELABORATE_FILE"
+$dotenv contains 'HUB_TOOLBOX_IMAGE'    || $dotenv set 'HUB_TOOLBOX_IMAGE' 'ghcr.io/epam/hub-toolbox:gcp'
 
 if test -n "$CLOUD_SHELL"; then
   echo "* Hubctl runs inside a Cloud Shell environment"

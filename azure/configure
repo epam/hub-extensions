@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -317,6 +317,8 @@ if test -z "$location"; then
 fi
 
 echo -n "  Setting Azure location: "; color b "$location"
+AZURE_REGION="$location"
+AZURE_LOCATION="$location"
 AZ_LOCATION_OPTS=""
 if test -n "$AZURE_REGION"; then
   AZ_LOCATION_OPTS="--location $AZURE_REGION"
@@ -347,7 +349,7 @@ else
     az storage account create $AZ_OPTS $AZ_STORAGE_LOCATION_OPTS --sku 'Standard_ZRS' --kind 'StorageV2' -n "$HUB_STATE_BUCKET" -o none
   fi
 fi
-echo -n "* Checking presence of storage account $resource_group/$HUB_STATE_BUCKET blob container $HUB_STATE_CONTAINER: "
+echo -n "* Checking presence of blob container $HUB_STATE_CONTAINER: "
 if az storage container show --account-name "$HUB_STATE_BUCKET" -n "$HUB_STATE_CONTAINER" -o 'none' 2>/dev/null; then
   echo "exist"
 else
@@ -436,13 +438,14 @@ $dotenv set 'HUB_CLOUD_PROVIDER' 'azure'
 $dotenv contains 'HUB_STACK_NAME'            || $dotenv set 'HUB_STACK_NAME' "$HUB_STACK_NAME"
 $dotenv contains 'HUB_DOMAIN_NAME'           || $dotenv set 'HUB_DOMAIN_NAME' "$HUB_DOMAIN_NAME"
 $dotenv contains 'AZURE_REGION'              || $dotenv set 'AZURE_REGION' "$AZURE_REGION"
+$dotenv contains 'AZURE_LOCATION'            || $dotenv set 'AZURE_LOCATION' "$AZURE_LOCATION"
 $dotenv contains 'AZURE_RESOURCE_GROUP_NAME' || $dotenv set 'AZURE_RESOURCE_GROUP_NAME' "$AZURE_RESOURCE_GROUP_NAME"
 $dotenv contains 'AZURE_SUBSCRIPTION_ID'     || $dotenv set 'AZURE_SUBSCRIPTION_ID' "$AZURE_SUBSCRIPTION_ID"
 $dotenv contains 'ARM_SUBSCRIPTION_ID'       || $dotenv set 'ARM_SUBSCRIPTION_ID' "$AZURE_SUBSCRIPTION_ID"
 $dotenv contains 'HUB_STATE_BUCKET'          || $dotenv set 'HUB_STATE_BUCKET' "$HUB_STATE_BUCKET"
 $dotenv contains 'HUB_STATE_CONTAINER'       || $dotenv set 'HUB_STATE_CONTAINER' "$HUB_STATE_CONTAINER"
 $dotenv contains 'HUB_STATE_REGION'          || $dotenv set 'HUB_STATE_REGION' "$HUB_STATE_REGION"
-$dotenv contains "$HUB_TOOLBOX_IMAGE"        || $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:azure"
+$dotenv contains 'HUB_TOOLBOX_IMAGE'         || $dotenv set 'HUB_TOOLBOX_IMAGE' 'ghcr.io/epam/hub-toolbox:azure'
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET" -a -n "$has_dnsdomain_param"; then
   # TODO supply NS records as args

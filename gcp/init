@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -70,6 +70,9 @@ curl="curl -isH 'Metadata-Flavor: Google'"
 echo "Setting up credentials"
 if test -n "$GOOGLE_PROJECT"; then
   echo "* Setting GCP project ID: defined via GOOGLE_PROJECT"
+elif test -n "$GOOGLE_CLOUD_PROJECT"; then
+  echo "* Setting GCP project ID: defined via GOOGLE_CLOUD_PROJECT"
+  GOOGLE_PROJECT="$GOOGLE_CLOUD_PROJECT"
 else
   gcloud_result="$(gcloud config list --format="json" | jq -cMr '.core.project | select(.)')"
   if test -n "$gcloud_result"; then
@@ -77,8 +80,9 @@ else
   else
     ask env "GOOGLE_PROJECT" -m "GCP project ID" -a "projectId" -random -empty
   fi
+  GOOGLE_PROJECT="$(dotenv get GOOGLE_PROJECT)"
 fi
-GOOGLE_PROJECT="$(dotenv get GOOGLE_PROJECT)"
+
 active_projects="$(gcloud projects list --format='json' | jq -cMr '[.[]][] | select(.lifecycleState == "ACTIVE") | .projectId | select(.)')"
 if ! contains "$GOOGLE_PROJECT" "$active_projects"; then
     cat <<EOF | ident | color warn
@@ -86,13 +90,16 @@ Warning: entered GCP project ID has not been listed in active projects.
 This may be a simiple typo or intentionally
 
 List of active projects:
-$active_projects
+$(echo "$active_projects" | ident)
 
 Entered value: $GOOGLE_PROJECT
 
 EOF
 fi
 echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
+
+dotenv set GOOGLE_PROJECT "$GOOGLE_PROJECT"
+dotenv set GOOGLE_CLOUD_PROJECT "$GOOGLE_PROJECT"
 
 if test -z "$GOOGLE_APPLICATION_CREDENTIALS"; then
   CREDS="$HOME/.config/gcloud/application_default_credentials.json"

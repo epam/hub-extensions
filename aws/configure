@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -232,7 +232,7 @@ $dotenv contains "$HUB_STATE_REGION"  || $dotenv set "HUB_STATE_REGION" "$HUB_ST
 # TODO: currently aws toolbox is not available
 if ! $dotenv contains "$HUB_TOOLBOX_IMAGE"; then
   color w "Toolbox image for AWS is not yet available.. using toolbox base image for now"
-  $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:base"
+  $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:aws"
 fi
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
