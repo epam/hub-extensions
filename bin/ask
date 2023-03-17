@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -101,13 +101,13 @@ if test -z "$HUB_WORKDIR"; then
 fi
 
 if test "$HUB_INTERACTIVE" = "0"; then
-  INTERACTIVE=false
+  HUB_INTERACTIVE=false
 elif test -n "HUB_INTERACTIVE"; then
-  INTERACTIVE=true
+  HUB_INTERACTIVE=true
 elif test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
-  INTERACTIVE=true
+  HUB_INTERACTIVE=true
 else
-  INTERACTIVE=false
+  HUB_INTERACTIVE=false
 fi
 
 while test -n "$1"; do
@@ -158,7 +158,7 @@ while test -n "$1"; do
     ;;
 
     --non-interactive )
-      INTERACTIVE=false
+      HUB_INTERACTIVE=false
     ;;
 
     +parameter | +random | +hubstate | +env | +history | +default | +empty )
