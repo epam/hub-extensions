@@ -98,6 +98,10 @@ fi
 jq="jq -cMr"
 dotenv="dotenv -f $DOT_ENV"
 
+ident() {
+  sed 's/^/  /'
+}
+
 getParamFromState() {
   # shellcheck disable=SC2016
   hubctl explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
@@ -238,10 +242,10 @@ fi
 
 # If still no luck to discover the resource group, ask user to provide one
 if test -z "$resource_group"; then
-  groups="$(az group list --query '[].name' -o table)"
+  groups="$(az group list --query '[].name' -o tsv)"
   if test -n "$groups"; then
-    echo "* List of Azure Resource Groups:"
-    echo "$groups"
+    echo "List of available Azure Resource Groups:" | ident | color g
+    echo "$groups" | ident | ident | color g
   fi
   suggestion="$(az group list --query '[0].name' | xargs)"
   ask env AZURE_RESOURCE_GROUP_NAME \
