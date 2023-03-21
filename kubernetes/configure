@@ -67,13 +67,16 @@ trap "rm -f $TEMP" EXIT
 
 
 echo "Configuring Kubernetes"
-if   kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
+if kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" \
+    && kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
   echo -n "* Using kubeconfig from env: "
   color b "HUB_KUBECONFIG"
-elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
+elif kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG" \
+    && kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
   echo -n "* Using kubeconfig from env: "
-  color b "KUBECONTEXT"
-elif kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" -o "$TEMP" > /dev/null 2>&1; then : #pass
+  color b "KUBECONFIG"
+elif kubeconfig test -c "$KUBECONTEXT" -f "$HOME/.kube/config" \
+    && kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" -o "$TEMP" > /dev/null 2>&1; then : #pass
   echo -n "* Using kubeconfig from default location: "
   # shellcheck disable=SC2016
   color b '$HOME/.kube/config'
