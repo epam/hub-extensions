@@ -5,7 +5,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 while test -n "$1"; do
     case "$1" in
         --omit-optional )
@@ -17,15 +16,19 @@ while test -n "$1"; do
     shift
 done
 
-which curl >/dev/null 2>&1 || ./bin/color w "Please install CURL - https://curl.se"
-which kubectl >/dev/null 2>&1 || ./bin/color w "Please install KUBECTL - https://kubernetes.io/docs/reference/kubectl/overview/"
-which jq >/dev/null 2>&1 || ./bin/color w "Please install JQ - https://stedolan.github.io/jq/"
-which yq >/dev/null 2>&1 || ./bin/color w "Please install YQ v4.16 - https://github.com/mikefarah/yq"
+color_start="\033[35;1m"
+color_end="\033[0m"
+
+which bash >/dev/null 2>&1 || printf "%bPlease install Bash - https://www.gnu.org/software/bash/%b\n" "$color_start" "$color_end"
+which curl >/dev/null 2>&1 || printf "%bPlease install cURL - https://curl.se%b\n" "$color_start" "$color_end"
+which kubectl >/dev/null 2>&1 || printf "%bPlease install Kubectl - https://kubernetes.io/docs/reference/kubectl/overview/%b\n" "$color_start" "$color_end"
+which jq >/dev/null 2>&1 || printf "%bPlease install JQ - https://stedolan.github.io/jq/%b\n" "$color_start" "$color_end"
+which yq >/dev/null 2>&1 || printf "%bPlease install YQ v4.16 - https://github.com/mikefarah/yq%b\n" "$color_start" "$color_end"
 if test -z "$OMIT_OPTIONAL"; then
-    which npm >/dev/null 2>&1 || ./bin/color w "Please optionally install Node.js and NPM for 'hubctl pull' extension - https://nodejs.org"
-    which eksctl >/dev/null 2>&1 || ./bin/color w "Please optionally install EKSCTL for 'hubctl ext eks' extension - https://eksctl.io"
+    which npm >/dev/null 2>&1 || printf "%bPlease optionally install Node.js and NPM for \"hubctl pull\" extension - https://nodejs.org%b\n" "$color_start" "$color_end"
+    which eksctl >/dev/null 2>&1 || printf "%bPlease optionally install EKSCTL for \"hubctl ext eks\" extension - https://eksctl.io%b\n" "$color_start" "$color_end"
 fi
-#if ! (which aws >/dev/null 2>&1 || which az >/dev/null 2>&1) ||
+
 if ! which kubectl >/dev/null 2>&1 ||
         ! which yq >/dev/null 2>&1 ||
         ! which jq >/dev/null 2>&1; then
@@ -33,8 +36,8 @@ if ! which kubectl >/dev/null 2>&1 ||
 fi
 
 if test "$(jq -V)" \< "jq-1.6"; then
-    ./bin/color w "We recommend to update JQ to v1.6 or up - https://stedolan.github.io/jq/"
+    printf "%bWe recommend to update JQ to v1.6 or up - https://stedolan.github.io/jq/%b\n" "$color_start" "$color_end"
 fi
 if test "$(yq --version | awk '{ print $NF }')" \< "4.16"; then
-    ./bin/color w "We recommend to update YQ to v4.16.2 or up - https://github.com/mikefarah/yq"
+    printf "%bWe recommend to update YQ to v4.16.2 or up - https://github.com/mikefarah/yq%b\n" "$color_start" "$color_end"
 fi
