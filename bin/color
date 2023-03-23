@@ -1,6 +1,6 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -31,14 +31,14 @@ EOF
 message=""
 
 _tput() {
-  if test -t 1; then
+  if test -t 1 -a -x "$(which tput)"; then
     # shellcheck disable=SC2086,SC2048
     tput $*
   fi
 }
 
 finalize() {
-  if test -t 1; then
+  if test -t 1 -a -x "$(which tput)"; then
     tput sgr0
   fi
 }
@@ -60,7 +60,7 @@ while test -n "$1"; do
       shift; continue
     ;;
     -n )
-      echo="$echo -n"
+      echo="printf"
       shift; continue
     ;;
     +b | --bold )
@@ -108,7 +108,7 @@ while test -n "$1"; do
       break
     ;;
     -- )
-      message="$(< /dev/stdin)"
+      message="$(cat -)"
       break
     ;;
     * )
@@ -121,7 +121,7 @@ done
 trap finalize EXIT
 
 if test -z "$message" -a ! -t 0; then
-    message=$(< /dev/stdin)
+    message=$(cat -)
 fi
 
 if test -z "$stderr"; then
