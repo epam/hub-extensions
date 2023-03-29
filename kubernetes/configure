@@ -67,11 +67,13 @@ trap "rm -f $TEMP" EXIT
 
 
 echo "Configuring Kubernetes"
-if kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" \
+if 
+    test -n "$HUB_KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" \
     && kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
   echo -n "* Using kubeconfig from env: "
   color b "HUB_KUBECONFIG"
-elif kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG" \
+elif
+    test -n "$KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG" \
     && kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
   echo -n "* Using kubeconfig from env: "
   color b "KUBECONFIG"
