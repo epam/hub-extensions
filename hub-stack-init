@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,6 +16,55 @@ export PATH HUB_HOME HUB_EXTENSION
 
 HUB_WORKDIR="$(files abspath "$HUB_WORKDIR")"
 export HUB_WORKDIR
+
+KNOWN_URLS=""
+
+is_url() {
+  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+}
+
+relpath() {
+  local dir
+  dir="${2:-$HUB_WORKDIR}"
+  if is_url "$1"; then
+    echo "$1"
+  elif which realpath > /dev/null; then
+    realpath --relative-to="$dir" "$1"
+  elif which python > /dev/null; then
+    python -c "import os.path; print(os.path.relpath('$1', '$dir'))"
+  else
+    echo "$1"
+  fi
+}
+
+get_filepath() {
+  if is_url "$1"; then
+    echo "$HUB_WORKDIR/$(basename "$f")"
+  else
+    echo "$1"
+  fi
+}
+
+maybe_download() {
+  local filepath
+  filepath="$(get_filepath "$1")"
+  if test -f "$filepath"; then
+    echo "(exists)"
+  elif is_url "$1"; then
+    files download "$1" "$filepath"
+    echo "(downloaded)"
+    KNOWN_URLS=$(dirname $1 | xargs)
+  else
+    for url in $KNOWN_URLS; do
+      # shellcheck disable=SC2001
+      if files download "$url/$1" "$HUB_WORKDIR/$1"; then
+        echo "(downloaded)"
+        break
+      fi
+    done
+  fi
+  test -f "$filepath"
+}
 
 hubctl="$(which hubctl 2>/dev/null || true)"
 if test -z "$hubctl"; then
@@ -93,7 +142,7 @@ ident() {
 }
 
 finalize() {
-  local rv="$?"
+  rv="$?"
   rm -rf $@
   # if test "$rv" != "0"; then
   #   color e "Finished wih error!"
@@ -112,6 +161,12 @@ while [ "$1" != "" ]; do
     -f | --file )
       shift
       HUB_FILES=$(echo "$HUB_FILES $1" | xargs)
+      if is_url "$1"; then
+        _url="$(dirname "$1")"
+        if ! echo "$KNOWN_URLS" | grep -q "$_url"; then
+          KNOWN_URLS="$KNOWN_URLS $_url"
+        fi
+      fi
       ;;
     # -s | --state )
     #   shift
@@ -182,48 +237,40 @@ temp_file() {
   echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]')"
 }
 
+to_json() {
+  ext="${1##*.}"
+  if test "$ext" = "yaml" -o "$ext" = "yml"; then
+    yq -o=json "$1"
+  elif test "$ext" = "json"; then
+    jq -c "$1"
+  else
+    color e "Error: unknown file type $ext"
+    exit 1
+  fi
+}
+
 DOT_ENV="$(temp_file)"
-KNOWN_URLS=""
 EXPANDED=""
 export DOT_ENV
 
 expand_hub_files() {
-  local f included local_file
   for f in $@; do
-    if grep -q "$f" <<< "$EXPANDED"; then
-      continue
-    fi
+    if test -z "$f"; then continue; fi
+    if grep -q "$f" <<< "$EXPANDED"; then continue; fi
+    printf "* Checking %s " "$(relpath "$f")"
     if test -f "$f"; then
+      # is local file
+      echo "(exists)"
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
-      echo "* Checking $f"
-
-      included="$(yq e '.extensions.include.[] | select(.)' "$f")"
+      included="$(to_json "$f" | jq -r '.extensions.include|select(.)[]')"
       if test -n "$included"; then
         expand_hub_files $included
       fi
-      continue
-    fi
-    # is url
-    if echo "$f" | grep -e '^https\?://' >/dev/null 2>&1; then
-      local_file="$HUB_WORKDIR/$(basename "$f")"
-      if test ! -f "$local_file"; then
-        files download "$f" "$local_file"
-        KNOWN_URLS=$(dirname $f | xargs)
-      fi
+    elif maybe_download "$f"; then
+      local_file="$(get_filepath "$f")"
       expand_hub_files "$local_file"
-      continue
-    fi
-
-    for url in $KNOWN_URLS; do
-      # shellcheck disable=SC2001
-      if files download "$url/$1" "$HUB_WORKDIR/$1"; then
-        expand_hub_files "$HUB_WORKDIR/$1"
-        break
-      fi
-    done
-
-    if test ! -f "$f"; then
-      echo "Error: $f not found!"
+    else
+      color e "Error: not found!"
       exit 1
     fi
   done
@@ -257,9 +304,18 @@ componentSourceRef() {
   $jq --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["__auto__"] | [ .[] | select(.!= "")][0]'
 }
 
+getAllComponentHooks() {
+  $jq '.components | [select(.)[].hooks|select(.)[].file|select(.)]|unique[]'
+}
+
+getDeployHooks() {
+  $jq --arg "predicate" "$1" '.extensions.deploy[$predicate]|select(.)[]'
+}
+
 getParamFromState() {
   hubctl explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
 }
+
 
 getParamValueByEnvVar() {
   param="$(params envvar "$2" | jq -cMr '.name')"
@@ -268,12 +324,18 @@ getParamValueByEnvVar() {
   fi
 }
 
+getConfigureScripts() {
+  jq -r '.extensions.configure|select(.)[]'
+}
+
 if test -n "$SOURCE_HUB_STATE"; then
   echo "Initializing stack from: $SOURCE_HUB_STATE"
 else
   echo "Initializing a new stack"
 fi
-echo "* Using working directory: $HUB_WORKDIR"
+
+printf "Using working directory"
+color b "$HUB_WORKDIR"
 if test -L "$HUB_WORKDIR/.env"; then
   echo "* Unlinking .env"
   unlink "$HUB_WORKDIR/.env"
@@ -296,8 +358,7 @@ HUB_STACK_REQUIRES="$(yq e '' $HUB_FILES -o json | jq -cMr 'select(.extensions).
 for req in $HUB_STACK_REQUIRES; do
   init=$(files find-in-path "$req/init")
   if test -x "$HUB_WORKDIR/$req"; then
-    echo -n "Running init script "
-    color h "$req"
+    color b "* Running init script $req"
     $HUB_WORKDIR/$req $ARGS
   elif test -n "$init"; then
     echo -n "Initializing "
@@ -430,6 +491,48 @@ if $VERBOSE; then
   GIT_OPTS=""
 fi
 
+echo "Checking hooks"
+for hubfile in $HUB_FILES; do
+  for hook in $(to_json $hubfile | getConfigureScripts); do
+    printf "* Checking configure %s " "$hook"
+    if files -e find-in-path "$hook/configure" > /dev/null; then
+      echo "(extension)"
+    elif maybe_download "$hook"; then
+      chmod +x "$hook"
+    else
+      color w "Warning: $hook not found"
+    fi
+  done
+  for hook in $(to_json $hubfile | getDeployHooks "before"); do
+    printf "* Checking deploy before %s " "$hook"
+    if files -e find-in-path "$hook/before-deploy" > /dev/null; then
+      echo "(extension)"
+    elif maybe_download "$hook"; then
+      chmod +x "$hook"
+    else
+      color w "Warning: $hook not found"
+    fi
+  done
+  for hook in $(to_json $hubfile | getDeployHooks "after"); do
+    printf "* Checking deploy after %s " "$hook"
+    if files -e find-in-path "$hook/after-deploy" > /dev/null; then
+      echo "(extension)"
+    elif maybe_download "$hook"; then
+      chmod +x "$hook"
+    else
+      color w "Warning: $hook not found"
+    fi
+  done
+  for hook in $(to_json $hubfile | getAllComponentHooks); do
+    printf "* Checking component %s " "$hook"
+    if maybe_download "$hook"; then
+      chmod +x "$hook"
+    else
+      color w "Warning: $hook not found"
+    fi
+  done
+done
+
 echo "Checking components"
 for hubfile in $HUB_FILES; do
   if test ! -f $hubfile; then
@@ -439,7 +542,7 @@ for hubfile in $HUB_FILES; do
   hubfile_dir="$(dirname "$(files abspath "$hubfile")")"
   components="$(toJson "$hubfile" | $jq '.components | select(.)' -)"
   for comp in $(echo "$components" | $jq '.[].name | select(.)'); do
-    echo -n "* component $comp: "
+    printf "* Component %s: " "$comp"
     comp_dir=$(echo $components | componentDir "$comp")
     if test -d "$hubfile_dir/$comp_dir"; then
       echo "exist"
