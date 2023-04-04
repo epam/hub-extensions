@@ -350,7 +350,7 @@ else
     if test -n "$HUB_STATE_REGION"; then
       AZ_STORAGE_LOCATION_OPTS="--location $HUB_STATE_REGION"
     fi
-    az storage account create $AZ_OPTS $AZ_STORAGE_LOCATION_OPTS --sku 'Standard_ZRS' --kind 'StorageV2' -n "$HUB_STATE_BUCKET" -o none
+    az storage account create $AZ_OPTS $AZ_STORAGE_LOCATION_OPTS --allow-blob-public-access false --sku 'Standard_ZRS' --kind 'StorageV2' -n "$HUB_STATE_BUCKET" -o none
   fi
 fi
 echo -n "* Checking presence of blob container $HUB_STATE_CONTAINER: "
