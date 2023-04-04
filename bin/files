@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -110,7 +110,6 @@ find_in_path() {
     done
     if test -z "$rv"; then
       if $err; then
-        >&2 echo "Error: command not found: $1"
         exit 44
       fi
     else
