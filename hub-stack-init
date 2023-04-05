@@ -86,7 +86,7 @@ hub_state_cli_exist() {
 real_files() {
   for f in $@; do
     if test -f "$f"; then
-      echo -n " $f"
+      printf " %s" "$f"
     fi
   done
   echo
@@ -118,7 +118,6 @@ EOF
 
   if test -n "$@"; then
     for req in $@; do
-      local init
       init=$(files find-in-path "$req/init")
       if test -n "$init"; then
         $init --help
@@ -256,7 +255,7 @@ export DOT_ENV
 expand_hub_files() {
   for f in $@; do
     if test -z "$f"; then continue; fi
-    if grep -q "$f" <<< "$EXPANDED"; then continue; fi
+    if echo "$EXPANDED" | grep -q; then continue; fi
     printf "* Checking %s " "$(relpath "$f")"
     if test -f "$f"; then
       # is local file
@@ -361,7 +360,7 @@ for req in $HUB_STACK_REQUIRES; do
     color b "* Running init script $req"
     $HUB_WORKDIR/$req $ARGS
   elif test -n "$init"; then
-    echo -n "Initializing "
+    printf "Initializing "
     color h "$req"
     $init $ARGS
   else
@@ -391,13 +390,13 @@ if test -n "$SOURCE_HUB_STATE"; then
       #HACK: this is less invasive to the existing code
       cat "$state" > "$temp"
     elif echo "$state" | grep -e '^https\?://' >/dev/null 2>&1; then
-      echo -n "* Downloading from: $state... "
+      printf "* Downloading from: $state... "
       if test ! -f "$temp"; then
         files download "$state" "$temp"
       fi
       echo "done"
     elif echo "$state" | grep -e '^gs\?://' >/dev/null 2>&1; then
-      echo -n "* Downloading from: $state... "
+      printf "* Downloading from: $state... "
       gsutil -q cp "$state" "$temp"
       echo "done"
 
@@ -563,7 +562,7 @@ for hubfile in $HUB_FILES; do
         cd "$temp_dir";
         git config advice.detachedHead "false" >/dev/null
         head="$(git rev-parse --abbrev-ref HEAD)";
-        echo -n "  Using ref: ";
+        printf "  Using ref: ";
         if test "$ref" = "__auto__"; then
           color b "$head";
         else
@@ -591,7 +590,7 @@ for hubfile in $HUB_FILES; do
       (
         cd "$temp_dir";
         head="$(git rev-parse --abbrev-ref HEAD)";
-        echo -n "  Using ref: ";
+        printf "  Using ref: ";
         if test "$ref" = "__auto__"; then
           color b "$head";
         else
