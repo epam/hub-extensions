@@ -255,7 +255,7 @@ export DOT_ENV
 expand_hub_files() {
   for f in $@; do
     if test -z "$f"; then continue; fi
-    if echo "$EXPANDED" | grep -q; then continue; fi
+    if echo "$EXPANDED" | grep -q "$f"; then continue; fi
     printf "* Checking %s " "$(relpath "$f")"
     if test -f "$f"; then
       # is local file
