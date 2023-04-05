@@ -23,15 +23,17 @@ is_url() {
   echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
 }
 
-relpath() {
-  local dir
+rel_path() {
   dir="${2:-$HUB_WORKDIR}"
   if is_url "$1"; then
     echo "$1"
-  elif which realpath > /dev/null; then
-    realpath --relative-to="$dir" "$1"
   elif which python > /dev/null; then
     python -c "import os.path; print(os.path.relpath('$1', '$dir'))"
+  elif ! test -d "$dir/$1"; then
+    # realpath fails if directory not exists
+    echo "$dir/$1"
+  elif which realpath > /dev/null; then
+    realpath --relative-to="$dir" "$1"
   else
     echo "$1"
   fi
@@ -256,7 +258,7 @@ expand_hub_files() {
   for f in $@; do
     if test -z "$f"; then continue; fi
     if echo "$EXPANDED" | grep -q "$f"; then continue; fi
-    printf "* Checking %s " "$(relpath "$f")"
+    printf "* Checking %s " "$(rel_path "$f")"
     if test -f "$f"; then
       # is local file
       echo "(exists)"
@@ -296,15 +298,15 @@ componentDir() {
 }
 
 componentSourceRepo() {
-  $jq--arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.remote | select(.)'
+  $jq--arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.remote | select(.)'
 }
 
 componentSourceSubdir() {
-  $jq --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.subDir | select(.)'
+  $jq --arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.subDir | select(.)'
 }
 
 componentSourceRef() {
-  $jq --arg 'src' "$1" --arg 'comp' "$2" '.[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["__auto__"] | [ .[] | select(.!= "")][0]'
+  $jq --arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["__auto__"] | [ .[] | select(.!= "")][0]'
 }
 
 getAllComponentHooks() {
@@ -542,20 +544,27 @@ for hubfile in $HUB_FILES; do
     color warn "* Warning: skipping $hubfile due to not found"
     continue
   fi
-  hubfile_dir="$(dirname "$(files abspath "$hubfile")")"
-  for comp in $(to_json "$f" | components); do
+  # hubfile_dir="$(dirname "$(files abspath "$hubfile")")"
+  for comp in $(to_json "$hubfile" | components); do
     printf "* Component %s: " "$comp"
-    comp_dir=$(to_json "$f" | componentDir "$comp")
-    if test -d "$hubfile_dir/$comp_dir"; then
+    _dir=$(to_json "$hubfile" | componentDir "$comp")
+    # to_json "$hubfile" | componentDir "$comp"
+    if test -z "$_dir"; then
+      color w "Warning: component $comp has no directory"
+      exit 1
+    fi
+    comp_dir=$(rel_path "$_dir")
+
+    if test -d "$comp_dir"; then
       echo "exist"
       continue
     fi
     echo "fetching"
 
-    git_repo=$(echo $components | componentSourceRepo "git" "$comp")
+    git_repo=$(to_json "$hubfile" | componentSourceRepo "git" "$comp")
     if test -n "$git_repo"; then
-      subdir=$(echo $components | componentSourceSubdir "git" "$comp")
-      ref=$(echo $components | componentSourceRef "git" "$comp")
+      subdir=$(to_json "$hubfile" | componentSourceSubdir "git" "$comp")
+      ref=$(to_json "$hubfile" | componentSourceRef "git" "$comp")
       temp_dir=$(temp_file)
       echo "  Retrieving from git source repository"
       echo "  Running: git clone $git_repo"
@@ -576,9 +585,10 @@ for hubfile in $HUB_FILES; do
           fi
         fi
       )
+
       echo "  Saving component: $comp_dir"
-      mkdir -p "$hubfile_dir/$comp_dir"
-      cp -rf "$temp_dir/$subdir/." "$hubfile_dir/$comp_dir"
+      mkdir -p "$comp_dir"
+      cp -rf "$temp_dir/$subdir/." "$comp_dir"
       continue
     fi
 
