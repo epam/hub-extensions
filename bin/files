@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -18,6 +18,7 @@ Parameters:
 Subcommands:
   $(basename "$0") find-in-path FILE             Returns file locatin in PATH (also can use subdirs)
   $(basename "$0") abspath      FILE             Returns returns absolute location for desired file
+  $(basename "$0") relpath      TARGET SOURCE    Returns relative path from source to target
   $(basename "$0") download     URL  DEST        Downloads a remote file
   $(basename "$0") copy         FILE DEST        Copy file utility
   $(basename "$0") download-tar URL  EXTRACT_TO  Downlaods and extracts tarball file
@@ -52,13 +53,15 @@ while test -n "$1"; do
         shift
         continue
     ;;
-    download | copy )
+    download | copy | relpath )
         op="$1"
         shift
         arg="$1"
         shift
-        arg2="$1"
-        shift
+        arg2="${1:-"."}"
+        if test -n "$1"; then
+          shift
+        fi
         continue
     ;;
 
@@ -82,8 +85,44 @@ while test -n "$1"; do
   shift
 done
 
+# kudos to: https://stackoverflow.com/a/12498485
+relpath() {
+  source="$(abspath "$2")"
+  target="$(abspath "$1")"
+
+  common_part=$source # for now
+  result="" # for now
+
+  while test "${target#"$common_part"}" = "${target}"; do
+      # no match, means that candidate common part is not correct
+      # go up one level (reduce common part)
+      common_part="$(dirname "$common_part")"
+      # and record that we went back, with correct / handling
+      if test -z $result; then
+          result=".."
+      else
+          result="../$result"
+      fi
+  done
+
+  if test "$common_part" = "/"; then
+      # special case for root (no common path)
+      result="$result/"
+  fi
+
+  # since we now have identified the common part,
+  # compute the non-common part
+  forward_part="${target#"$common_part"}"
+  # and now stick all parts together
+  if test -n "$result" -a -n "$forward_part"; then
+      result="$result$forward_part"
+  elif test -n "$forward_part"; then
+      result="$(printf '%s' "$forward_part" | cut -c2-)"
+  fi
+  echo "$result"
+}
+
 abspath() {
-  local name dir
   if test -d "$1"; then
     (cd "$1" && pwd)
   elif test -f "$1"; then
@@ -99,7 +138,6 @@ abspath() {
 }
 
 find_in_path() {
-  local _file _path rv
   _file="$(echo "$1" | sed -e 's/^\///')"
   ( IFS=:
     for _path in $PATH; do
@@ -119,7 +157,6 @@ find_in_path() {
 }
 
 download_file() {
-  local temp http_code
   http_code=$(
     curl -sLo "$2" -w "%{http_code}" "$1"
   )
@@ -144,7 +181,9 @@ case "$op"  in
     PATH=".hub:.hub/bin:$PATH"
     abspath "$arg"
   ;;
-
+  "relpath" )
+    relpath "$arg" "$arg2"
+  ;;
   "download" )
     temp="$(mktemp)"
     trap 'rm -f $temp' EXIT
@@ -155,7 +194,7 @@ case "$op"  in
   "download-tarball" )
     temp="$(mktemp)"
     trap 'rm -f $temp' EXIT
-    echo -n "Downloading $arg... "
+    printf "Downloading %s... " "$arg"
     download_file "$arg" "$temp"
     if test -n "$arg2"; then
       echo " extracting $tar_subpath "
