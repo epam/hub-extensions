@@ -134,7 +134,7 @@ getParamNameByEnvVar() {
 
 json() {
   # shellcheck disable=SC2048
-  yq eval-all -o=json 'select(.parameters)' $*
+  yq -M eval-all -o=json 'select(.parameters)' $*
 }
 
 flatten() {
@@ -154,20 +154,19 @@ readField() {
 }
 
 first() {
-  jq -s '.|first|select(.)'
+  jq -cMrs '.|first|select(.)'
 }
 
 getParamValue() {
   if test -z "$HUB_FILES"; then
     return 0
   fi
-  result="$(json $HUB_FILES | flatten | withName "$1" | first)"
-  if test -n "$result"; then
-    value="$(echo "$result" | readField "value")"
+  if test -n "$(json $HUB_FILES | flatten | withName $1 | first)"; then
+    value="$(json $HUB_FILES | flatten | withName $1 | first | readField "value")"
     if test -n "$value"; then
       echo "$value"
     else
-      envname="$(echo "$result" | readField "fromEnv")"
+      envname="$(json $HUB_FILES | flatten | withName $1 | first | readField "fromEnv")"
       if test -n "$envname"; then
         envval="$(dotenv get "$envname")"
         if test -z "$envval"; then
@@ -177,7 +176,7 @@ getParamValue() {
       if test -n "$envval"; then
         echo "$envval"
       else
-        default="$(echo "$result" | readField "default")"
+        default="$(json $HUB_FILES | flatten | withName $1 | first | readField "default")"
         if test -n "$default"; then
           echo "$default"
         fi
