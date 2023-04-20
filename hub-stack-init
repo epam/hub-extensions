@@ -62,8 +62,6 @@ if test -z "$hubctl"; then
   exit 1
 fi
 
-jq="jq -cMr "
-
 hub_state_cli_exist() {
   hubctl state --help >/dev/null 2>&1
 }
@@ -139,6 +137,8 @@ ARGS=$*
 HUB_FILES=""
 HUB_AUTOCONFIGURE="${HUB_AUTOCONFIGURE:-1}"
 HUB_INTERACTIVE="${HUB_INTERACTIVE:-1}"
+bubbles_new_name="$(files -e find-in-path bubble-dns/new-name)"
+bubbles_new_domain="$(files -e find-in-path bubble-dns/new)"
 
 while [ "$1" != "" ]; do
   case "$1" in
@@ -226,7 +226,7 @@ to_json() {
   if test "$ext" = "yaml" -o "$ext" = "yml"; then
     yq -MNo json "$1"
   elif test "$ext" = "json"; then
-    jq -c "$1"
+    jq -cMr "$1"
   else
     color e "Error: unknown file type $ext"
     exit 1
@@ -246,7 +246,7 @@ expand_hub_files() {
       # is local file
       echo "(exists)"
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
-      included="$(to_json "$f" | jq -r '.extensions.include|select(.)[]')"
+      included="$(to_json "$f" | jq -cMr '.extensions.include|select(.)[]')"
       if test -n "$included"; then
         expand_hub_files $included
       fi
@@ -273,47 +273,47 @@ update_symlink() {
 }
 
 components() {
-  $jq '.components|select(.)[].name|select(.)'
+  jq -cMr '.components|select(.)[].name|select(.)'
 }
 
 componentDir() {
-  $jq --arg 'comp' "$1" '.components|select(.)[]|select(.name==$comp).source?.dir | select(.)'
+  jq -cMr --arg 'comp' "$1" '.components|select(.)[]|select(.name==$comp).source?.dir | select(.)'
 }
 
 componentSourceRepo() {
-  $jq--arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.remote | select(.)'
+  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.remote | select(.)'
 }
 
 componentSourceSubdir() {
-  $jq --arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.subDir | select(.)'
+  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.subDir | select(.)'
 }
 
 componentSourceRef() {
-  $jq --arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["__auto__"] | [ .[] | select(.!= "")][0]'
+  jq -cMr --arg 'src' "$1" --arg 'comp' "$2" '.components|select(.)[] | select(.name==$comp).source?[$src]?.ref | [select(.)]+["__auto__"] | [ .[] | select(.!= "")][0]'
 }
 
 getAllComponentHooks() {
-  $jq '.components | [select(.)[].hooks|select(.)[].file|select(.)]|unique[]'
+  jq -cMr '.components | [select(.)[].hooks|select(.)[].file|select(.)]|unique[]'
 }
 
 getDeployHooks() {
-  $jq --arg "predicate" "$1" '.extensions.deploy[$predicate]|select(.)[]'
+  jq -cMr --arg "predicate" "$1" '.extensions.deploy[$predicate]|select(.)[]'
 }
 
 getParamFromState() {
-  hubctl explain "$1" --json | $jq --arg "param" "$2" '.stackParameters[$param] | select(.)'
+  hubctl explain "$1" --json | jq -cMr --arg "param" "$2" '.stackParameters[$param] | select(.)'
 }
 
 
 getParamValueByEnvVar() {
-  param="$(params envvar "$2" | jq -cMr '.name')"
+  param="$($params --silent envvar "$2" | jq -cMr '.name')"
   if test -n "$param"; then
     getParamFromState "$1" "$param"
   fi
 }
 
 getConfigureScripts() {
-  jq -r '.extensions.configure|select(.)[]'
+  jq -Mr '.extensions.configure|select(.)[]'
 }
 
 if test -n "$SOURCE_HUB_STATE"; then
@@ -333,7 +333,8 @@ elif test -f "$HUB_WORKDIR/.env" ; then
 fi
 
 expand_hub_files $HUB_FILES
-HUB_FILES="$(real_files $EXPANDED)"
+HUB_FILES="$(real_files $EXPANDED | xargs)"
+params="params -S"
 export HUB_FILES
 
 # mkdir -p "$HUB_WORKDIR/.hub/env"
@@ -361,12 +362,33 @@ done
 if test -n "$SOURCE_HUB_STATE"; then
   # backward compatibility for users who have not installed new hub-state extension
   if hub_state_cli_exist; then
-    _state="$($hubctl state show "$SOURCE_HUB_STATE" -o json | $jq '.stateLocation.uri | select(.)')"
+    _state="$($hubctl state show "$SOURCE_HUB_STATE" -o json | jq -cMr '.stateLocation.uri | select(.)')"
     if test -n "$_state"; then
       echo "Found state file: $_state"
       SOURCE_HUB_STATE="$_state"
     fi
   fi
+fi
+
+echo "Resolving stack name"
+hub_stack_name_param="$($params env HUB_STACK_NAME | jq -cMr '.name | select(.)')"
+if test -z "$hub_stack_name_param"; then
+  if test -n "$($params json dns.name)"; then
+    hub_stack_name_param="dns.name"
+  fi
+fi
+if test -n "$hub_stack_name_param"; then
+  echo "* Using parameter: $hub_stack_name_param"
+fi
+
+hub_domain_name_param="$($params env HUB_DOMAIN_NAME | jq -cMr '.name | select(.)')"
+if test -z "$hub_domain_name_param"; then
+  if test -n "$($params json dns.domain)"; then
+    hub_domain_name_param="dns.domain"
+  fi
+fi
+if test -n "$hub_domain_name_param"; then
+  echo "* Using parameter: $hub_domain_name_param"
 fi
 
 if test -n "$SOURCE_HUB_STATE"; then
@@ -388,11 +410,10 @@ if test -n "$SOURCE_HUB_STATE"; then
       printf "* Downloading from: %s... " "$state"
       gsutil -q cp "$state" "$temp"
       echo "done"
-
-      state_name="$($hubctl explain "$temp" --json | $jq '.meta.name | select(.)')"
-      state_status="$($hubctl explain "$temp" --json | $jq '.status | select(.)')"
+      state_name="$($hubctl explain "$temp" --json | jq -cMr '.meta.name | select(.)')"
+      state_status="$($hubctl explain "$temp" --json | jq -cMr '.status | select(.)')"
       echo "  Downloaded state: $state_name (status: $state_status)"
-      state_msg="$($hubctl explain "$temp" --json | $jq '.message | select(.)')"
+      state_msg="$($hubctl explain "$temp" --json | jq -cMr '.message | select(.)')"
       if test -n "$state_msg"; then
         echo "  Message: $state_msg"
       fi
@@ -400,7 +421,7 @@ if test -n "$SOURCE_HUB_STATE"; then
       color e "Error: file not found $state"
       exit 13
     fi
-    HUB_DOMAIN_NAME=$(getParamFromState "$temp" "dns.domain")
+    HUB_DOMAIN_NAME=$(getParamFromState "$temp" "$hub_domain_name_param")
     if test -z "$HUB_DOMAIN_NAME"; then
       HUB_DOMAIN_NAME="$(getParamValueByEnvVar "$temp" "HUB_DOMAIN_NAME")"
       if test -z "$HUB_DOMAIN_NAME"; then
@@ -425,34 +446,55 @@ if test -n "$SOURCE_HUB_STATE"; then
       echo "  Moving on"
     fi
   done
-elif test -z "$(params -f "$HUB_FILES" envvar HUB_DOMAIN_NAME)" \
-       -a -z "$(params -f "$HUB_FILES" envvar HUB_STACK_NAME)"; then
-  echo "Checking hubctl files for domain name parameters"
-  HUB_DOMAIN_NAME="$(params -f "$HUB_FILES" value "dns.domain")"
-  HUB_STACK_NAME="$(params -f "$HUB_FILES" value "dns.name")"
-  if test -z "$HUB_DOMAIN_NAME" -a -n "$HUB_STACK_NAME"; then
-    HUB_DOMAIN_NAME="$HUB_STACK_NAME"
-  elif test -n "$HUB_DOMAIN_NAME" -a -z "$HUB_STACK_NAME"; then
-    HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d "." -f1)"
-  fi
-  if test -n "$HUB_DOMAIN_NAME"; then
-    echo "* Using domain name: $HUB_DOMAIN_NAME"
-    dotenv set "HUB_DOMAIN_NAME" "$HUB_DOMAIN_NAME"
-    export HUB_DOMAIN_NAME
-  fi
-  export DOT_ENV
-  if test -n "$HUB_STACK_NAME"; then
-    echo "* Using stack name: $HUB_STACK_NAME"
-    dotenv set "HUB_STACK_NAME" "$HUB_STACK_NAME"
-    export HUB_DOMAIN_NAME
+fi
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  if test -n "$hub_domain_name_param"; then
+    HUB_DOMAIN_NAME="$($params value "$hub_domain_name_param")"
+    if test -n "$HUB_DOMAIN_NAME"; then
+      echo "* Using domain name: $HUB_DOMAIN_NAME"
+    else
+      $bubbles_new_domain
+      HUB_DOMAIN_NAME="$(dotenv get HUB_DOMAIN_NAME)"
+      HUB_STACK_NAME="$(dotenv get HUB_STACK_NAME)"
+      export HUB_DOMAIN_NAME HUB_STACK_NAME
+    fi
   fi
 fi
+
+if test -z "$HUB_STACK_NAME"; then
+  if test -n "$hub_stack_name_param"; then
+    HUB_STACK_NAME="$($params value "$hub_stack_name_param")"
+  fi
+  if test -z "$HUB_STACK_NAME" -a -n "$HUB_DOMAIN_NAME"; then
+    HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d "." -f1)"
+  fi
+  if test -z "$HUB_STACK_NAME"; then
+    HUB_STACK_NAME="$($bubbles_new_name | cut -d "." -f1)"
+  fi
+fi
+
+if test -n "$HUB_STACK_NAME"; then
+  echo "* Using stack name: $HUB_STACK_NAME"
+  if test -z "$HUB_DOMAIN_NAME"; then
+    HUB_DOMAIN_NAME="$HUB_STACK_NAME"
+    echo "* Using domain name same as stack ($HUB_STACK_NAME) for compatibility"
+  fi
+fi
+
+if test -n "$HUB_STACK_NAME"; then
+  dotenv set "HUB_STACK_NAME" "$HUB_STACK_NAME"
+fi
+if test -n "$HUB_DOMAIN_NAME"; then
+  dotenv set "HUB_DOMAIN_NAME" "$HUB_DOMAIN_NAME"
+fi
+
 export HUB_STATE
 
 if test -n "$HUB_STATE"; then
   echo "* Checking environment variables from state"
-  for env in $(params listenv -f "$HUB_FILES"); do
-    param=$(params envvar "$env" | $jq '.name')
+  for env in $($params listenv -f "$HUB_FILES"); do
+    param=$($params envvar "$env" | jq -cMr '.name')
     if test -z "$param"; then
       continue
     fi
@@ -472,6 +514,30 @@ if test -n "$HUB_STATE"; then
   done
   # shellcheck disable=SC2046
   eval $(dotenv export -f "$DOT_ENV")
+fi
+
+if test -z "$HUB_DOMAIN_NAME"; then
+  color e "Error: variable HUB_DOMAIN_NAME is not set"
+  exit 1
+fi
+
+if test -f "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" -a -z "$HUB_USE_FORCE"; then
+  cat <<EOF | color e
+Aborting initialize
+
+Reason: $HUB_DOMAIN_NAME stack already exists
+
+If init is your intent you may want to use --force flag.
+This may overwrite settings
+
+  hubctl stack init --force
+
+If you want to use the stack then run the following:
+
+  hubctl stack set $HUB_DOMAIN_NAME
+
+EOF
+  exit 1
 fi
 
 GIT_OPTS="--quiet"
@@ -575,10 +641,10 @@ for hubfile in $HUB_FILES; do
       continue
     fi
 
-    gcp_repo=$(echo $components | componentSourceRepo "gcp" "$comp")
+    gcp_repo=$(to_json "$hubfile" | componentSourceRepo "gcp" "$comp")
     if test -n "$gcp_repo"; then
-      subdir=$(echo $components | componentSourceSubdir "gcp" "$comp")
-      ref=$(echo $components | componentSourceRef "gcp" "$comp")
+      subdir=$(to_json "$hubfile" | componentSourceSubdir "gcp" "$comp")
+      ref=$(to_json "$hubfile" | componentSourceRef "gcp" "$comp")
       temp_dir=$(temp_file)
       echo "  Retrieving from gcp source repository"
       echo "  Running: gcloud source repos clone $gcp_repo"
@@ -604,7 +670,6 @@ for hubfile in $HUB_FILES; do
     fi
   done
 done
-set +x
 dotenv set "HUB_AUTOCONFIGURE" "$HUB_AUTOCONFIGURE"
 dotenv set "HUB_FILES" "$HUB_FILES"
 dotenv set "HUB_WORKDIR" "$HUB_WORKDIR"

@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,7 +17,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test $VERBOSE = "true"; then
+if test "$VERBOSE" = "true"; then
   set -x
 fi
 
@@ -44,7 +44,7 @@ Please try again later!
 Troubleshooting info:
 * Web services returned error code: $HTTP_CODE
 EOF
-  echo -n "* Payload: "
+  printf "* Payload: "
   cat $TEMP
   exit 1
 fi

@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -20,7 +20,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test $VERBOSE = "true"; then
+if test "$VERBOSE" = "true"; then
   set -x
 fi
 
@@ -29,7 +29,7 @@ TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 # shellcheck disable=SC2064
 trap "rm -f $TEMP" EXIT
 
-echo -n "* Resolving new domain name: "
+printf "* Resolving new domain name: "
 HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://prod-dns.bubbles.devops.delivery/"}
 HTTP_CODE=$( \
   curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
@@ -49,23 +49,20 @@ Please try again later!
 Troubleshooting info:
 * Web services returned error code: $HTTP_CODE
 EOF
-  echo -n "* Payload: "
+  printf "* Payload: "
   cat $TEMP
   exit 1
 fi
-
 HUB_DOMAIN_NAME="$(jq -r '.domain' < "$TEMP")"
-HUB_DOMAIN_SECRET="$(jq -r '.key' < "$TEMP")"
 echo "$HUB_DOMAIN_NAME"
 
-WORKDIR=${WORKDIR:-$(pwd)}
-cat $TEMP > $WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble
-
-cat << EOF >> $DOT_ENV
-# Bubble DNS record TTL 72 hours. To renew run:
-# hubctl configure -r aws --dns-update
-HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
-HUB_DOMAIN_NAME="$HUB_DOMAIN_NAME"
-HUB_DOMAIN_SECRET="$HUB_DOMAIN_SECRET"
-HUB_BUBBLE_DNS="$WORKDIR/.hub/env/$HUB_DOMAIN_NAME.bubble"
+if test -n "$DOT_ENV"; then
+  dotenv="dotenv -f $DOT_ENV"
+  $dotenv set "HUB_DOMAIN_NAME" "$HUB_DOMAIN_NAME"
+  $dotenv set "HUB_STACK_NAME" "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)"
+  $dotenv set "HUB_DOMAIN_SECRET" "$(jq -r '.key' < "$TEMP")"
+else
+  cat << EOF | color w
+  This information is not persisted
 EOF
+fi

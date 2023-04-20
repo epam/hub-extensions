@@ -28,7 +28,7 @@ Usage:
   $HUB_EXTENSION [-r requirement]
 
 Common parameters:
-      --profile           Set specific deployment profile
+      --profile           Set specific executor
   -V  --verbose           Verbose outputs for debug purposes
   -h  --help              Print this message
 
@@ -230,7 +230,7 @@ export HUB_FILES
 trap 'finalize $?' EXIT
 
 if test -f "$HUB_WORKDIR/.env"; then
-  echo "Configuration .env file: exist"
+  echo "Environment file: exist"
   if test -L "$HUB_WORKDIR/.env"; then
     DOT_ENV="$(readlink -n "$HUB_WORKDIR/.env")"
   else
@@ -294,18 +294,18 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
         HUB_DEPLOY_PROFILE="pod"
       fi
   fi
-  BRIEF="Deployment profile used to execute automation
+  BRIEF="Possible values for executor:
 - local: run everything locally
 - toolbox: run a docker container with all tools inside in interactive shell
 - pod: to run a toolbox container as a kubernetes pod
 See: https://github.com/epam/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
-  ask env HUB_DEPLOY_PROFILE -m "deployment profile" -a "hub.deploymentProfile" --suggest "local" --brief "$BRIEF"
+  ask env HUB_DEPLOY_PROFILE -m "executor" -a "hub.executor" --suggest "local" --brief "$BRIEF"
 fi
 
 if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" -e >/dev/null; then
   echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 else
-  color e "Error: cannot find deployment profile: $HUB_DEPLOY_PROFILE" | ident
+  color e "Error: cannot find executor: $HUB_DEPLOY_PROFILE" | ident
   exit 44
 fi
 

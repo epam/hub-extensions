@@ -1,5 +1,5 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -31,7 +31,6 @@ if test ! -d .hub/env; then
 fi
 
 print_stacks() {
-  local name star resp hubstate ts status
   echo "ACTIVE|STACK|STATUS|TIMESTAMP"
   if test -d ".hub/env"; then
     set +e
@@ -57,6 +56,9 @@ print_stacks() {
         resp="$($hubctl explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}')"
         status=$(echo "$resp" | jq -cMr '.status')
         ts=$(echo "$resp" | jq -cMr '.timestamp')
+      fi
+      if test -z "$status"; then
+        status="undeployed"
       fi
       echo "$star|$name|$status|$ts"
     done

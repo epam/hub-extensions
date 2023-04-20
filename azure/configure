@@ -165,9 +165,11 @@ if test "$DNS_ACTION" = "update"; then
   updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
   exit $?
 fi
-if test -z "$HUB_DOMAIN_NAME"; then
+
+if dotenv contains HUB_DOMAIN_SECRET; then
+  DNS_MANAGER=bubbles
   configureBubbleDNS
-elif test -z "$HUB_DOMAIN_SECRET"; then
+else
   DNS_MANAGER=user
   echo -n "* Using domain name provided by user: "; color b "$HUB_DOMAIN_NAME"
 fi

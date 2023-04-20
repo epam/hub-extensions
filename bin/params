@@ -1,5 +1,5 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -25,6 +25,7 @@ Flags:
   -f --file               Path to hubfile (can repeat, default HUB_FILES envvar)
   -d --dotenv             Path to the dotenv file (can repeat, default DOT_ENV envvar)
   -V --verbose            For debug purpose
+  -S --silent             Suppress error, warnings and info messages
   -h --help               Show this message
 
 EOF
@@ -35,6 +36,7 @@ subcommand=""
 hub_files=""
 dot_env=""
 COMMAND_ARG=""
+SILENT=false
 while test -n "$1"; do
   ARG="$1"; shift
   case $ARG in
@@ -48,6 +50,10 @@ while test -n "$1"; do
       ;;
     -V | --verbose )
       VERBOSE=true
+      continue
+      ;;
+    -S | --silent )
+      SILENT=true
       continue
       ;;
     -f | --file )
@@ -78,8 +84,8 @@ done
 with_params() {
   # shellcheck disable=SC2048
   for f in $*; do
-    if test -n "$(yq e 'select(.parameters)' $f)"; then
-      echo -n " $f"
+    if test -n "$(yq e -o json 'select(.parameters)' $f)"; then
+      printf " %s" "$f"
     fi
   done
 }
@@ -96,16 +102,24 @@ if test -z "$HUB_FILES"; then
   HUB_FILES="$(dotenv get HUB_FILES)"
 fi
 
-HUB_FILES="$(with_params $HUB_FILES)"
-
-if test -z "$subcommand" -o -z "$HUB_FILES"; then
-  color e "Error: cannot find .env file"
+if test -z "$subcommand"; then
+  if $SILENT; then
+    exit 0
+  fi
   usage
   exit 1
 fi
+if test -z "$subcommand" -o -z "$HUB_FILES"; then
+  if $SILENT; then
+    exit 0
+  fi
+  color e "Error: cannot find .env file"
+  exit 1
+fi
+
+HUB_FILES="$(with_params $HUB_FILES)"
 
 getParamNameByEnvVar() {
-  local f result
   for f in $HUB_FILES; do
     test -f $f || continue;
     result=$(
@@ -144,7 +158,9 @@ first() {
 }
 
 getParamValue() {
-  local value envval envname default
+  if test -z "$HUB_FILES"; then
+    return 0
+  fi
   result="$(json $HUB_FILES | flatten | withName "$1" | first)"
   if test -n "$result"; then
     value="$(echo "$result" | readField "value")"
@@ -171,19 +187,27 @@ getParamValue() {
 }
 
 getParamJson() {
-  json $HUB_FILES | flatten | withName "$1" | jq -cMr --arg n "$1" '. + {name: $n}'
+  if test -n "$HUB_FILES"; then
+    json $HUB_FILES | flatten | withName "$1" | jq -cMr --arg n "$1" '. + {name: $n}'
+  fi
 }
 
 getFlatParams() {
-  json $HUB_FILES | flatten | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
+  if test -n "$HUB_FILES"; then
+    json $HUB_FILES | flatten | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
+  fi
+}
+
+merge() {
+  jq -s add -cMr | jq 'select(.)'
 }
 
 getParamByEnvvar() {
-  getFlatParams | jq -s add | jq -cMr --arg var "$1" '[.[] | select(.fromEnv == $var) | .][0] | select(.)'
+  getFlatParams | merge | jq -cMr --arg var "$1" '[.[] | select(.fromEnv == $var) | .][0] | select(.)'
 }
 
 listEnvvars() {
-  getFlatParams | jq -s add | jq -cMr '[.[].fromEnv? | select(.)] | sort | .[]'
+  getFlatParams | merge | jq -cMr '[.[].fromEnv? | select(.)] | sort | .[]'
 }
 
 case $subcommand in
