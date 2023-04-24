@@ -25,7 +25,7 @@ There are number of well-known parameters that can be used to configure ARM depl
 | `ARM_PARAMETER_FILES` | Space separated list to ARM Deployment Parameter files. If file cannot be found it will be ignored | | |
 | `ARM_PARAMETER_paramName` | Hubctl will read all environment variables prefixed with `ARM_PARAMETERS_` to set ARM deployment parameters. In this example hubctl will set a parameter `parameterName` with the value of environment variable `ARN_PARAMETER_paramName` | | |
 | `ARM_PARAM_paramName` | Same as `ARM_PARAMETER_paramName` | | |
-| `AZURE_RESOURCE_GROUP_NAME` | Name of the target resource group. If not set then resource group defined during `hub stack configure -r "azure"` will be used | | |
+| `AZURE_RESOURCE_GROUP_NAME` | Name of the target resource group. If not set then resource group defined during `hubctl stack configure -r "azure"` will be used | | |
 
 > Note: `ARM_PARAMETER_` and `ARM_PARAM_` are aliases for the same parameter. User can use either one of them. These environment variables works similar to well known Terraform variables `TF_VAR_`.
 
