@@ -349,7 +349,7 @@ else
   fi
 fi
 echo -n "* Checking presence of blob container $HUB_STATE_CONTAINER: "
-if az storage container show --account-name "$HUB_STATE_BUCKET" -n "$HUB_STATE_CONTAINER" -o 'none' 2>/dev/null; then
+if az storage container show --account-name "$HUB_STATE_BUCKET" -n "$HUB_STATE_CONTAINER" --auth-mode login -o 'none' 2>/dev/null; then
   echo "exist"
 else
   if $DRY_RUN; then
