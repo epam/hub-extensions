@@ -445,6 +445,7 @@ $dotenv contains 'HUB_STATE_BUCKET'          || $dotenv set 'HUB_STATE_BUCKET' "
 $dotenv contains 'HUB_STATE_CONTAINER'       || $dotenv set 'HUB_STATE_CONTAINER' "$HUB_STATE_CONTAINER"
 $dotenv contains 'HUB_STATE_REGION'          || $dotenv set 'HUB_STATE_REGION' "$HUB_STATE_REGION"
 $dotenv contains 'HUB_TOOLBOX_IMAGE'         || $dotenv set 'HUB_TOOLBOX_IMAGE' 'ghcr.io/epam/hub-toolbox:azure'
+$dotenv contains 'HUB_STACK_LS_SUPPRESS_WARN'|| $dotenv set 'HUB_STACK_LS_SUPPRESS_WARN' '1'
 
 if test "$DNS_MANAGER" = "bubbles"; then
   echo "* Sending dns propagation request to bubbles with domain zone: $HUB_DOMAIN_NAME"

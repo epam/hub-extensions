@@ -30,10 +30,37 @@ if test ! -d .hub/env; then
   exit 1
 fi
 
+TEMP_DIR=$(mktemp -d || exit 2)
+mkdir -p "$TEMP_DIR"
+trap 'finalize $TEMP_DIR' EXIT
+
+finalize() {
+  # shellcheck disable=SC2046
+  rv=$?
+  if test "$rv" != "0"; then
+    # shellcheck disable=SC2045
+    for f in $(ls -t "$1"/*.err 2>/dev/null); do
+      if test ! -f "$f"; then
+        continue
+      fi
+      color e < "$f"
+    done
+    color e "Finished wih error. See above for details."
+    exit $rv
+  fi
+
+  rm -rf "$1"
+  exit $rv
+}
+
+temp_file() {
+  ext="${1:-out}"
+  echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]').$ext"
+}
+
 print_stacks() {
   echo "ACTIVE|STACK|STATUS|TIMESTAMP"
   if test -d ".hub/env"; then
-    set +e
     # shellcheck disable=SC2045
     for f in $(ls -t .hub/env/*.env .hub/env/.env 2>/dev/null); do
       if test ! -f "$f"; then
@@ -43,7 +70,6 @@ print_stacks() {
       name="$(basename "$f" .env)"
       ts=""
       status=""
-      resp=""
       hubstate=""
       if test "$CURRENT" = "$name"; then
         star="*"
@@ -52,18 +78,27 @@ print_stacks() {
         name="initialized"
       fi
       hubstate="$(dotenv -f "$f" get HUB_STATE)"
+      HUB_STACK_LS_SUPPRESS_WARN="$(dotenv -f "$f" get HUB_STACK_LS_SUPPRESS_WARN --default 0)"
       if test -n "$hubstate"; then
-        resp="$($hubctl explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}')"
-        status=$(echo "$resp" | jq -cMr '.status')
-        ts=$(echo "$resp" | jq -cMr '.timestamp')
+        err_log="$(temp_file err)"
+        out_log="$(temp_file)"
+        if test "$HUB_STACK_LS_SUPPRESS_WARN" = "0"; then
+          $hubctl explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}' 1>"$out_log"
+        else
+          $hubctl explain "$hubstate" --json 2>"$err_log"| jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}' 1>"$out_log"
+        fi
+        status=$(jq -cMr '.status' "$out_log")
+        ts=$(jq -cMr '.timestamp' "$out_log")
       fi
       if test -z "$status"; then
         status="undeployed"
       fi
       echo "$star|$name|$status|$ts"
     done
-    set -e
   fi
 }
 
-print_stacks | column -t -s"|"
+result=temp_file
+
+print_stacks > $result
+column -t -s"|" < $result
