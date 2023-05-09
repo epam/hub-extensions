@@ -81,8 +81,14 @@ shorten() {
   fi
 }
 
+gen_random() {
+  size="${1:-32}"
+  (
+    LC_ALL=C tr -dc a-z0-9 < /dev/urandom | head -c "$size" | xargs
+  )
+}
+
 contains() {
-  local pattern result
   pattern="$1"
   shift
 
@@ -238,8 +244,7 @@ fi
 
 EMPTY="$(echo "$json" | jq -cMr '.empty | select (.)')"
 if test "$EMPTY" = "allow"; then
-  enabled="${enabled/history/}"
-  enabled="${enabled/random/}"
+  enabled="$(echo "$enabled" | sed 's/history//g' | sed 's/random//g' | xargs)"
 fi
 
 HISTORY_FILE="$HUB_WORKDIR/.hub/history.env"
@@ -273,7 +278,7 @@ for hint in $priority; do
       hint_val=$($hubctl show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
     ;;
     "random" )
-      hint_val="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d -)"
+      hint_val="$(gen_random 32)"
     ;;
     "suggested" )
       hint_val="$suggested_value"

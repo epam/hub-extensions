@@ -23,6 +23,13 @@ Parameters:
 EOF
 }
 
+gen_random() {
+  size="${1:-32}"
+  (
+    LC_ALL=C tr -dc a-z0-9 < /dev/urandom | head -c "$size" | xargs
+  )
+}
+
 hubctl="$(which hubctl 2>/dev/null || true)"
 if test -z "$hubctl"; then
   # backward compatibility
@@ -38,7 +45,7 @@ if test -f ".env"; then
 fi
 
 TOOLBOX_NAMESPACE=${TOOLBOX_NAMESPACE:-hubctl}
-ID=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d - | cut -c-8)
+ID=$(gen_random 8)
 
 HUB_ARGS=
 PASS_ENV=
