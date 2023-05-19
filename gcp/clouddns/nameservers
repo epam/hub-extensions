@@ -1,6 +1,6 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@
 
 set -o pipefail
 
-JQ_ARGS="-cM"
+JQ_ARGS="-cMr"
 jq="jq $JQ_ARGS"
 
 while [ "$1" != "" ]; do
@@ -32,8 +32,6 @@ ZONE_NAME=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
   --format json | $jq '.[].name' | xargs)
 
 if gcloud dns managed-zones describe "$ZONE_NAME"\
-    --format json | $jq '.nameServers'; then
+    --format json | $jq '.nameServers|select(.)[]'; then
   exit
 fi
-
-echo '[]'
