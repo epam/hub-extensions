@@ -41,14 +41,14 @@ ${verb}s entire stack
 $ $HUB_EXTENSION -c component1,component2
 ${verb}s two components
 
-$ $HUB_EXTENSION -c component1,component2 --profile pod
-${verb}s two components and executes deployment in a pod
+$ $HUB_EXTENSION -c component1,component2 --profile kubernetes
+${verb}s two components and executes deployment in a kubernetes
 
 Parameters:
     -c --component        Components to ${verb}
     -o --offset           Start with the given component
     -l --limit            Component to stop ${verb} at
-    --profile             Deployment profile, one of: local, toolbox, pod
+    --profile             Deployment profile, one of: local, docker, kubernetes
     -V  --verbose         Verbose outputs for debug purpose
     --tty                 Use TTY (terminal) mode for hubctl ${verb}
     --no-tty              Do not use TTY (terminal) mode for hubctl ${verb}

@@ -291,14 +291,14 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
       r="$(yq e '' $HUB_FILES -o=json | jq -cMr --arg a "kubernetes" '.requires|select(.)[]|select(.==$a)')"
       if test -n "$r"; then
-        HUB_DEPLOY_PROFILE="pod"
+        HUB_DEPLOY_PROFILE="kubernetes"
       fi
   fi
   BRIEF="Possible values for executor:
 - local: run everything locally
-- toolbox: run a docker container with all tools inside in interactive shell
-- pod: to run a toolbox container as a kubernetes pod
-See: https://github.com/epam/hub-extensions/blob/gcp-extensions/documentation/hub-stack-deploy.md#deployment-profiles"
+- docker: run a docker container with all tools inside in interactive shell
+- kubernetes: to run a toolbox container as a kubernetes pod
+See: https://hubctl.io/hubctl/cli/hubctl-stack-deploy/#executors"
   ask env HUB_DEPLOY_PROFILE -m "executor" -a "hub.executor" --suggest "local" --brief "$BRIEF"
 fi
 
