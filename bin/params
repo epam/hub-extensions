@@ -23,6 +23,7 @@ Subcommands:
 
 Flags:
   -f --file               Path to hubfile (can repeat, default HUB_FILES envvar)
+  -c --component          Name of the component to filter
   -d --dotenv             Path to the dotenv file (can repeat, default DOT_ENV envvar)
   -V --verbose            For debug purpose
   -S --silent             Suppress error, warnings and info messages
@@ -36,6 +37,7 @@ subcommand=""
 hub_files=""
 dot_env=""
 COMMAND_ARG=""
+component=""
 SILENT=false
 while test -n "$1"; do
   ARG="$1"; shift
@@ -59,6 +61,11 @@ while test -n "$1"; do
     -f | --file )
       unset HUB_FILES
       hub_files="$hub_files $1"
+      shift
+      continue
+      ;;
+    -c | --component )
+      component="$1"
       shift
       continue
       ;;
@@ -146,11 +153,19 @@ flatten() {
 }
 
 withName() {
-  jq -cMr ".[] | select(.\"$1\") | .\"$1\""
+  jq -cMr "[.[] | select(.\"$1\") | .\"$1\"]"
 }
 
 readField() {
   jq -cMr --arg field "$1" '. | select(.[$field]) | .[$field]'
+}
+
+withComponent() {
+  if test -n "$1"; then
+    jq -cMr --arg c "$1" '[.[]|select(.component==$c or .component=="" or .component==null)]|sort_by(.component)|reverse|.[]'
+  else
+    jq -cMr '.[]|select(.component=="" or .component==null)'
+  fi
 }
 
 first() {
@@ -161,12 +176,12 @@ getParamValue() {
   if test -z "$HUB_FILES"; then
     return 0
   fi
-  if test -n "$(json $HUB_FILES | flatten | withName $1 | first)"; then
-    value="$(json $HUB_FILES | flatten | withName $1 | first | readField "value")"
+  if test -n "$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first)"; then
+    value="$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first | readField "value")"
     if test -n "$value"; then
       echo "$value"
     else
-      envname="$(json $HUB_FILES | flatten | withName $1 | first | readField "fromEnv")"
+      envname="$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first | readField "fromEnv")"
       if test -n "$envname"; then
         envval="$(dotenv get "$envname")"
         if test -z "$envval"; then
@@ -176,7 +191,7 @@ getParamValue() {
       if test -n "$envval"; then
         echo "$envval"
       else
-        default="$(json $HUB_FILES | flatten | withName $1 | first | readField "default")"
+        default="$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first | readField "default")"
         if test -n "$default"; then
           echo "$default"
         fi
@@ -187,13 +202,13 @@ getParamValue() {
 
 getParamJson() {
   if test -n "$HUB_FILES"; then
-    json $HUB_FILES | flatten | withName "$1" | jq -cMr --arg n "$1" '. + {name: $n}'
+    json $HUB_FILES | flatten | withName "$1" | merge | withComponent "$component" | first | jq -cMr --arg n "$1" '. + {name: $n}'
   fi
 }
 
 getFlatParams() {
   if test -n "$HUB_FILES"; then
-    json $HUB_FILES | flatten | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
+    json $HUB_FILES | flatten | merge | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
   fi
 }
 

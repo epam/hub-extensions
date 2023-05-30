@@ -68,6 +68,21 @@ parameters:
     fromEnv: BATS_ENVVARS_TEST4
     default: default_test4
 EOF
+
+  export PARAMS_COMPONENT_FILE="bats.params-component.yaml"
+  cat >"$PARAMS_COMPONENT_FILE" <<EOF
+---
+parameters:
+- name: bats.parameters
+  parameters:
+  - name: test1
+    value: test1
+  - name: test2
+    value: test2
+  - name: test2
+    component: component1
+    value: TEST2
+EOF
 }
 
 setup() {
@@ -216,6 +231,21 @@ setup() {
   run params $COMMAND "bats.envvars.test4" -f "$HUB_FILE" -d "$DOTENV_FILE"
   assert_success
   assert_output 'default_test4'
+}
+
+
+@test "params -c COMPONENT value : should print parameter value for component" {
+  echo "Parameters file: $(basename $PARAMS_COMPONENT_FILE)"
+  cat "$PARAMS_COMPONENT_FILE"
+  run params value "bats.parameters.test1" -f "$PARAMS_COMPONENT_FILE" -d "$DOTENV_FILE"
+  assert_success
+  assert_output "test1"
+  run params value "bats.parameters.test2" -f "$PARAMS_COMPONENT_FILE" -d "$DOTENV_FILE"
+  assert_success
+  assert_output "test2"
+  run params -c "component1" value "bats.parameters.test2" -f "$PARAMS_COMPONENT_FILE" -d "$DOTENV_FILE"
+  assert_success
+  assert_output "TEST2"
 }
 
 teardown_file() {

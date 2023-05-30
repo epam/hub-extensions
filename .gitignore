@@ -7,3 +7,5 @@ hub-state.version
 .vscode/*.log
 
 .env
+bats.params-component.yaml
+files.bats
