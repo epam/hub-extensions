@@ -234,7 +234,7 @@ setup() {
 }
 
 
-@test "params -c COMPONENT value : should print parameter value for component" {
+@test "params value -c COMPONENT: should print parameter value for component" {
   echo "Parameters file: $(basename $PARAMS_COMPONENT_FILE)"
   cat "$PARAMS_COMPONENT_FILE"
   run params value "bats.parameters.test1" -f "$PARAMS_COMPONENT_FILE" -d "$DOTENV_FILE"
@@ -249,5 +249,5 @@ setup() {
 }
 
 teardown_file() {
-    rm "$DOTENV_FILE" "$HUB_FILE"
+  rm -v "$DOTENV_FILE" bats.params.yaml bats.params-*.yaml
 }
