@@ -248,6 +248,31 @@ setup() {
   assert_output "TEST2"
 }
 
+
+@test "params value -e: should error code" {
+  run params -e value "bats.parameters.test1" -f "$HUB_FILE" -d "$DOTENV_FILE"
+  assert_success
+  assert_output "TEST1"
+  run params -e value "bats.parameters.notFound" -f "$HUB_FILE" -d "$DOTENV_FILE"
+  assert_failure
+}
+
+@test "params json -e: should error code" {
+  run params -e json "bats.parameters.test1" -f "$HUB_FILE" -d "$DOTENV_FILE"
+  assert_success
+  assert_output '{"value":"TEST1","name":"bats.parameters.test1"}'
+  run params -e json "bats.parameters.notFound" -f "$HUB_FILE" -d "$DOTENV_FILE"
+  assert_failure
+}
+
+@test "params env -e: should error code" {
+  run params -e env "BATS_ENVVARS_TEST1" -f "$HUB_FILE" -d "$DOTENV_FILE"
+  assert_success
+  assert_output '{"name":"bats.envvars.test1","fromEnv":"BATS_ENVVARS_TEST1"}'
+  run params -e env "BATS_ENVVARS_NOT_FOUND" -f "$HUB_FILE" -d "$DOTENV_FILE"
+  assert_failure
+}
+
 teardown_file() {
   rm -v "$DOTENV_FILE" bats.params.yaml bats.params-*.yaml
 }

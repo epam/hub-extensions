@@ -25,6 +25,7 @@ Flags:
   -f --file               Path to hubfile (can repeat, default HUB_FILES envvar)
   -c --component          Name of the component to filter
   -d --dotenv             Path to the dotenv file (can repeat, default DOT_ENV envvar)
+  -e --error              Exit with error if parameter is not found
   -V --verbose            For debug purpose
   -S --silent             Suppress error, warnings and info messages
   -h --help               Show this message
@@ -39,6 +40,7 @@ dot_env=""
 COMMAND_ARG=""
 component=""
 SILENT=false
+ERROR=false
 while test -n "$1"; do
   ARG="$1"; shift
   case $ARG in
@@ -48,6 +50,10 @@ while test -n "$1"; do
       ;;
     flat | flatten | listenv)
       subcommand="$ARG"
+      continue
+      ;;
+    -e | --error )
+      ERROR=true
       continue
       ;;
     -V | --verbose )
@@ -156,20 +162,28 @@ withName() {
   jq -cMr "[.[] | select(.\"$1\") | .\"$1\"]"
 }
 
+maybeError() {
+  if $ERROR; then
+    grep . || (color e "$1" && exit 1)
+  else
+    cat
+  fi
+}
+
 readField() {
   jq -cMr --arg field "$1" '. | select(.[$field]) | .[$field]'
 }
 
 withComponent() {
   if test -n "$1"; then
-    jq -cMr --arg c "$1" '[.[]|select(.component==$c or .component=="" or .component==null)]|sort_by(.component)|reverse|.[]'
+    jq -cMr --arg c "$1" '[.[]|select(.component==$c or .component=="" or .component==null)]|sort_by(.component)|reverse'
   else
-    jq -cMr '.[]|select(.component=="" or .component==null)'
+    jq -cMr '[.[]|select(.component=="" or .component==null)]'
   fi
 }
 
 first() {
-  jq -cMrs '.|first|select(.)'
+  jq -cMr 'if type=="array" then first|select(.) else select(.) end'
 }
 
 getParamValue() {
@@ -226,13 +240,13 @@ listEnvvars() {
 
 case $subcommand in
   value)
-    getParamValue "$COMMAND_ARG"
+    getParamValue "$COMMAND_ARG" | maybeError "$COMMAND_ARG not found"
   ;;
   json)
-    getParamJson "$COMMAND_ARG"
+    getParamJson "$COMMAND_ARG"  | maybeError "$COMMAND_ARG not found"
   ;;
   envvar | env)
-    getParamByEnvvar "$COMMAND_ARG"
+    getParamByEnvvar "$COMMAND_ARG" | maybeError "$COMMAND_ARG not found"
   ;;
   flat | flatten)
     getFlatParams
