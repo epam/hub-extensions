@@ -93,10 +93,10 @@ jobs:
               fieldId: $status_field
               value: {
                 singleSelectOptionId: $status_value
-                }
+              }
             }) {
               projectV2Item {
                 id
-                }
+              }
             }
-          }' -f project=$PROJECT_ID -f item=$ITEM_ID -f status_field=$STATUS_FIELD_ID -f status_value=$TODO_OPTION_ID --silent
+          }' -f project=$PROJECT_ID -f item=$ITEM_ID -f status_field=$STATUS_FIELD_ID -f status_value=${{ env.TODO_OPTION_ID }} --silent
