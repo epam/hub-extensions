@@ -7,7 +7,7 @@
 
 # shellcheck disable=SC2034
 
-priority="parameter hubstate history env default suggested random empty"
+priority="parameter hubstate history env default suggested random empty EOL"
 enabled="$priority"
 ask="suggested hubstate random history default env empty"
 brief=""
@@ -95,11 +95,10 @@ contains() {
   # shellcheck disable=SC2048
   for w in $*; do
     if test "$w" = "$pattern"; then
-      result="$w"
-      break
+      return 0
     fi
   done
-  test -n "$result"
+  return 1
 }
 
 if test -z "$HUB_WORKDIR"; then
@@ -262,8 +261,7 @@ for hint in $priority; do
       hint_val="$(echo "$json" | jq -cMr '.value | select(.)')"
     ;;
     "empty" )
-      hint_val=""
-      break
+      hint_val="EMPTY"
     ;;
     "default" )
       hint_val="$(echo "$json" | jq -cMr '.default | select(.)')"
@@ -285,12 +283,19 @@ for hint in $priority; do
     ;;
   esac
   if test -n "$hint_val"; then
+    # expected race condition for empty
+    # we need to reset value to empty
+    if test "$hint" = "empty"; then
+      hint_val=""
+    fi
     break;
   fi
 done
 
-if test -z "$hint_val" -a "$hint" != "empty"; then
+# EOF is a terminator value
+if test "$hint" = "EOL"; then
   hint=""
+  hint_val=""
 fi
 
 hashtag="$hint"
@@ -320,7 +325,15 @@ else
 fi
 
 if test -z "$VALUE" -a "$hint" != "empty"; then
-  color e "Empty value is not allowed for $ENV" | ident
+  cat << EOF | color e
+  Empty value is not allowed for $ENV
+
+  HINT: To enable empty values add following record to your hubfile
+
+  parameters:
+  - name: my.param
+    empty: allow
+EOF
   exit 1
 fi
 
