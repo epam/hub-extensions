@@ -10,11 +10,11 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 
 usage() {
   cat << EOF
-Set or change currently active stack
+Use or change currently active stack
 
-Usage: hubctl stack set STACK
+Usage: hubctl stack use STACK
 
-  where STACK is the name of the stack to set as an active
+  where STACK is the name of the stack to use as an active
 
 Note: to see list of available stacks run
 
@@ -39,7 +39,7 @@ if test ! -d .hub/env; then
   exit 2
 fi
 
-echo "Setting $1 as current"
+echo "Using $1 as current"
 if test ! -f "$dotfile"; then
   color error "Error: cannot find $1 stack"
   cat << EOF
