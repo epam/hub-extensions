@@ -294,7 +294,7 @@ setup() {
   assert_failure
 }
 
-@test "params value -c: regression of issue #80" {
+@test "params value -c: test swallowing of component directive" {
   echo "Parameters file: $(basename $ISSUE_80_FILE)"
   cat "$ISSUE_80_FILE"
   run params -f "$ISSUE_80_FILE" -c external-dns value kubernetes.serviceAccount
