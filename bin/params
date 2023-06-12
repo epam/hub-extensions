@@ -153,7 +153,7 @@ json() {
 flatten() {
   jq -cMr " \
     .parameters \
-    | walk(if type==\"object\" and .parameters? then .name as \$pref | .parameters[] | select(.name == .name) | del(.name) + {name: (\$pref+\".\"+.name)} else . end) \
+    | walk(if type==\"object\" and .parameters? then . as \$parent | .parameters[] | select(.name == .name) | del(.name) + {name: (\$parent.name+\".\"+.name), component: (.component // \$parent.component)} else . end) \
     | walk(if type==\"object\" and .name then {(.name): . | del(.name)} else . end) \
   "
 }
@@ -190,12 +190,12 @@ getParamValue() {
   if test -z "$HUB_FILES"; then
     return 0
   fi
-  if test -n "$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first)"; then
-    value="$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first | readField "value")"
+  if test -n "$(json $HUB_FILES | flatten | compact | withName $1 | merge | withComponent "$component" | first)"; then
+    value="$(json $HUB_FILES | flatten | compact | withName $1 | merge | withComponent "$component" | first | readField "value")"
     if test -n "$value"; then
       echo "$value"
     else
-      envname="$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first | readField "fromEnv")"
+      envname="$(json $HUB_FILES | flatten | compact | withName $1 | merge | withComponent "$component" | first | readField "fromEnv")"
       if test -n "$envname"; then
         envval="$(dotenv get "$envname")"
         if test -z "$envval"; then
@@ -205,7 +205,7 @@ getParamValue() {
       if test -n "$envval"; then
         echo "$envval"
       else
-        default="$(json $HUB_FILES | flatten | withName $1 | merge | withComponent "$component" | first | readField "default")"
+        default="$(json $HUB_FILES | flatten | compact | withName $1 | merge | withComponent "$component" | first | readField "default")"
         if test -n "$default"; then
           echo "$default"
         fi
@@ -216,14 +216,18 @@ getParamValue() {
 
 getParamJson() {
   if test -n "$HUB_FILES"; then
-    json $HUB_FILES | flatten | withName "$1" | merge | withComponent "$component" | first | jq -cMr --arg n "$1" '. + {name: $n}'
+    json $HUB_FILES | flatten | compact | withName "$1" | merge | withComponent "$component" | first | jq -cMr --arg n "$1" '. + {name: $n}'
   fi
 }
 
 getFlatParams() {
   if test -n "$HUB_FILES"; then
-    json $HUB_FILES | flatten | merge | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
+    json $HUB_FILES | flatten | compact | merge | jq -cMr '[.[] | to_entries[] | {name: .key} + .value]'
   fi
+}
+
+compact() {
+  jq 'del(..|nulls)'
 }
 
 merge() {

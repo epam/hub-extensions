@@ -85,6 +85,27 @@ parameters:
 EOF
 }
 
+  export ISSUE_80_FILE="bats.issue-80.yaml"
+  cat >"$ISSUE_80_FILE" <<EOF
+---
+parameters:
+- name: kubernetes
+  component: external-dns
+  parameters:
+  - name: namespace
+    value: ns-a
+  - name: serviceAccount
+    value: account-a
+
+- name: kubernetes
+  component: cert-manager
+  parameters:
+  - name: namespace
+    value: ns-b
+  - name: serviceAccount
+    value: account-b
+EOF
+
 setup() {
   load 'helpers/bats-support/load'
   load 'helpers/bats-assert/load'
@@ -273,6 +294,18 @@ setup() {
   assert_failure
 }
 
+@test "params value -c: regression of issue #80" {
+  echo "Parameters file: $(basename $ISSUE_80_FILE)"
+  cat "$ISSUE_80_FILE"
+  run params -f "$ISSUE_80_FILE" -c external-dns value kubernetes.serviceAccount
+  assert_success
+  assert_output "account-a"
+
+  run params -f "$ISSUE_80_FILE" -c cert-manager value kubernetes.serviceAccount
+  assert_success
+  assert_output "account-b"
+}
+
 teardown_file() {
-  rm -v "$DOTENV_FILE" bats.params.yaml bats.params-*.yaml
+  rm -fv "$DOTENV_FILE" bats.*.yaml
 }
