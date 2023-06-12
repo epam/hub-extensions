@@ -13,6 +13,7 @@ GCP parameters:
   --gcp-project-id               GCP project ID (default to GOOGLE_PROJECT)
   --gcs-bucket-name              GCS bucket name (defaults to GOOGLE_PROJECT_superhub)
   --domain-name                  Domain name of the stack (we get one from bubble dns if not set)
+  --disable-dnssec               Disable DNSSEC for the domain
 EOF
 }
 
@@ -28,7 +29,7 @@ jq='jq -cM'
 # shellcheck disable=SC2089
 # curl='curl -isH "Metadata-Flavor: Google"'
 dotenv="dotenv -f $DOT_ENV"
-
+DNSSEC_STATE="on"
 while [ "$1" != "" ]; do
     case $1 in
     --gcs-bucket-name)
@@ -45,6 +46,10 @@ while [ "$1" != "" ]; do
     --domain-name)
         shift
         HUB_DOMAIN_NAME="$1"
+        ;;
+    --disable-dnssec )
+        shift
+        DNSSEC_STATE="off"
         ;;
     esac
     shift
@@ -115,6 +120,8 @@ else
     echo "  Creating (takes a minute)... "
     gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
       --description="Managed by hubctl" \
+      --dnssec-state="$DNSSEC_STATE" \
+      --no-log-dns-queries \
       --dns-name="$HUB_DOMAIN_NAME" 2>&1 | ident;
   else
     echo "found"
