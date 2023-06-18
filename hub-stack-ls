@@ -98,7 +98,7 @@ print_stacks() {
   fi
 }
 
-result=temp_file
+result="$(temp_file)"
 
-print_stacks > $result
-column -t -s"|" < $result
+print_stacks > "$result"
+column -t -s"|" < "$result"
