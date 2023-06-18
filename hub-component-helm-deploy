@@ -1,6 +1,6 @@
 #!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -155,17 +155,19 @@ if test -x pre-deploy; then
 fi
 
 if test -n "$CRD"; then
-    echo "Processing CRD: $CRD"
-    if echo "$CRD" | grep -e '^https\?://' >/dev/null 2>&1; then
-        echo "* Downloading from URL..."
-        temp=$(temp_file)
-        files download "$CRD" "$temp"
-        apply_crd_file "$temp"
-    elif test -f "$CRD"; then
-        apply_crd_file "$CRD"
-    else
-        color w "Warning: file not found ($CRD)"
-    fi
+    for crd in $CRD; do
+        if echo "$crd" | grep -e '^https\?://' >/dev/null 2>&1; then
+            echo "* Downloading from $crd"
+            temp=$(temp_file)
+            files download "$crd" "$temp"
+            apply_crd_file "$temp"
+        elif test -f "$crd"; then
+            echo "* Reading from: $crd"
+            apply_crd_file "$crd"
+        else
+            color w "Warning: file not found ($CRD)"
+        fi
+    done
 fi
 if test -d "crds"; then
     for file in crds/*.yaml crds/*.yml; do

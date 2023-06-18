@@ -101,17 +101,19 @@ if test "$VERB" = "deploy"; then
     fi
   fi
   if test -n "$CRD"; then
-      if echo "$CRD" | grep -e '^https\?://' >/dev/null 2>&1; then
-          echo "* Downloading CRD from: $CRD ..."
-          temp=$(temp_file)
-          files download "$CRD" "$temp"
-          apply_k8s_resources_file "$temp"
-      elif test -f "$CRD"; then
-          echo "* Reading CRD from: $CRD"
-          apply_k8s_resources_file "$CRD"
-      else
-        color w "Warning: file not found ($CRD)"
-      fi
+    for crd in $CRD; do
+        if echo "$crd" | grep -e '^https\?://' >/dev/null 2>&1; then
+            echo "* Downloading from $crd"
+            temp=$(temp_file)
+            files download "$crd" "$temp"
+            apply_crd_file "$temp"
+        elif test -f "$crd"; then
+            echo "* Reading from: $crd"
+            apply_crd_file "$crd"
+        else
+            color w "Warning: file not found ($CRD)"
+        fi
+    done
   fi
   if test -d "crds"; then
       for file in crds/*.yaml crds/*.yml; do
