@@ -160,6 +160,8 @@ echo "${ZONE_ID:-not found}"
 
 if $DRY_RUN; then
   echo "* Dry run mode detected: skipping Route53 modification"
+elif test -z "$ZONE_ID"; then
+  printf "* The domain name \"%s\" is not present in the list of hosted zones within the Route 53 service.\n" "$HUB_DOMAIN_NAME"
 elif test "$DNS_MANAGER" = "bubbles"; then
   if test -z "$ZONE_ID"; then
     echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
@@ -224,10 +226,10 @@ fi
 
 export HUB_CLOUD_PROVIDER=aws
 $dotenv set 'HUB_CLOUD_PROVIDER' "aws"
-$dotenv contains"$AWS_PROFILE"        || $dotenv set "AWS_PROFILE" "$AWS_PROFILE"
-$dotenv contains"$AWS_REGION"         || $dotenv set "AWS_REGION" "$AWS_REGION"
-$dotenv contains"$HUB_STATE_BUCKET"   || $dotenv set "HUB_STATE_BUCKET" "$HUB_STATE_BUCKET"
-$dotenv contains "$HUB_STATE_REGION"  || $dotenv set "HUB_STATE_REGION" "$HUB_STATE_REGION"
+$dotenv contains "$AWS_PROFILE"        || $dotenv set "AWS_PROFILE" "$AWS_PROFILE"
+$dotenv contains "$AWS_REGION"         || $dotenv set "AWS_REGION" "$AWS_REGION"
+$dotenv contains "$HUB_STATE_BUCKET"   || $dotenv set "HUB_STATE_BUCKET" "$HUB_STATE_BUCKET"
+$dotenv contains "$HUB_STATE_REGION"   || $dotenv set "HUB_STATE_REGION" "$HUB_STATE_REGION"
 
 # TODO: currently aws toolbox is not available
 if ! $dotenv contains "$HUB_TOOLBOX_IMAGE"; then
