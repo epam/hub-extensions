@@ -1,0 +1,56 @@
+#!/bin/bash -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+
+usage() {
+  cat << EOF
+AWS parameters:
+  --aws-region               AWS Region (defaults to value from: AWS_REGION)
+  --aws-profile              AWS Profile (defaults to value from: AWS_PROFILE)
+EOF
+}
+
+while [ "$1" != "" ]; do
+  case $1 in
+    --aws-region )      shift
+                        AWS_REGION="$1"
+                        ;;
+    --aws-profile )     shift
+                        AWS_PROFILE="$1"
+                        ;;
+  esac
+  shift
+done
+
+aws_profiles_list="$(aws --profile "$AWS_PROFILE" configure list-profiles)"
+if test -n "$aws_profiles_list"; then
+  cat <<EOF
+  List of available profiles:
+$aws_profiles_list
+EOF
+  suggest_profile="$(echo "$aws_profiles_list" | head -n 1)"
+  ask env "AWS_PROFILE" --suggest "$suggest_profile"
+  AWS_PROFILE="$(dotenv get AWS_PROFILE)"
+  echo "* Using AWS profile: $AWS_PROFILE"
+else
+  cat <<EOF
+  Error!
+  None AWS profile has not been found.
+
+  You can resolve this error by running: aws configure
+  or: aws configure sso
+EOF
+  exit 1
+fi
+
+
+suggest_region=$(aws configure get region --profile "$AWS_PROFILE")
+ask env "AWS_REGION" --suggest "$suggest_region"
+AWS_REGION="$(dotenv get AWS_REGION)"
+echo "* Using AWS region: $AWS_REGION"
+
+export AWS_PROFILE AWS_REGION
