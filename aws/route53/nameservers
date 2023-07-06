@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -26,7 +26,8 @@ if test -z "$HUB_DOMAIN_NAME"; then
   exit 1
 fi
 
-ZONE_ID=$($(dirname "$0")/zone-id --domain-name "$HUB_DOMAIN_NAME")
+zone_id="$(files find-in-path aws/route53/zone-id)"
+ZONE_ID=$($zone_id --domain-name "$HUB_DOMAIN_NAME")
 if test -n "$ZONE_ID"; then
   aws $AWS_OPTS \
     route53 \

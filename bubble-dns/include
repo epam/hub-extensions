@@ -1,6 +1,6 @@
-#!/bin/bash
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,7 +10,9 @@
 configureBubbleDNS() {
   echo "Configuring Bubble DNS"
   # FIXME: write posix compatible code
-  $(dirname "${BASH_SOURCE[0]}")/new --output "$DOT_ENV" $BUBBLES_FLAGS
+  new="$(files -e find-in-path bubble-dns/new)"
+  # shellcheck disable=SC2086
+  $new --output "$DOT_ENV" $BUBBLES_FLAGS
   # Reading newly generated domain name by script above
   HUB_DOMAIN_NAME=$(dotenv -f "$DOT_ENV" get "HUB_DOMAIN_NAME")
   HUB_DOMAIN_SECRET=$(dotenv -f "$DOT_ENV" get "HUB_DOMAIN_SECRET")
@@ -21,7 +23,6 @@ configureBubbleDNS() {
 }
 
 updateBubbleDNS() {
-  local domain secret
   domain="$1"
   secret="$2"
   if test -z "$domain"; then
@@ -32,6 +33,7 @@ updateBubbleDNS() {
     echo "Error: cannot find configuration 'domain secret'"
     exit 1
   fi
-  echo -n "* Sending request to update $domain record: "
-  $(dirname "${BASH_SOURCE[0]}")/update --domain-name "$domain" --bubbles-secret-key "$secret"
+  printf "* Sending request to update %s record: " "$domain"
+  update="$(files -e find-in-path bubble-dns/update)"
+  $update --domain-name "$domain" --bubbles-secret-key "$secret"
 }

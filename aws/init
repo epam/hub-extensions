@@ -1,10 +1,9 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 
 usage() {
   cat << EOF
@@ -14,43 +13,85 @@ AWS parameters:
 EOF
 }
 
+ask_region=""
+ask_profile=""
 while [ "$1" != "" ]; do
   case $1 in
-    --aws-region )      shift
-                        AWS_REGION="$1"
-                        ;;
     --aws-profile )     shift
                         AWS_PROFILE="$1"
+                        ask_profile="--non-interactive"
+                        ;;
+    --aws-region )      shift
+                        AWS_REGION="$1"
+                        ask_region="--non-interactive"
                         ;;
   esac
   shift
 done
 
-aws_profiles_list="$(aws --profile "$AWS_PROFILE" configure list-profiles)"
-if test -n "$aws_profiles_list"; then
-  cat <<EOF
-  List of available profiles:
-$aws_profiles_list
-EOF
-  suggest_profile="$(echo "$aws_profiles_list" | head -n 1)"
-  ask env "AWS_PROFILE" --suggest "$suggest_profile"
-  AWS_PROFILE="$(dotenv get AWS_PROFILE)"
-  echo "* Using AWS profile: $AWS_PROFILE"
-else
-  cat <<EOF
-  Error!
-  None AWS profile has not been found.
+aws_profiles_list="$(aws configure list-profiles --output text)"
+if test -z "$aws_profiles_list"; then
+cat <<EOF | color error
 
-  You can resolve this error by running: aws configure
-  or: aws configure sso
+AWS profile is not configured.
+
+Hubctl requires AWS profile to be configured to use it across all components.
+
+You can resolve this error by running:
+
+  aws configure --profile default
+  hubctl stack init
+
 EOF
   exit 1
 fi
 
+color green "  AWS profile that will be used by hubctl"
+for profile in $aws_profiles_list; do
+  color green "  - $profile"
+done
 
-suggest_region=$(aws configure get region --profile "$AWS_PROFILE")
-ask env "AWS_REGION" --suggest "$suggest_region"
+if test -n "$AWS_PROFILE" -o -n "$AWS_DEFAULT_PROFILE"; then
+  suggest_profile="$(echo "$AWS_PROFILE $AWS_DEFAULT_PROFILE" | cut -d' ' -f1)"
+  ask_profile="$ask_profile -t env"
+else
+  suggest_profile="$(echo "$aws_profiles_list" | head -n 1)"
+  ask_profile="$ask_profile -t config --suggest $suggest_profile"
+fi
+
+# shellcheck disable=SC2086
+ask env "AWS_PROFILE" $ask_profile
+AWS_PROFILE="$(dotenv get AWS_PROFILE)"
+export AWS_PROFILE
+
+printf "* Testing AWS connection... "
+aws sts get-caller-identity >/dev/null
+color green "ok"
+
+if params -e value cloud.region > /dev/null 2>&1 ; then
+  AWS_REGION="$(params value cloud.region)"
+  printf "* Using region from parameter cloud.region: "
+  color h "$AWS_REGION"
+  dotenv set AWS_REGION "$AWS_REGION"
+elif test -n "$AWS_REGION"; then
+  suggest_region="$AWS_REGION"
+  ask_region="$ask_region -t env --suggest $suggest_region"
+else
+  suggest_region="$(aws configure get region)"
+  ask_region="$ask_region -t profile --suggest $suggest_region"
+fi
+if test -z "$suggest_region"; then
+  ask_region="$ask_region -t default --suggest us-east-1"
+fi
+
+# shellcheck disable=SC2086
+ask env "AWS_REGION" $ask_region
 AWS_REGION="$(dotenv get AWS_REGION)"
-echo "* Using AWS region: $AWS_REGION"
+printf "* Testing if region exists... "
+aws ec2 describe-regions --region "$AWS_REGION" >/dev/null
+color green "ok"
 
-export AWS_PROFILE AWS_REGION
+cat <<EOF | color green
+  Variables AWS_PROFILE and AWS_REGION has been saved in .env file
+  You can change it later by editing the file
+EOF

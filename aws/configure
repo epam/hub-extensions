@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,6 +10,8 @@
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+export HUB_EXTENSION
+
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
@@ -17,7 +19,6 @@ usage() {
   cat << EOF
 AWS parameters:
   --aws-region               AWS Region (defaults to value from: AWS_REGION)
-  --aws-profile              AWS Profile (defaults to value from: AWS_PROFILE)
   --dry-run                  Do not deploy cloud resources, show what will happen
   --domain-name              Custom DNS domain name under existing base domain
   --base-domain-aws-profile  AWS Profile for base domain (in case base domain
@@ -39,7 +40,6 @@ Bubble DNS parameters:
 EOF
 }
 
-BUBBLES_FLAGS=$* # TODO untangle Bubble DNS global vars into function args
 DRY_RUN=false
 DNS_MANAGER=bubbles
 PREFER_LOCAL_STATE=false
@@ -47,9 +47,25 @@ while [ "$1" != "" ]; do
   case $1 in
     --aws-region )      shift
                         AWS_REGION="$1"
+                        cat << EOF | color w
+
+Option --aws-profile is deprecated.
+
+To set AWS profile use:
+  hubctl stack init
+
+EOF
                         ;;
     --aws-profile )     shift
                         AWS_PROFILE="$1"
+                        cat << EOF | color w
+
+Option --aws-profile is deprecated.
+
+To set AWS profile use:
+  hubctl stack init
+
+EOF
                         ;;
     --domain-name )     shift
                         HUB_DOMAIN_NAME="$1"
@@ -85,25 +101,32 @@ if test -z "$DOT_ENV"; then
   exit 2
 fi
 
-source $(dirname "$0")/../bubble-dns/include
+r53_deploy="$(files -e find-in-path aws/route53/deploy)"
+s3_deploy="$(files -e find-in-path aws/s3-bucket/deploy)"
+zone_id="$(files -e find-in-path aws/route53/zone-id)"
+bubble_dns_update="$(files -e find-in-path bubble-dns/update)"
+r53_upsert="$(files -e find-in-path aws/route53/upsert)"
+r53_private_zone="$(files -e find-in-path aws/route53/private-zone)"
+r53_zone_id="$(files -e find-in-path aws/route53/zone-id)"
+r53_nameservers="$(files -e find-in-path aws/route53/nameservers)"
 
 dotenv="dotenv -f $DOT_ENV"
 
-if test "$DNS_ACTION" = "update"; then
-  updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
-  exit $?
-fi
-
-if test -z "$HUB_DOMAIN_NAME"; then
-  configureBubbleDNS
-elif test -z "$HUB_DOMAIN_SECRET"; then
+if test -z "$HUB_DOMAIN_SECRET"; then
   DNS_MANAGER=user
   echo "* Using domain name provided by user: $HUB_DOMAIN_NAME"
+else
+  if test "$DNS_ACTION" = "update"; then
+    printf "* Sending request to update %s record... " "$HUB_DOMAIN_NAME"
+    $bubble_dns_update --domain-name "$HUB_DOMAIN_NAME" --bubbles-secret-key "$HUB_DOMAIN_SECRET"
+    exit $?
+  fi
 fi
 
+
 # TODO state bucket per region?
-echo "Configuring AWS S3"
 AWS_PROFILE=${AWS_PROFILE:-$(echo "$AWS_DEFAULT_PROFILE default" | awk '{print $1;}')}
+echo "Configuring AWS S3"
 if aws --profile $AWS_PROFILE configure list > /dev/null 2>&1; then
   AWS_OPTS="$AWS_OPTS --profile $AWS_PROFILE"
   echo "* Using AWS profile: $AWS_PROFILE"
@@ -120,7 +143,12 @@ if test -z "$AWS_REGION"; then
   fi
 fi
 
-echo "* Using AWS region: $AWS_REGION"
+printf "* Testing AWS connection... "
+aws $AWS_OPTS sts get-caller-identity >/dev/null
+color green "ok"
+
+printf "* Using AWS region: "
+color h "$AWS_REGION"
 
 export AWS_PROFILE AWS_REGION
 
@@ -129,56 +157,70 @@ if test -z "$HUB_STATE_BUCKET"; then
   HUB_STATE_BUCKET="$AWS_ACCOUNT.superhub.io"
 fi
 
-echo -n "* Checking presence of bucket $HUB_STATE_BUCKET: "
+printf "* Checking presence of bucket %s: " "$HUB_STATE_BUCKET"
 if aws $AWS_OPTS s3api head-bucket --bucket=$HUB_STATE_BUCKET > /dev/null 2>&1; then
   HUB_STATE_REGION="$(
     aws $AWS_OPTS s3api get-bucket-location \
       --bucket="$HUB_STATE_BUCKET" --query 'LocationConstraint' \
       --output text \
       | sed -e 's/None/us-east-1/g')"
-  echo "exist"
+  color h "exist"
 else
   if test -z "$HUB_STATE_REGION"; then
     HUB_STATE_REGION="$AWS_REGION"
   fi
   if $DRY_RUN; then
-    echo "will be deployed"
+    color h "will be deployed"
   else
-    echo "not found"
-    echo -n "* Deploying S3 bucket $HUB_STATE_BUCKET in $HUB_STATE_REGION region: "
-    $(dirname "$0")/s3-bucket/deploy \
+    color h "not found"
+    printf "* Deploying S3 bucket %s in %s region: " "$HUB_STATE_BUCKET" "$HUB_STATE_REGION"
+    $s3_deploy \
       --bucket-name "$HUB_STATE_BUCKET" \
       --aws-region "$HUB_STATE_REGION" \
       --acl "private"
   fi
 fi
 
-echo "Configuring AWS Route53"
-echo -n "* Checking presence of hosted zone $HUB_DOMAIN_NAME: "
-ZONE_ID=$($(dirname $0)/route53/zone-id --domain-name $HUB_DOMAIN_NAME)
-echo "${ZONE_ID:-not found}"
+param_name() {
+  result="$(params env "$1" | jq -r '.name | select(.)')"
+  if test -z "$result" -a -n "$2"; then
+    result="$(params json "$2" | jq -r '.name | select(.)')"
+  fi
+  echo "$result"
+}
+
+has_dnsdomain_param="$(param_name HUB_DOMAIN_NAME dns.domain)"
+
+if test -n "$has_dnsdomain_param"; then
+  echo "Configuring AWS Route53"
+  printf "* Checking presence of hosted zone %s: " "$HUB_DOMAIN_NAME"
+  ZONE_ID=$($zone_id --domain-name $HUB_DOMAIN_NAME)
+  color h "${ZONE_ID:-not found}"
+else
+  DNS_MANAGER=none
+fi
 
 if $DRY_RUN; then
-  echo "* Dry run mode detected: skipping Route53 modification"
+  color w "* Dry run mode detected: skipping Route53 modification"
 elif test "$DNS_MANAGER" = "bubbles"; then
   if test -z "$ZONE_ID"; then
-    echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
-    $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
+    printf "* Deploying hosted zone %s (takes a minute)... " "$HUB_DOMAIN_NAME"
+    $r53_deploy --domain-name "$HUB_DOMAIN_NAME"
   fi
 elif test "$DNS_MANAGER" = "user"; then
   if test -n "$HUB_BASE_DOMAIN_AWS_PROFILE"; then
     parent_aws_profile_flag="--aws-profile $HUB_BASE_DOMAIN_AWS_PROFILE"
   fi
-  private_zone=$($(dirname "$0")/route53/private-zone --domain-name "$HUB_DOMAIN_NAME")
+  private_zone=$($r53_private_zone --domain-name "$HUB_DOMAIN_NAME")
   if test "$private_zone" != True; then
     PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
-    echo -n "* Checking presence of parent hosted zone $PARENT_DOMAIN: "
-    PARENT_ZONE_ID=$($(dirname "$0")/route53/zone-id --domain-name "$PARENT_DOMAIN" $parent_aws_profile_flag)
+    printf "* Checking presence of parent hosted zone %s: " "$PARENT_DOMAIN"
+    PARENT_ZONE_ID=$($r53_zone_id --domain-name "$PARENT_DOMAIN" $parent_aws_profile_flag)
     echo "${PARENT_ZONE_ID:-not found}"
   fi
   if test -z "$ZONE_ID"; then
     if test -z "$PARENT_ZONE_ID" -a "$private_zone" != True; then
-      cat <<EOF
+      cat <<EOF | color e
 
 Error!
 Route 53 hosted zone $HUB_DOMAIN_NAME has not been found.
@@ -194,21 +236,21 @@ Abort!
 EOF
       exit 5
     fi
-    echo -n "* Deploying hosted zone $HUB_DOMAIN_NAME (takes a minute)... "
-    $(dirname "$0")/route53/deploy --domain-name "$HUB_DOMAIN_NAME"
-    echo "Done"
+    printf "* Deploying hosted zone %s (takes a minute)... " "$HUB_DOMAIN_NAME"
+    $r53_deploy --domain-name "$HUB_DOMAIN_NAME"
+    color g "Done"
   fi
   if test -n "$PARENT_ZONE_ID" -a "$private_zone" != True; then
-    echo -n "* Updating $HUB_DOMAIN_NAME NS records in $PARENT_DOMAIN / $PARENT_ZONE_ID (takes a minute)... "
-    ns=$($(dirname "$0")/route53/nameservers --domain-name "$HUB_DOMAIN_NAME" --json | jq -c '[.[] | {"Value":.}]')
-    $(dirname "$0")/route53/upsert \
+    printf "* Updating %s NS records in %s / %s (takes a minute)... " "$HUB_DOMAIN_NAME" "$PARENT_DOMAIN" "$PARENT_ZONE_ID"
+    ns=$($r53_nameservers --domain-name "$HUB_DOMAIN_NAME" --json | jq -c '[.[] | {"Value":.}]')
+    $r53_upsert \
       --zone-id "$PARENT_ZONE_ID" \
       --record-name "$HUB_DOMAIN_NAME" \
       --record-type NS \
       --record-ttl 300 \
       --record-value "$ns" \
       $parent_aws_profile_flag
-    echo "Done"
+    color g "Done"
   fi
   # make sure .env file is up-to-date
   $dotenv set "HUB_DOMAIN_NAME=\"$HUB_DOMAIN_NAME\""
@@ -217,30 +259,33 @@ EOF
   if test -n "$HUB_BASE_DOMAIN_AWS_PROFILE"; then
     $dotenv set "HUB_BASE_DOMAIN_AWS_PROFILE=\"$HUB_BASE_DOMAIN_AWS_PROFILE\""
   fi
+elif test "$DNS_MANAGER" = "none"; then
+  echo "  Skipping route53 configuration because dns.domain parameter is not set"
+  cat << EOF | color g
+  If you want to enable domain name generation. Please add following parameter to your hubfile
+  - name: dns.domain
+    fromEnv: HUB_DOMAIN_NAME
+EOF
 else
   echo "Error: unsupported DNS operation"
   exit 6
 fi
 
 export HUB_CLOUD_PROVIDER=aws
-$dotenv set 'HUB_CLOUD_PROVIDER' "aws"
-$dotenv contains"$AWS_PROFILE"        || $dotenv set "AWS_PROFILE" "$AWS_PROFILE"
-$dotenv contains"$AWS_REGION"         || $dotenv set "AWS_REGION" "$AWS_REGION"
-$dotenv contains"$HUB_STATE_BUCKET"   || $dotenv set "HUB_STATE_BUCKET" "$HUB_STATE_BUCKET"
+$dotenv contains 'HUB_CLOUD_PROVIDER' || $dotenv set "HUB_CLOUD_PROVIDER" "aws"
+$dotenv contains "$AWS_PROFILE"       || $dotenv set "AWS_PROFILE" "$AWS_PROFILE"
+$dotenv contains "$AWS_REGION"        || $dotenv set "AWS_REGION" "$AWS_REGION"
+$dotenv contains "$HUB_STATE_BUCKET"  || $dotenv set "HUB_STATE_BUCKET" "$HUB_STATE_BUCKET"
 $dotenv contains "$HUB_STATE_REGION"  || $dotenv set "HUB_STATE_REGION" "$HUB_STATE_REGION"
-
-# TODO: currently aws toolbox is not available
-if ! $dotenv contains "$HUB_TOOLBOX_IMAGE"; then
-  color w "Toolbox image for AWS is not yet available.. using toolbox base image for now"
-  $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:aws"
-fi
+$dotenv contains "$HUB_TOOLBOX_IMAGE" || $dotenv set "HUB_TOOLBOX_IMAGE" "ghcr.io/epam/hub-toolbox:aws"
 
 if ! $DRY_RUN && test -n "$HUB_DOMAIN_SECRET"; then
-  updateBubbleDNS "$HUB_DOMAIN_NAME" "$HUB_DOMAIN_SECRET"
-  cat <<EOF
-* DNS record has time to live: 72 hours
+  printf "* Sending request to update %s record... " "$HUB_DOMAIN_NAME"
+  $bubble_dns_update --domain-name "$HUB_DOMAIN_NAME" --bubbles-secret-key "$HUB_DOMAIN_SECRET"
+  cat <<EOF | color g
+  DNS record has time to live: 72 hours
 
-# Hint! To refresh DNS: hubctl configure -r aws --dns-update
+  Hint! To refresh DNS: hubctl configure -r aws --dns-update
 
 EOF
 fi
@@ -252,7 +297,7 @@ if test -z "$HUB_STATE"; then
   if ! $PREFER_LOCAL_STATE; then
     HUB_STATE_FILE="$HUB_STATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
   fi
-  $dotenv set "HUB_STATE=\"$HUB_STATE_FILE\""
+  $dotenv set "HUB_STATE" "$HUB_STATE_FILE"
 fi
 if test -z "$HUB_ELABORATE"; then
   echo "* Setting hubctl elaborate file location"
@@ -260,5 +305,5 @@ if test -z "$HUB_ELABORATE"; then
   if ! $PREFER_LOCAL_STATE; then
     HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
   fi
-  $dotenv set "HUB_ELABORATE=\"$HUB_ELABORATE_FILE\""
+  $dotenv set "HUB_ELABORATE" "HUB_ELABORATE_FILE"
 fi

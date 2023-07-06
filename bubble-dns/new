@@ -24,12 +24,13 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-echo "* Using parent domain: $HUB_PARENT_DOMAIN"
+printf "* Using parent domain: "
+color h "$HUB_PARENT_DOMAIN"
 TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 # shellcheck disable=SC2064
 trap "rm -f $TEMP" EXIT
 
-printf "* Resolving new domain name: "
+printf "* Resolving new domain name... "
 HUB_BUBBLE_DNS_URL=${HUB_BUBBLE_DNS_URL:-"https://prod-dns.bubbles.devops.delivery/"}
 HTTP_CODE=$( \
   curl -sL -X POST "$HUB_BUBBLE_DNS_URL" \
@@ -41,7 +42,7 @@ HTTP_CODE=$( \
 
 # checking if http code is 2**
 if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
-  cat << EOF
+  cat << EOF | color e
 Error
 
 Please try again later!
@@ -54,7 +55,7 @@ EOF
   exit 1
 fi
 HUB_DOMAIN_NAME="$(jq -r '.domain' < "$TEMP")"
-echo "$HUB_DOMAIN_NAME"
+color h "$HUB_DOMAIN_NAME"
 
 if test -n "$DOT_ENV"; then
   dotenv="dotenv -f $DOT_ENV"
