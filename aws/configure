@@ -305,5 +305,5 @@ if test -z "$HUB_ELABORATE"; then
   if ! $PREFER_LOCAL_STATE; then
     HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
   fi
-  $dotenv set "HUB_ELABORATE" "HUB_ELABORATE_FILE"
+  $dotenv set "HUB_ELABORATE" "$HUB_ELABORATE_FILE"
 fi
