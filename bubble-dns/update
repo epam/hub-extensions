@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -72,7 +72,7 @@ HTTP_CODE=$(curl -sLo $TEMP -w "%{http_code}" -X PUT \
 set -e
 # Checking for return code 2??
 if test "$(echo $HTTP_CODE | cut -c1-1)" != "2"; then
-  cat << EOF
+  cat << EOF | color e
 Error
 
 Please try again later!
@@ -80,12 +80,12 @@ Please try again later!
 Troubleshooting info:
 * Web services returned error code: $HTTP_CODE
 EOF
-  echo -n "* Server response: "
+  printf "* Server response: "
   if test -s "$TEMP"; then
-    cat $TEMP
+    cat $TEMP | color e
   else
-    echo "not available"
+    color e "not available"
   fi
   exit 1
 fi
-echo "Done"
+color g "Done"
