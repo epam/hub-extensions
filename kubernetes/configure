@@ -1,6 +1,6 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,7 +20,6 @@ Use: $HUB_EXTENSION [--kubecontext _] or [--current-kubecontext] for current kub
 EOF
 }
 
-KUBECONTEXT="_"
 DOT_ENV=${DOT_ENV:-".env"}
 while [ "$1" != "" ]; do
   case "$1" in
@@ -57,39 +56,48 @@ if test -z "$HUB_DOMAIN_NAME"; then
   HUB_DOMAIN_NAME="$(dotenv get "HUB_DOMAIN_NAME")"
 fi
 
-if test -z "$KUBECONTEXT"; then
-  usage
-  exit 1
-fi
 
 TEMP=$(mktemp || exit 1)
 trap "rm -f $TEMP" EXIT
 
 
 echo "Configuring Kubernetes"
-if 
+if test -z "$KUBECONTEXT"; then
+  KUBECONTEXT="$(params value "kubernetes.context")"
+  if test -n "$KUBECONTEXT"; then
+    printf "* Using context set by kubernetes.context parameter: "
+    color b "$KUBECONTEXT"
+  fi
+fi
+
+if test -z "$KUBECONTEXT"; then
+  echo "* Using current context from kubeconfig"
+  KUBECONTEXT="_"
+fi
+
+if
     test -n "$HUB_KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" \
     && kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
-  echo -n "* Using kubeconfig from env: "
+  printf "* Using kubeconfig from env: "
   color b "HUB_KUBECONFIG"
 elif
     test -n "$KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG" \
     && kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
-  echo -n "* Using kubeconfig from env: "
+  printf "* Using kubeconfig from env: "
   color b "KUBECONFIG"
 elif kubeconfig test -c "$KUBECONTEXT" -f "$HOME/.kube/config" \
     && kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" -o "$TEMP" > /dev/null 2>&1; then : #pass
-  echo -n "* Using kubeconfig from default location: "
+  printf "* Using kubeconfig from default location: "
   # shellcheck disable=SC2016
   color b '$HOME/.kube/config'
 elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then : #pass
-  echo -n "* Using kubeconfig service account"
+  printf "* Using kubeconfig service account"
 else
   color w "Cannot configure kubeconfig. This may be ok if one of the components provides kubernetes"
   echo "TODO: implement check for this case"
 fi
 
-echo  -n "* Setting up shared location for kubernetes "
+printf "* Setting up shared location for kubernetes "
 color b ".hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 copy "$TEMP" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 chmod go-rw "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"

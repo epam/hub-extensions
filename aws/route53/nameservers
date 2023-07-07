@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2022 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -22,7 +22,7 @@ while [ "$1" != "" ]; do
 done
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Flag --domain-name DOMAIN is not defined"
+  color e "Flag --domain-name DOMAIN is not defined"
   exit 1
 fi
 
