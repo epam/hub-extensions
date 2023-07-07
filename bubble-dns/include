@@ -17,7 +17,7 @@ configureBubbleDNS() {
   HUB_DOMAIN_NAME=$(dotenv -f "$DOT_ENV" get "HUB_DOMAIN_NAME")
   HUB_DOMAIN_SECRET=$(dotenv -f "$DOT_ENV" get "HUB_DOMAIN_SECRET")
   if test -z "$HUB_DOMAIN_NAME" -o -z "$HUB_DOMAIN_SECRET"; then
-    echo "Error: cannot allocate domain name"
+    color e "Cannot allocate domain name"
     exit 1
   fi
 }
@@ -26,11 +26,11 @@ updateBubbleDNS() {
   domain="$1"
   secret="$2"
   if test -z "$domain"; then
-    echo "Error: cannot find configuration 'domain name'"
+    color e "Cannot find configuration 'domain name'"
     exit 1
   fi
   if test -z "$secret"; then
-    echo "Error: cannot find configuration 'domain secret'"
+    color e "Cannot find configuration 'domain secret'"
     exit 1
   fi
   printf "* Sending request to update %s record: " "$domain"

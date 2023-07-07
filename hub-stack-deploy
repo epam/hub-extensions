@@ -1,5 +1,5 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -58,6 +58,10 @@ Parameters:
 EOF
 }
 
+is_url() {
+  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+}
+
 maybe_verb=$(basename "$0" | cut -d- -f3)
 if test -z "$maybe_verb"; then
   usage
@@ -110,7 +114,7 @@ done
 
 finalize() {
   status="$($hubctl show -- '.status.status')"
-  echo -n "Deployment status: "
+  printf "Deployment status: "
   if test "$1" = "0"; then
 cat << EOF | color green
 $status
@@ -164,11 +168,11 @@ EOF
 fi
 
 if test "$HUB_AUTOCONFIGURE" = "1"; then
-  echo -n "Proceeding with:"; color h "configure"
+  printf "Proceeding with:"; color h "configure"
   $hubctl stack configure "$(test "$VERBOSE" = "true" && echo "--verbose")"
   echo "Reloading .env file"
   eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
-  echo -n "Proceeding with:"; color h "$verb"
+  printf "Proceeding with:"; color h "$verb"
 fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
@@ -212,7 +216,7 @@ if test -z "$HUB_STATE"; then
   HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
 fi
 echo "* Using hubctl state:"
-for i in ${HUB_STATE//,/ }; do
+for i in $(echo $HUB_STATE | sed "s/,/ /g"); do
   echo "  - $i"
 done
 
@@ -220,9 +224,9 @@ if test -z "$HUB_ELABORATE"; then
   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
 fi
 echo "* Using hubctl elaborate:"
-for i in ${HUB_ELABORATE//,/ }; do
+for i in $(echo $HUB_ELABORATE | sed "s/,/ /g"); do
   echo "  - $i"
-  if ! grep :// <<<$i >/dev/null; then
+  if ! is_url "$i"; then
     HUB_ELABORATE_FILE=$i
   fi
 done
@@ -257,11 +261,15 @@ for i in $(echo "$BEFORE" | xargs -n1); do
   else
     hook=$(files find-in-path "$i/before-${verb}")
     if test -z "$hook"; then
-      color warn "  Warning! cannot find before hook: $i"
-      continue
+      hook=$(files find-in-path "$i/pre-${verb}")
     fi
   fi
-  echo -n "  Running before ${verb} hook: "
+  if test -z "$hook"; then
+    color warn "Cannot find pre hook: $i"
+    continue
+  fi
+
+  printf "Running pre %s hook: " "$verb"
   color bold "$i"
   $hook
 done
@@ -297,11 +305,14 @@ for i in $(echo "$AFTER" | xargs -n1); do
   else
     hook=$(files find-in-path "$i/after-${verb}")
     if test -z "$hook"; then
-      color warn "  Warning! cannot find after hook: $i"
-      continue
+      hook=$(files find-in-path "$i/post-${verb}")
     fi
   fi
-  echo -n "  Running after ${verb} hook: "
+  if test -z "$hook"; then
+    color warn "Cannot find post hook: $i"
+    continue
+  fi
+  printf "  Running post %s hook: " "$verb"
   color bold "$i"
   $hook
 done

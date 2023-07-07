@@ -60,7 +60,7 @@ tag_hosted_zone() {
   aws $AWS_OPTS route53 change-tags-for-resource \
     --resource-type "hostedzone" \
     --resource-id "$1" \
-    --add-tags "Key=superhub.io/stack/$HUB_DOMAIN_NAME,Value=owned"
+    --add-tags "Key=hubctl.io/stack/$HUB_DOMAIN_NAME,Value=owned"
 }
 
 gen_random() {
