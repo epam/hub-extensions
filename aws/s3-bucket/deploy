@@ -1,6 +1,6 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -52,13 +52,11 @@ bucket_exists() {
   aws s3api head-bucket --bucket="$1" 2>/dev/null
 }
 
-set +e
-bucket_exists "$BUCKET_NAME"
-if test "$?" = "0"; then
+
+if bucket_exists "$BUCKET_NAME"; then
   echo "Bucket already exists"
   exit 0
 fi
-set -e
 
 if test "$AWS_REGION" != "us-east-1"; then
   LOCATION="--create-bucket-configuration LocationConstraint=$AWS_REGION"
@@ -71,7 +69,7 @@ RESULT=$(aws s3api create-bucket \
         --acl="$ACL" \
         --region="$AWS_REGION" $LOCATION 2>&1 >/dev/null)
 RV="$?"
-if test "$RV" != "0"; then 
+if test "$RV" != "0"; then
   if echo "$RESULT" | grep "BucketAlreadyOwnedByYou" >/dev/null; then
     RESULT="Bucket already exists"
   fi

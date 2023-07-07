@@ -1,6 +1,6 @@
-#!/bin/bash -ex
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/bash -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -55,12 +55,13 @@ if test -z "$ZONE_ID"; then
   exit
 fi
 
+# TODO: rewrite with posix compatible code
 aws route53 list-resource-record-sets \
-  --hosted-zone-id $ZONE_ID |
+  --hosted-zone-id "$ZONE_ID" |
 jq -c '.ResourceRecordSets[]' |
 while read -r resourcerecordset; do
   read -r name type <<<"$(jq -r '.Name,.Type' <<<"$resourcerecordset")"
-  if test "$type" != "NS" && test "$type" != "SOA" ]; then
+  if test "$type" != "NS" -a "$type" != "SOA"; then
     change_id=$(aws route53 change-resource-record-sets \
       --hosted-zone-id $ZONE_ID \
       --change-batch '{"Changes":[{"Action":"DELETE","ResourceRecordSet":

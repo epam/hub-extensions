@@ -1,13 +1,11 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # shellcheck disable=SC2086
-
-set -o pipefail
 
 usage() {
   cat << EOF
@@ -65,7 +63,7 @@ if  test -z "$ZONE_ID" -o -z "$REC_NAME" -o -z "$REC_VALUE"; then
 fi
 
 temp="$(mktemp)"
-trap "rm -f $temp" EXIT
+trap 'rm -f $temp' EXIT
 cat <<EOF > $temp
 {
   "Changes": [{
