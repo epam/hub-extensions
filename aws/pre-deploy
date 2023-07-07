@@ -1,0 +1,38 @@
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+usage() {
+  cat << EOF
+AWS parameters:
+  --aws-region               AWS Region (defaults to value from: AWS_REGION)
+  --aws-profile              AWS Profile (defaults to value from: AWS_PROFILE)
+EOF
+}
+
+r53_zoneid="$(files -e find-in-path aws/route53/zone-id)"
+
+printf "* Checking AWS connection... "
+aws sts get-caller-identity >/dev/null
+color green "ok"
+
+if test -n "$HUB_DOMAIN_NAME"; then
+  if test -n "$HUB_DOMAIN_SECRET"; then
+    printf "* Checking presence of Route 53 hosted zone %s... " "$HUB_DOMAIN_NAME"
+    zone_id=$($r53_zoneid --domain-name "$HUB_DOMAIN_NAME")
+    if test -z "$zone_id"; then
+      color e << EOF
+not found
+
+You can create a hosted zone using the following command:
+
+  hubctl stack configure -r "aws"
+EOF
+      exit 1
+    fi
+    color g "$(basename "$zone_id")"
+  fi
+fi
