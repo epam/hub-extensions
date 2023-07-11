@@ -113,19 +113,19 @@ while test "$1" != ""; do
 done
 
 finalize() {
-  status="$($hubctl show -- '.status.status')"
+  status="$($hubctl show -jq '.status.status')"
   printf "Deployment status: "
   if test "$1" = "0"; then
-cat << EOF | color green
-$status
-Done!
-
+    color green "$status"
+    if test "$status" = "incomplete"; then
+      color green << EOF
+Not an error: status $status means that one or more components have not been deployed
 EOF
+    fi
   else
-    cat << EOF | color e
+    color e << EOF
 $status
 See error above!
-
 EOF
   fi
 }
@@ -137,7 +137,7 @@ if test "$VERBOSE" = "true"; then
 fi
 
 if test ! -f .env; then
-cat << EOF
+color e << EOF
 Stack configuration (.env)
 
 To resolve please run:
@@ -145,14 +145,13 @@ To resolve please run:
 
 To explore more configuration options:
   $ hubctl configure -f hub.yaml --help
-
 EOF
   exit 1
 fi
 
 if test -z "$HUB_FILES"; then
-  cat << EOF
-Error: cannot find hubctl definition files (HUB_FILES) in .env"
+  color e << EOF
+Cannot find hubctl definition files (HUB_FILES) in .env"
 
 Probably because stack has not been initialized for deployment yet!
 
@@ -161,7 +160,6 @@ Example:
 
 To explore more configuration options:
   $ hubctl stack init -f hub.yaml --help
-
 EOF
 
   exit 2
@@ -180,8 +178,8 @@ if test -z "$HUB_DOMAIN_NAME"; then
 fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
-cat << EOF
-Error: cannot find hubctl definition files (HUB_DOMAIN_NAME) in .env"
+color e << EOF
+Cannot find hubctl definition files (HUB_DOMAIN_NAME) in .env"
 
 Probably because stack has not been configured for deployment yet!
 
@@ -276,7 +274,7 @@ done
 
 lifecycle=$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE/${verb}");
 if test -z "$lifecycle"; then
- cat << EOF | color e
+  color e << EOF
 Cannot find deployment profile: $HUB_DEPLOY_PROFILE
 
 Completed with errors!
@@ -284,7 +282,7 @@ EOF
   exit 5
 fi
 
-cat << EOF
+  color green << EOF
 
 Proceeding with: ${verb}
 * Using profile: $HUB_DEPLOY_PROFILE
@@ -299,20 +297,34 @@ $lifecycle "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
 echo
 
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
-for i in $(echo "$AFTER" | xargs -n1); do
-  if test -x "$i"; then
-    hook="$i"
-  else
-    hook=$(files find-in-path "$i/after-${verb}")
-    if test -z "$hook"; then
-      hook=$(files find-in-path "$i/post-${verb}")
+if test -n "$AFTER"; then
+  status="$(hubctl show -jq '.status.status|select(.)')"
+  if test "$status" != "undeployed" -a verb="undeploy"; then
+    color w << EOF
+Skipping post hooks because status is not undeployed: $status
+
+Due to one more components still being deployed, the post undeploy hook will not be executed.
+
+This hook has been intended to be executed for cleanup after all componets have been undeployed.
+EOF
+  fi
+  AFTER=""
+
+  for i in $(echo "$AFTER" | xargs -n1); do
+    if test -x "$i"; then
+      hook="$i"
+    else
+      hook=$(files find-in-path "$i/after-${verb}")
+      if test -z "$hook"; then
+        hook=$(files find-in-path "$i/post-${verb}")
+      fi
     fi
-  fi
-  if test -z "$hook"; then
-    color warn "Cannot find post hook: $i"
-    continue
-  fi
-  printf "  Running post %s hook: " "$verb"
-  color bold "$i"
-  $hook
-done
+    if test -z "$hook"; then
+      color warn "Cannot find post hook: $i"
+      continue
+    fi
+    printf "  Running post %s hook: " "$verb"
+    color bold "$i"
+    $hook
+  done
+fi
