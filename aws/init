@@ -64,7 +64,7 @@ ask env "AWS_PROFILE" $ask_profile
 AWS_PROFILE="$(dotenv get AWS_PROFILE)"
 export AWS_PROFILE
 
-printf "* Testing AWS connection... "
+printf "* Checking AWS connection... "
 aws sts get-caller-identity >/dev/null
 color green "ok"
 
