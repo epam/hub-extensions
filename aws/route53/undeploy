@@ -101,13 +101,15 @@ EOF
       --hosted-zone-id "$(basename "$ZONE_ID")" \
       --change-batch "file://$temp/change-$i.json" \
       --output=json | jq -r '.ChangeInfo.Id')
-    printf '(change %s)... ' "$(basename "$CHANGE")"
-    sleep 3
-    aws route53 wait resource-record-sets-changed --id "$CHANGE"
-    sleep 1
-    RESULT=$(aws route53 get-change --id "$CHANGE" --output text --query 'ChangeInfo.Status')
-    set +x
-    color g "$RESULT"
+    if test -n "$CHANGE"; then
+      printf '(change %s)... ' "$(basename "$CHANGE")"
+      sleep 3
+      aws route53 wait resource-record-sets-changed --id "$CHANGE"
+      RESULT=$(aws route53 get-change --id "$CHANGE" --output text --query 'ChangeInfo.Status')
+      color g "$RESULT"
+    else
+      echo "already deleted"
+    fi
   fi
 done
 
@@ -116,10 +118,12 @@ CHANGE=$(aws route53 delete-hosted-zone \
   --id="$ZONE_ID" \
   --output=json | jq -r '.ChangeInfo.Id')
 
-printf '(change %s)... ' "$(basename "$CHANGE")"
-
-sleep 3
-aws route53 wait resource-record-sets-changed --id "$CHANGE" --output json
-sleep 1
-RESULT=$(aws route53 get-change --id "$CHANGE" --output text --query 'ChangeInfo.Status')
-color g "$RESULT"
+if test -n "$CHANGE"; then
+  printf '(change %s)... ' "$(basename "$CHANGE")"
+  sleep 3
+  aws route53 wait resource-record-sets-changed --id "$CHANGE" --output json
+  RESULT=$(aws route53 get-change --id "$CHANGE" --output text --query 'ChangeInfo.Status')
+  color g "$RESULT"
+else
+  echo "already deleted"
+fi
