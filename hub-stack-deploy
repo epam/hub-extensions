@@ -299,7 +299,10 @@ echo
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 if test -n "$AFTER"; then
   status="$(hubctl show -jq '.status.status|select(.)')"
-  if test "$status" != "undeployed" -a verb="undeploy"; then
+  # we execute post-undeploy hook if and only
+  # if all component has been undeployed successfully
+  # this means stack status beceomes undeployed
+  if test "$verb" = "undeploy" -a "$status" != "undeployed"; then
     color w << EOF
 Skipping post hooks because status is not undeployed: $status
 
@@ -307,9 +310,8 @@ Due to one more components still being deployed, the post undeploy hook will not
 
 This hook has been intended to be executed for cleanup after all componets have been undeployed.
 EOF
+    AFTER=""
   fi
-  AFTER=""
-
   for i in $(echo "$AFTER" | xargs -n1); do
     if test -x "$i"; then
       hook="$i"
