@@ -77,7 +77,7 @@ if test "$tag_value" != "owned"; then
   exit 0
 fi
 
-echo "* Proceeding with clean up"
+echo "* Proceeding with Route 53 clean up"
 
 aws route53 list-resource-record-sets \
   --hosted-zone-id "$ZONE_ID" --output json > "$temp/records.json"
