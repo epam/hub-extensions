@@ -305,7 +305,7 @@ if test "$hint" = "suggested" -a -n "$suggested_tag"; then
   hashtag="$suggested_tag"
 fi
 
-if ! $INTERACTIVE; then
+if ! $HUB_INTERACTIVE; then
   VALUE="$hint_val"
 elif test -n "$hint" && ! contains "$hint" "$ask"; then
   VALUE="$hint_val"
