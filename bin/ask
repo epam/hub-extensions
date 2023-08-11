@@ -221,7 +221,7 @@ fi
 if test -z "$message"; then
   message="$ENV variable"
 elif test -n "$ENV"; then
-  message="$message, $ENV"
+  message="$message"
 fi
 
 export HUB_FILES DOT_ENV HUB_WORKDIR
