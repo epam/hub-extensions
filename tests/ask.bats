@@ -2,12 +2,13 @@
 
 setup_file() {
   # Create .env file
-  export DOTENV_FILE=".ask.env"
+  export DOTENV_FILE=".env"
   cat >"$DOTENV_FILE" <<EOF
 HUB_INTERACTIVE1="ask_test1"
+HUB_FILES="ask.params-component.yaml"
 EOF
 
- # Create hubfile
+  # Create hubfile
   export HUB_FILES="ask.params-component.yaml"
   cat >"$HUB_FILES" <<EOF
 parameters:
@@ -24,8 +25,8 @@ EOF
 }
 
 setup() {
-  load 'test_helper/bats-support/load'
-  load 'test_helper/bats-assert/load'
+  load 'helpers/bats-support/load'
+  load 'helpers/bats-assert/load'
 
   # get the containing directory of this file
   # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
@@ -41,18 +42,18 @@ setup() {
   assert_failure
 }
 
+# This test simulates user input for ARGO_HOST and KUBEFLOW_HOST parameters
 @test "ask env: should print messages if parameters need to set for different component discriminators" {
-  run  ask env "ARGO_HOST" -m "parameter ingress.hosts test1" +empty -d ".ask.env" -d ".env" -ask-env
+  run ask env "ARGO_HOST" -m "parameter ingress.hosts test1" +empty -d "$DOTENV_FILE" -ask-env --non-interactive
   assert_success
   assert_output --partial "* Setting parameter ingress.hosts test1, ARGO"
   assert_output --partial "  ARGO_HOST saved"
 
-  run  ask env "KUBEFLOW_HOST" -m "parameter ingress.hosts test2" +empty -d ".ask.env" -d ".env" -ask-env
+  run ask env "KUBEFLOW_HOST" -m "parameter ingress.hosts test2" +empty -d "$DOTENV_FILE" -ask-env --non-interactive
   assert_success
   assert_output --partial "* Setting parameter ingress.hosts test2, KUBEFLOW"
   assert_output --partial "  KUBEFLOW_HOST saved"
 }
-
 
 @test "ask env: should success if env exist" {
   run ask env "HUB_INTERACTIVE1" -m "executor" -a "hub.executor" --suggest "local" --brief "$BRIEF"
@@ -60,32 +61,33 @@ setup() {
 }
 
 @test "ask env: should print messages if parameters already set for different component discriminators" {
-  run  ask env "ARGO_HOST" -m "parameter ingress.hosts test1" +empty -d ".ask.env" -d ".env" -ask-env
+  run ask env "ARGO_HOST" -m "parameter ingress.hosts test1" +empty -d "$DOTENV_FILE" -ask-env
   assert_success
   assert_output --partial "* Setting parameter ingress.hosts test1, ARGO_HOST"
   assert_output --partial "ARGO_HOST already set"
 
-  run  ask env "KUBEFLOW_HOST" -m "parameter ingress.hosts test2" +empty -d ".ask.env" -d ".env" -ask-env
+  run ask env "KUBEFLOW_HOST" -m "parameter ingress.hosts test2" +empty -d "$DOTENV_FILE" -ask-env
   assert_success
   assert_output --partial "* Setting parameter ingress.hosts test2, KUBEFLOW_HOST"
   assert_output --partial "KUBEFLOW_HOST already set"
 }
 
+# This test simulates the user entering the BATS_TEST_HOST parameter
 @test "ask env: should print messages if parameter need to set without different component discriminators" {
-  run  ask env "BATS_TEST_HOST" -m "parameter test.hosts test3" +empty -d ".ask.env" -d ".env" -ask-env
+  run ask env "BATS_TEST_HOST" -m "parameter test.hosts test3" +empty -d "$DOTENV_FILE" -ask-env --non-interactive
   assert_success
   assert_output --partial "* Setting parameter test.hosts test3, BATS_TEST_HOST"
   assert_output --partial "BATS_TEST_HOST saved"
 }
 
 @test "ask env: should print messages if parameter already set without different component discriminators" {
-  run  ask env "BATS_TEST_HOST" -m "parameter test.hosts test3" +empty -d ".ask.env" -d ".env" -ask-env
+  run ask env "BATS_TEST_HOST" -m "parameter test.hosts test3" +empty -d "$DOTENV_FILE" -ask-env
   assert_success
   assert_output --partial "* Setting parameter test.hosts test3, BATS_TEST_HOST"
   assert_output --partial "BATS_TEST_HOST already set"
 }
 
 teardown_file() {
-  rm -fv "$DOTENV_FILE" ask.*.yaml
-  rm .env .ask.env
+  rm "$HUB_FILES" "$DOTENV_FILE"
+  rm -rf ".hub"
 }
