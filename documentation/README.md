@@ -13,7 +13,6 @@ Extensions provides following commands:
 | [`hubctl stack <subcommand>`](hub-stack.md) | Commands to manage your deployment |
 | [`hubctl show`](hub-show.md) | Show parameters of a deployed stack |
 | [`hubctl toolbox`](hub-toolbox.md) | Starts a local toolbox container and mounts current file system inside |
-| [`hubctl state`](hub-state.md) | Helps you to manage stacks states |
 
 ## Free form component
 
