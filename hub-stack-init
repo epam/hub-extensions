@@ -95,7 +95,7 @@ Example:
   $HUB_EXTENSION <state-ref> -f <path-or-url-hub.yaml> --force
 
 State ref:
-  State can be referenced as a file, http, gs url or id (see "hubctl state ls")
+  State can be referenced as a file, http/https, gs, az or s3 url
 
 EOF
 
@@ -395,7 +395,7 @@ if test -n "$SOURCE_HUB_STATE"; then
   echo "Checking hubctl state"
   for state in $(echo "$SOURCE_HUB_STATE" |tr ',' ' '); do
     temp="$(temp_file)"
-    if test -f "$state"; then
+    if test -s "$state"; then
       echo "* State file $state: exist"
       HUB_STATE="$HUB_STATE $state"
       #HACK: this is less invasive to the existing code
@@ -410,13 +410,14 @@ if test -n "$SOURCE_HUB_STATE"; then
       printf "* Downloading from: %s... " "$state"
       gsutil -q cp "$state" "$temp"
       echo "done"
-      state_name="$($hubctl explain "$temp" --json | jq -cMr '.meta.name | select(.)')"
-      state_status="$($hubctl explain "$temp" --json | jq -cMr '.status | select(.)')"
-      echo "  Downloaded state: $state_name (status: $state_status)"
-      state_msg="$($hubctl explain "$temp" --json | jq -cMr '.message | select(.)')"
-      if test -n "$state_msg"; then
-        echo "  Message: $state_msg"
-      fi
+    elif echo "$state" | grep -e '^s3\?://' >/dev/null 2>&1; then
+      printf "* Downloading from: %s... " "$state"
+      aws_profile=$(dotenv get AWS_PROFILE)
+      aws_region=$(dotenv get AWS_PROFILE)
+      aws s3 cp "$state" "$temp" \
+        --profile "$aws_profile" \
+        --region "$aws_region"
+      echo "done"
     elif echo "${state}" | grep -e '^az\?://' >/dev/null 2>&1; then
       printf "* Downloading from: %s... " "${state}"
       fqn=${state#az://}
@@ -427,16 +428,18 @@ if test -n "$SOURCE_HUB_STATE"; then
         --name "${blob_name}" \
         --account-name "${storage_account_name}" -o "none" 2>/dev/null \
         --file "${temp}"
-      state_name="$(${hubctl} explain "${temp}" --json | jq -cMr '.meta.name | select(.)')"
+      echo "done"
+    else
+      color e "Error: file not found ${state}"
+      exit 13
+    fi
+    if test -s "$temp"; then
       state_status="$(${hubctl} explain "${temp}" --json | jq -cMr '.status | select(.)')"
-      echo "  Downloaded state: ${state_name} (status: ${state_status})"
+      echo "  State status: ${state_status}"
       state_msg="$(${hubctl} explain "${temp}" --json | jq -cMr '.message | select(.)')"
       if test -n "${state_msg}"; then
         echo "  Message: ${state_msg}"
       fi
-    else
-      color e "Error: file not found ${state}"
-      exit 13
     fi
     HUB_DOMAIN_NAME=$(getParamFromState "$temp" "$hub_domain_name_param")
     if test -z "$HUB_DOMAIN_NAME"; then
