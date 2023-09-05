@@ -17,3 +17,12 @@ if which npm >/dev/null 2>&1; then
 else
     ./bin/color w "'hubctl pull' is not available until you install Node.js and NPM"
 fi
+
+# TODO: remove this after 3 months since the issue https://github.com/epam/hub-extensions/issues/104 will be closed
+# Drop support of hub-state extension. Remove redundant binary and version files
+if test -f "hub-state"; then
+    rm -r "hub-state"
+fi
+if test -f "hub-state.version"; then
+    rm -r "hub-state.version"
+fi
