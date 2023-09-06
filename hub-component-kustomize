@@ -20,23 +20,45 @@ ident() {
   sed 's/^/  /'
 }
 
+apply_crd_file() {
+    max_di=$(yq e 'di' "$1" | tail -1)
+    for i in $(seq 0 "$max_di"); do
+        crd=$(yq e "select(di == $i).metadata.name" "$1")
+        if test -z "$crd" -o "$crd" = "null"; then
+            continue
+        fi
+        if $kubectl get crd "$crd" > /dev/null; then
+            echo "  $crd already exists"
+        else
+            $kubectl create -f "$1"
+        fi
+    done
+}
+
 OLD_NS="$(kubectl config view --minify --output 'jsonpath={..namespace}')"
 TEMP_DIR=$(mktemp -d || exit 1)
 mkdir -p "$TEMP_DIR"
+ERR=""
 
 finalize() {
   rv=$?
   if test -n "$1"; then
     rm -rf "$1"
   fi
-  if test -n "$2"; then
-    echo "Restoring previous namespace: $2"
+  current_ns="$(kubectl config view --minify --output 'jsonpath={..namespace}')"
+  if test -n "$2" -a "$2" != "$current_ns"; then
+    echo "Setting previous namespace: $2"
     kubectl config set-context --current --namespace="$2"
+  fi
+  if test -n "$3"; then
+    color err << END
+  Error: $3
+END
   fi
   exit $rv
 }
 
-trap 'finalize $TEMP_DIR $OLD_NS' EXIT
+trap 'finalize "$TEMP_DIR" "$OLD_NS" "$ERR"' EXIT
 
 temp_file() {
   echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]')"
@@ -135,15 +157,35 @@ if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
     trap 'rm -rf $temp' EXIT
     files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$temp"
     for subpath in $HUB_KUSTOMIZE_TARBALL_SUBPATHS; do
-      dst=${subpath#*:}
-      src=${subpath%?"$dst"}
-      dst="$(pwd)/kustomize/$dst"
-      mkdir -p "$dst"
-      cp -r "$temp/$src/" "$dst/"
+      src=$(echo "$subpath" | cut -d: -f1)
+      dest=$(echo "$subpath" | cut -d: -f2)
+      if test -z "$dest" -o "$dest" = "$src"; then
+        dest="$(basename "$src")"
+      fi
+
+      dst="$(pwd)/kustomize/$dest"
+      if test -f "$dst"; then
+        ERR="$ERR\n  - Destination file already exists: $dest"
+      elif test -d "$temp/$src"; then
+        echo "  Extracting directory: $src to kustomize/$dest"
+        mkdir -p "$dst"
+        cp -r "$temp/$src/" "$dst/"
+      elif test -f "$temp/$src"; then
+        echo "  Extracting file: $src to kustomize/$dest"
+        cp "$temp/$src" "$dst"
+      else
+        ERR="$ERR\n  - Not found: $src"
+        continue
+      fi
+
     done
   else
     files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize"
   fi
+fi
+
+if test -n "$err"; then
+  exit 1
 fi
 
 if test -n "$HUB_KUSTOMIZE_RESOURCES"; then
