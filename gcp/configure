@@ -1,11 +1,9 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2090
 
 usage() {
     cat <<EOF
@@ -25,9 +23,7 @@ check_api_enabled() {
   gcloud services list --enabled --filter "name:($1)" --format="value(config.name)"  >/dev/null 2>&1
 }
 
-jq='jq -cM'
-# shellcheck disable=SC2089
-# curl='curl -isH "Metadata-Flavor: Google"'
+jq='jq -crM'
 dotenv="dotenv -f $DOT_ENV"
 DNSSEC_STATE="on"
 while [ "$1" != "" ]; do
@@ -39,9 +35,6 @@ while [ "$1" != "" ]; do
     --gcp-project-id)
         shift
         GOOGLE_PROJECT="$1"
-        ;;
-    --force)
-        FORCE_FUNCTION_UPDATE=1
         ;;
     --domain-name)
         shift
@@ -62,60 +55,53 @@ fi
 HUB_CLOUD_PROVIDER="gcp"
 export HUB_CLOUD_PROVIDER
 
-echo -n "Setting current GCP project to: "
+if test -z "$GOOGLE_PROJECT"; then
+  cat <<EOF | color e
+Environment variable \$GOOGLE_PROJECT is not define.
+
+Make sure that hubfile (hub.yaml or hub.yml) contains correct extensions configuretion:
+
+extensions:
+  init:
+  - gcp
+  configure:
+  - gcp
+
+Then init stack again:
+
+$ hubctl stack init
+EOF
+  exit 2
+fi
+printf "Setting current GCP project to: "
 color b "$GOOGLE_PROJECT"
 echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
 
-# shellcheck disable=SC1091
-if test -z "$(params env HUB_DOMAIN_NAME)"; then
-  stack_name_param=$(params env "HUB_STACK_NAME" | jq -cMr '.name | select(.)')
-  if test -n "$stack_name_param"; then
-    HUB_STACK_NAME="$(params value "$stack_name_param" -d "$DOT_ENV" -d "$HUB_WORKDIR/.env")"
-    if test -z "$HUB_STACK_NAME"; then
-      echo -n "Generating new stack name: "
-      new_name="$(files find-in-path bubble-dns/new-name)"
-      HUB_STACK_NAME="$(eval "$new_name" | cut -d. -f1)"
-      color b "$HUB_STACK_NAME"
-      echo "* Saving also as HUB_DOMAIN_NAME for compatibiltiy"
-      HUB_DOMAIN_NAME="$HUB_STACK_NAME"
-      cat << EOF | color g
-  If you want to enable domain name generation. Please add following parameter to your hubfile
-  - name: dns.domain
-    fromEnv: HUB_DOMAIN_NAME
-EOF
-    else
-      echo -n "Using stack name: "
-      color b "$HUB_STACK_NAME"
-      HUB_DOMAIN_NAME="$HUB_STACK_NAME"
-    fi
-  else
-    color e "  Cannot find neither HUB_STACK_NAME neither HUB_STACK_DOMAIN_NAME in hubfile"
-    cat << EOF | color g
-  You may want to add one parameter or both to your hubfile
-  - name: dns.domain
-    fromEnv: HUB_DOMAIN_NAME
-  - name: dns.name
-    fromEnv: HUB_STACK_NAME
+param_name() {
+  _result="$(params env "$1" | $jq '.name | select(.)')"
+  if test -z "$_result" -a -n "$2"; then
+    _result="$(params json "$2" | $jq '.name | select(.)')"
+  fi
+  echo "$_result"
+}
 
+dns_domain_param_name="$(param_name HUB_DOMAIN_NAME dns.domain)"
+if test -z "$dns_domain_param_name"; then
+  echo "  Skipping GCP Cloud DNS configuration because dns.domain parameter is not set"
+  cat << EOF | color g
+If you want to enable domain name generation. Please add following parameter to your hubfile
+- name: dns.domain
+  fromEnv: HUB_DOMAIN_NAME
 EOF
-  exit 1
-  fi
 else
-  echo "Configuring DNS"
-  HUB_STACK_NAME="$(params value "$stack_name_param" -d "$DOT_ENV" -d "$HUB_WORKDIR/.env")"
-  if test -z "$HUB_DOMAIN_NAME"; then
-    echo "* Requesting new DNS name"
-    # shellcheck disable=SC1090
-    source "$(dirname "$0")/../bubble-dns/include"
-    configureBubbleDNS
-  fi
-  echo -n "* Enabling API for dns.googleapis.com... "
+  echo "Configuring GCP Cloud DNS"
+  printf "* Enabling API for dns.googleapis.com... "
   gcloud services enable "dns.googleapis.com" && echo "done"
-  echo -n "* Cloud DNS Zone "
+  printf "* Cloud DNS Zone "
   color -n b "$HUB_DOMAIN_NAME... "
   FOUND=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
     --format json | $jq '. | length' | xargs)
-  if test "$FOUND" == "0"; then
+  if test "$FOUND" -eq 0; then
     echo "not found"
     echo "  Creating (takes a minute)... "
     gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
@@ -146,12 +132,12 @@ fi
 if test -z "$HUB_STATE_BUCKET"; then
   HUB_STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
-echo -n "Configuring state storage: "
+printf "Configuring state storage: "
 color b "gs://$HUB_STATE_BUCKET"
 if gsutil -q ls -b "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
   echo "* Bucket gs://$HUB_STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
-  echo -n "* Creating bucket gs://$HUB_STATE_BUCKET... "
+  printf "* Creating bucket gs://%s... " "$HUB_STATE_BUCKET"
 	if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
 		echo "done"
 	else
