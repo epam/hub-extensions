@@ -147,10 +147,15 @@ if test "$VERB" = "deploy"; then
 fi
 
 if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
+  #shellcheck disable=SC2153
+  HUB_KUSTOMIZE_TARBALL_SUBPATHS="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS $HUB_KUSTOMIZE_TARBALL_SUBPATH" | xargs)"
   echo "* Downloading component base from: $HUB_KUSTOMIZE_TARBALL_URL"
-  if test -n "$HUB_KUSTOMIZE_TARBALL_SUBPATH"; then
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATH"
-  elif test -n "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"; then
+  count="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS" | tr ':' ' ' | wc -w | xargs)"
+  if test "$count" = "0"; then
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize"
+  elif test "$count" = "1"; then
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"
+  else
     # HUB_KUSTOMIZE_TARBALL_SUBPATHS is an array of paths divided by space (tarball_source_path:destination_path tarball_source_path:destination_path)
     rm -rf "$(pwd)/kustomize"
     temp="$(mktemp)"
@@ -162,10 +167,9 @@ if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
       if test -z "$dest" -o "$dest" = "$src"; then
         dest="$(basename "$src")"
       fi
-
       dst="$(pwd)/kustomize/$dest"
       if test -f "$dst"; then
-        ERR="$ERR\n  - Destination file already exists: $dest"
+        color warn "File $dest already exists"
       elif test -d "$temp/$src"; then
         echo "  Extracting directory: $src to kustomize/$dest"
         mkdir -p "$dst"
@@ -177,14 +181,11 @@ if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
         ERR="$ERR\n  - Not found: $src"
         continue
       fi
-
     done
-  else
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize"
   fi
 fi
 
-if test -n "$err"; then
+if test -n "$ERR"; then
   exit 1
 fi
 
