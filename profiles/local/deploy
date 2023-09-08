@@ -1,12 +1,9 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-
-# Simple wrapper script around hubctl deploy
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 hubctl="$(which hubctl 2>/dev/null || true)"
 if test -z "$hubctl"; then
@@ -20,5 +17,12 @@ fi
 
 check-tools --omit-optional
 
-# shellcheck disable=SC2068
-$hubctl deploy $@
+maybe_verb=$(basename "$0" | cut -d- -f3)
+if test -z "$maybe_verb"; then
+  color e "Unable to find local executor"
+  exit 1
+fi
+verb="$maybe_verb"
+
+# shellcheck disable=SC2068,SC2086
+$hubctl $verb $@
