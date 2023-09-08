@@ -1,13 +1,11 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 # A wrapper around `hub` however it will use pod (see ./template)
-
-set -o pipefail
 
 usage() {
     cat << EOF
@@ -22,6 +20,43 @@ Parameters:
     -h  --help        Print this message
 EOF
 }
+
+HUB_ARGS=
+PASS_ENV=
+VERBOSE=
+while test "$1" != ""; do
+  case $1 in
+    -i | --image )
+      shift
+      HUB_TOOLBOX_IMAGE=$1
+    ;;
+    -s | --state )
+      shift
+      STATE_FILE=$1
+      HUB_ARGS="$HUB_ARGS -s $STATE_FILE"
+    ;;
+    -e | --pass-env )
+      shift
+      PASS_ENV="--pass-env $1"
+    ;;
+    -V | --verbose )
+      VERBOSE="true"
+    ;;
+    -h | --help )
+      usage
+      exit
+    ;;
+    * )
+      HUB_ARGS="$HUB_ARGS $1"
+    ;;
+  esac
+  shift
+done
+
+if test "$VERBOSE" = "true"; then
+  set -x
+  VERBOSE="--verbose"
+fi
 
 gen_random() {
   size="${1:-32}"
@@ -45,38 +80,8 @@ if test -f ".env"; then
 fi
 
 TOOLBOX_NAMESPACE=${TOOLBOX_NAMESPACE:-hubctl}
+kubectl="kubectl -n $TOOLBOX_NAMESPACE"
 ID=$(gen_random 8)
-
-HUB_ARGS=
-PASS_ENV=
-while [ "$1" != "" ]; do
-  case $1 in
-    -i | --image )
-      shift
-      HUB_TOOLBOX_IMAGE=$1
-    ;;
-    -s | --state )
-      shift
-      STATE_FILE=$1
-      HUB_ARGS="$HUB_ARGS -s $STATE_FILE"
-    ;;
-    -e | --pass-env )
-      shift
-      PASS_ENV="--pass-env $1"
-    ;;
-    -V | --verbose )
-      set -x
-    ;;
-    -h | --help )
-      usage
-      exit
-    ;;
-    * )
-      HUB_ARGS="$HUB_ARGS $1"
-    ;;
-  esac
-  shift
-done
 
 finalize() {
   rv=$?
@@ -85,15 +90,16 @@ finalize() {
   set +e
   # TODO: $kubectl exec "toolbox-$ID" -- tar cf - STATE_FILEs | tar xf - -C STATE_FILEs
   # Will be better but harder to implement
-  for f in ${STATE_FILE//,/ }; do
+  state_file="$(echo "$STATE_FILE" | sed 's/,/ /g')"
+  for f in $state_file; do
     if ! echo "$f" | grep -F :// >/dev/null; then
-      echo -n "* Downloading hubctl state to $(basename "$f"): "
+      printf "* Downloading hubctl state to %s: " "$(basename "$f")"
       $kubectl cp "toolbox-$ID:$f" "$f" >/dev/null 2>&1
       echo "Done"
     fi
   done
   set -e
-  echo -n "* Cleaning toolbox-$ID: "
+  printf "* Cleaning toolbox-%s: " "$ID"
   kubectl delete -f "$1" >/dev/null
   echo "Done"
   rm -f "$1"
@@ -126,6 +132,7 @@ fi
 # shellcheck disable=SC2086
 "$(dirname "$0")/template" \
   $PASS_ENV \
+  $VERBOSE \
   --image "$HUB_TOOLBOX_IMAGE" \
   --exec-id "$ID" \
   $hub_kubeconfig_flag \
@@ -133,15 +140,14 @@ fi
 
 yq < "$temp"
 
-kubectl="kubectl -n $TOOLBOX_NAMESPACE"
-echo -n "* Checking presence of $TOOLBOX_NAMESPACE namespace: "
+printf "* Checking presence of %s namespace: " "$TOOLBOX_NAMESPACE"
 if ! kubectl get namespace "$TOOLBOX_NAMESPACE" -o "name" 2>/dev/null; then
   echo "not found"
-  echo -n "  Deploying namespace: "
+  printf "  Deploying namespace: "
   kubectl create namespace "$TOOLBOX_NAMESPACE"
 fi
 
-echo -n "* Scheduling a pod toolbox-$ID: "
+printf "* Scheduling a pod toolbox-%s: " "$ID"
 if $kubectl -f "$temp" apply >/dev/null; then
   echo "Done"
 else
@@ -151,7 +157,7 @@ fi
 # shellcheck disable=SC2064
 trap "finalize $temp" EXIT
 
-echo -n "* Starting pod toolbox-$ID: "
+printf "* Starting pod toolbox-%s: " "$ID"
 $kubectl wait "pod/toolbox-$ID" \
   --for=condition=Ready \
   --timeout=1200s
@@ -164,10 +170,10 @@ if test -n "$TOOLBOX_APK_ADD"; then
 fi
 
 # set ownership of (nested) emptyDir volumes
-$kubectl exec -i "toolbox-$ID" -- chown -R $(id -u):$(id -g) "$HOME"
+$kubectl exec -i "toolbox-$ID" -- chown -R "$(id -u):$(id -g)" "$HOME"
 
 # this do not archive directories thus no directory permissions are restored
-echo -n "* Synchronizing working directory (may take a while): "
+printf "* Synchronizing working directory (may take a while): "
 find -L "." \
   -type f \
   ! -path '*/.git/*' \
@@ -183,7 +189,7 @@ find -L "." \
 echo "Done"
 
 if test -n "$HUB_CLOUD_PROVIDER"; then
-  echo -n "* Mounting $HUB_CLOUD_PROVIDER credentials: "
+  printf "* Mounting %s credentials: " "$HUB_CLOUD_PROVIDER"
   case "$HUB_CLOUD_PROVIDER" in
     "aws" )
       "$(dirname "$0")/aws" \
@@ -206,14 +212,14 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
 fi
 
 if test -n "$TOOLBOX_HUB_CLI_REPLACEMENT" -a -f "$TOOLBOX_HUB_CLI_REPLACEMENT"; then
-  echo -n "* Replacing Hub CLI binary: "
+  printf "* Replacing Hub CLI binary: "
   gzip -c "$TOOLBOX_HUB_CLI_REPLACEMENT" \
     | $kubectl exec -i "toolbox-$ID" -- sh -c "gzip -dc >hubctl; chmod +x hubctl"
   echo "Done"
 fi
 
 if test -d "$HUB_EXTENSIONS"; then
-  echo -n "* Synchronizing Hub CLI extensions from $HUB_EXTENSIONS: "
+  printf "* Synchronizing Hub CLI extensions from %s: " "$HUB_EXTENSIONS"
   $kubectl exec -i "toolbox-$ID" -- mkdir -p "$HUB_EXTENSIONS"
   find -L "$HUB_EXTENSIONS" -type f ! -path '*/.git/*' ! -path '*/node_modules/*' -print0 \
     | tar cz -P --null -T -\
@@ -225,8 +231,8 @@ maybe_tty=
 if test -t 0; then
   maybe_tty=t
 fi
-echo -n "* Executing: "
+printf "* Executing: "
 # shellcheck disable=SC2086
-$kubectl exec -i$maybe_tty "toolbox-$ID" -- sh -c "PATH=/usr/local/share/hub/bin:\$HUB_WORKDIR:\$HUB_WORKDIR/bin:\$PATH; hubctl $HUB_ARGS"
+echo "$kubectl exec -i$maybe_tty "toolbox-$ID" -- sh -c \"PATH=/usr/local/share/hub/bin:\$HUB_WORKDIR:\$HUB_WORKDIR/bin:\$PATH; hubctl $HUB_ARGS\""
 # shellcheck disable=SC2086
 $kubectl exec -i$maybe_tty "toolbox-$ID" -- sh -c "PATH=/usr/local/share/hub/bin:\$HUB_WORKDIR:\$HUB_WORKDIR/bin:\$PATH; hubctl $HUB_ARGS"
