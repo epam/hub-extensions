@@ -7,8 +7,6 @@
 
 # A wrapper around `hub` however it will use pod (see ./template)
 
-set -o pipefail
-
 usage() {
     cat << EOF
 
