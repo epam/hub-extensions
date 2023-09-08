@@ -3,27 +3,10 @@
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
-HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl /g' | sed 's/-/ /g')"
-HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
-PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH HUB_WORKDIR
-DOT_ENV="$(files abspath .env)"
-export DOT_ENV
-
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
+# shellcheck disable=SC2086
+HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 
 verb=deploy/undeploy
 
@@ -87,23 +70,9 @@ Parameters:
 END
 }
 
-is_url() {
-  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
-}
-
-maybe_verb=$(basename "$0" | cut -d- -f3)
-if test -z "$maybe_verb"; then
-  usage
-  exit 1
-fi
-verb="$maybe_verb"
-
-eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
-
 FULL_STACK=true
 HUB_OPTS=
-VERBOSE=false
-HUB_COMPONENT=""
+VERBOSE=
 
 while test "$1" != ""; do
     case $1 in
@@ -139,7 +108,7 @@ END
         --executor )         shift
                             export HUB_DEPLOY_PROFILE="$1"
                             ;;
-        -V | --verbose )    VERBOSE=true
+        -V | --verbose )    VERBOSE="true"
                             ;;
         -h | --help )       usage
                             exit
@@ -376,8 +345,7 @@ Proceeding with: ${verb}
 
 EOF
 
-# shellcheck disable=SC2086
-$lifecycle "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
+$lifecycle $VERBOSE "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
 echo
 
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
