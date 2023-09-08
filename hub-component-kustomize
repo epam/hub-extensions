@@ -96,6 +96,7 @@ case "$VERB" in
 esac
 
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:?"Required variable HUB_DOMAIN_NAME has not been defined"}
+HUB_KUSTOMIZE_TARBALL_DIR="${HUB_KUSTOMIZE_TARBALL_DIR:-kustomize}"
 # NAMESPACE=${NAMESPACE:?"Required variable DOMAIN_NAME has not been defined"}
 
 apply_k8s_resources_file() {
@@ -146,37 +147,38 @@ if test "$VERB" = "deploy"; then
   fi
 fi
 
+
 if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
   #shellcheck disable=SC2153
   HUB_KUSTOMIZE_TARBALL_SUBPATHS="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS $HUB_KUSTOMIZE_TARBALL_SUBPATH" | xargs)"
   echo "* Downloading component base from: $HUB_KUSTOMIZE_TARBALL_URL"
   count="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS" | tr ':' ' ' | wc -w | xargs)"
+  dst="$(files abspath $HUB_KUSTOMIZE_TARBALL_DIR)"
   if test "$count" = "0"; then
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize"
-  elif test "$count" = "1"; then
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$dst"
+  # elif test "$count" = "1"; then
+  #   files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/$HUB_KUSTOMIZE_TARBALL_DIR" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"
   else
-    # HUB_KUSTOMIZE_TARBALL_SUBPATHS is an array of paths divided by space (tarball_source_path:destination_path tarball_source_path:destination_path)
-    rm -rf "$(pwd)/kustomize"
-    temp="$(mktemp)"
-    trap 'rm -rf $temp' EXIT
+    temp="$TEMP_DIR/content"
+    mkdir -p "$temp"
     files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$temp"
+    # HUB_KUSTOMIZE_TARBALL_SUBPATHS is an array of paths divided by space (tarball_source_path:destination_path tarball_source_path:destination_path)
     for subpath in $HUB_KUSTOMIZE_TARBALL_SUBPATHS; do
       src=$(echo "$subpath" | cut -d: -f1)
       dest=$(echo "$subpath" | cut -d: -f2)
       if test -z "$dest" -o "$dest" = "$src"; then
         dest="$(basename "$src")"
       fi
-      dst="$(pwd)/kustomize/$dest"
+      dst="$dst/$dest"
       if test -f "$dst"; then
         color warn "File $dest already exists"
       elif test -d "$temp/$src"; then
-        echo "  Extracting directory: $src to kustomize/$dest"
+        echo "  Extracting directory: $src to $HUB_KUSTOMIZE_TARBALL_DIR/$dest"
         mkdir -p "$dst"
         cp -r "$temp/$src/" "$dst/"
       elif test -f "$temp/$src"; then
-        echo "  Extracting file: $src to kustomize/$dest"
-        cp "$temp/$src" "$dst"
+        echo "  Extracting file: $src to $HUB_KUSTOMIZE_TARBALL_DIR/$dest"
+        files copy "$temp/$src" "$dst"
       else
         ERR="$ERR\n  - Not found: $src"
         continue
@@ -194,10 +196,10 @@ if test -n "$HUB_KUSTOMIZE_RESOURCES"; then
   for res in $HUB_KUSTOMIZE_RESOURCES; do
     if echo "$res" | grep -e '^https\?://' >/dev/null 2>&1; then
       echo "  Downloading from: $res"
-      files download "$res" "$(pwd)/kustomize/$(basename "$res")"
+      files download "$res" "$(pwd)/$HUB_KUSTOMIZE_TARBALL_DIR/$(basename "$res")"
     elif test -f "$res"; then
       echo "  Copying from: $res"
-      files copy "$res" "$(pwd)/kustomize/$(basename "$res")"
+      files copy "$res" "$(pwd)/$HUB_KUSTOMIZE_TARBALL_DIR/$(basename "$res")"
     else
       color w "  Warning: file not found ($res)"
     fi
