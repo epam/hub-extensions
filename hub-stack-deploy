@@ -7,23 +7,11 @@
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed -e 's/hub-/hubctl-/g' -e 's/-/ /g')"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl /g' | sed 's/-/ /g')"
 HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH HUB_WORKDIR
 DOT_ENV="$(files abspath "$HUB_WORKDIR/.env")"
 export PATH HUB_WORKDIR DOT_ENV
-
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
 
 verb=deploy/undeploy
 
@@ -81,11 +69,11 @@ if test -z "$maybe_verb"; then
 fi
 verb="$maybe_verb"
 
-eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
+eval "$(dotenv -f "$HUB_WORKDIR/.env" "export")"
 
 FULL_STACK=true
 HUB_OPTS=
-VERBOSE="false"
+VERBOSE=false
 HUB_COMPONENT=""
 
 while test "$1" != ""; do
@@ -318,11 +306,13 @@ Proceeding with: ${verb}
 
 EOF
 
-# shellcheck disable=SC2086
 $lifecycle $VERBOSE "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
 echo
 
 # shellcheck disable=SC2086
+$lifecycle $VERBOSE "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
+echo
+
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 if test -n "$AFTER"; then
   status="$(hubctl show -jq '.status.status|select(.)')"

@@ -51,8 +51,9 @@ if test -z "\$hubctl"; then
 fi
 
 if test -e "\$HUB_WORKDIR/.env"; then
+if test -e "\$HUB_WORKDIR/.env"; then
     set -a
-    source .env
+    source \$HUB_WORKDIR/.env
     set +a
 fi;
 
