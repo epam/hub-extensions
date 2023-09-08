@@ -1,10 +1,9 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 usage() {
     cat << EOF
@@ -62,7 +61,7 @@ while [ "$1" != "" ]; do
 done
 
 dotenv="dotenv -f $HUB_WORKDIR/.env"
-# shellcheck disable=SC2086,SC2046
+pass_env="$(echo "$PASS_ENV" | sed 's/,/|/g')"
 cat <<EOF
 ---
 apiVersion: v1
@@ -115,8 +114,8 @@ spec:
     - {name: "GID", value: "$(id -g)"}
     - {name: "HOME", value: "$HOME"}
 $(env | grep -E '^GOOGLE_' | grep -Ev '^GOOGLE_APPLICATION_CREDENTIALS' | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
-$(env | grep -E "^(HUB_EXTENSIONS=|HUB_CRYPTO_|KUBECONFIG=|AWS_(SHARED_CREDENTIALS_FILE|CONFIG_FILE|PROFILE)=|AZURE_|ARM_|TF_|TERM=|LANG=|LC_)|^(${PASS_ENV//,/|})=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
-$($dotenv keys | grep -Ev '^(HUB_DEPLOY_PROFILE|GOOGLE_APPLICATION_CREDENTIALS|KUBECONFIG|HUB_KUBECONFIG|HUB_STATE|HUB_ELABORATE|HUB_WORKDIR)' | while read -r key ; do echo '    - {name: "'$key'", value: "'$($dotenv get $key)'"}' ; done)
+$(env | grep -E "^(HUB_EXTENSIONS=|HUB_CRYPTO_|KUBECONFIG=|AWS_(SHARED_CREDENTIALS_FILE|CONFIG_FILE|PROFILE)=|AZURE_|ARM_|TF_|TERM=|LANG=|LC_)|^($pass_env)=" | sed -e 's/^/    - {name: "/' -e 's/=/", value: "/'  -e 's/$/"}/')
+$($dotenv keys | grep -Ev '^(HUB_DEPLOY_PROFILE|GOOGLE_APPLICATION_CREDENTIALS|KUBECONFIG|HUB_KUBECONFIG|HUB_STATE|HUB_ELABORATE|HUB_WORKDIR)' | while read -r key ; do echo '    - {name: "'"$key"'", value: "'"$($dotenv get "$key")"'"}' ; done)
     - {name: "HUB_DEPLOY_PROFILE", value: "kubernetes"}
     volumeMounts:
     - name: work-dir

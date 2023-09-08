@@ -1,10 +1,9 @@
 #!/bin/sh -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
@@ -32,8 +31,7 @@ EOF
 
 TOOLBOX_SHELL="${TOOLBOX_SHELL:-"/bin/sh"}"
 ARGS=
-
-while [ "$1" != "" ]; do
+while test "$1" != ""; do
     case $1 in
     -i | --toolbox-image)
         shift
@@ -47,7 +45,7 @@ while [ "$1" != "" ]; do
         exit
     ;;
     * )
-        ARGS=$*
+        ARGS="$ARGS $1"
     ;;
     esac
     shift
