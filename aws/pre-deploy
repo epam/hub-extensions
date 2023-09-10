@@ -19,20 +19,64 @@ printf "* Checking AWS connection... "
 aws sts get-caller-identity >/dev/null
 color green "ok"
 
+valid="1"
+HUB_STATE_BUCKET="$(dotenv get HUB_STATE_BUCKET)"
+if test -n "$HUB_STATE_BUCKET"; then
+  printf "* Checking presence of state bucket %s: " "$HUB_STATE_BUCKET"
+  if aws s3api head-bucket --bucket="$HUB_STATE_BUCKET" > /dev/null 2>&1; then
+    color h "exist"
+  else
+    color e << END
+not found
+
+You can create a bucket using the following command:
+
+  hubctl stack configure -r "aws"
+
+END
+    valid="0"
+  fi
+fi
+
 if test -n "$HUB_DOMAIN_NAME"; then
   if test -n "$HUB_DOMAIN_SECRET"; then
     printf "* Checking presence of Route 53 hosted zone %s... " "$HUB_DOMAIN_NAME"
     zone_id=$($r53_zoneid --domain-name "$HUB_DOMAIN_NAME")
     if test -z "$zone_id"; then
-      color e << EOF
+      color e << END
 not found
 
 You can create a hosted zone using the following command:
 
   hubctl stack configure -r "aws"
-EOF
-      exit 1
+END
+    valid="0"
     fi
     color g "$(basename "$zone_id")"
   fi
+fi
+
+RECURSIVE=${RECURSIVE:-0}
+if test "$RECURSIVE" = "0" -a "$valid" = "0"; then
+  color g << END
+* Running: hubctl stack configure -r "aws"
+  To refresh aws configuration
+END
+  hubctl stack configure -r "aws"
+  color g "* Running again pre-deploy hook: aws"
+  RECURSIVE=1 $0 "$@"
+  valid="1"
+fi
+
+if test "$valid" = "0"; then
+  color e << END
+Error: cannot continue with deployment due to missing requirements.
+
+Tip: ususally fixes the issues:
+
+  hubctl stack configure -r "aws"
+
+If not, please resolve the issues manually and re-run the deployment
+END
+  exit 1
 fi
