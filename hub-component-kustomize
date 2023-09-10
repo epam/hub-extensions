@@ -153,9 +153,9 @@ if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
   HUB_KUSTOMIZE_TARBALL_SUBPATHS="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS $HUB_KUSTOMIZE_TARBALL_SUBPATH" | xargs)"
   echo "* Downloading component base from: $HUB_KUSTOMIZE_TARBALL_URL"
   count="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS" | tr ':' ' ' | wc -w | xargs)"
-  dst="$(files abspath $HUB_KUSTOMIZE_TARBALL_DIR)"
+  target="$(files abspath $HUB_KUSTOMIZE_TARBALL_DIR)"
   if test "$count" = "0"; then
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$dst"
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$target"
   # elif test "$count" = "1"; then
   #   files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/$HUB_KUSTOMIZE_TARBALL_DIR" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"
   else
@@ -169,16 +169,15 @@ if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
       if test -z "$dest" -o "$dest" = "$src"; then
         dest="$(basename "$src")"
       fi
-      dst="$dst/$dest"
-      if test -f "$dst"; then
+      if test -f "$target/$dest"; then
         color warn "File $dest already exists"
       elif test -d "$temp/$src"; then
         echo "  Extracting directory: $src to $HUB_KUSTOMIZE_TARBALL_DIR/$dest"
-        mkdir -p "$dst"
-        cp -r "$temp/$src/" "$dst/"
+        mkdir -p "$target/$dest"
+        cp -r "$temp/$src/" "$target/$dest"
       elif test -f "$temp/$src"; then
         echo "  Extracting file: $src to $HUB_KUSTOMIZE_TARBALL_DIR/$dest"
-        files copy "$temp/$src" "$dst"
+        files copy "$temp/$src" "$target/$dest"
       else
         ERR="$ERR\n  - Not found: $src"
         continue
