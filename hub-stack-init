@@ -62,10 +62,6 @@ if test -z "$hubctl"; then
   exit 1
 fi
 
-hub_state_cli_exist() {
-  hubctl state --help >/dev/null 2>&1
-}
-
 real_files() {
   for f in $@; do
     if test -f "$f"; then
@@ -357,18 +353,6 @@ for req in $HUB_STACK_REQUIRES; do
     color w "Cannot find neither init script $req neither extension $req/init"
   fi
 done
-
-# TODO: remove when hub-extensions packaging will be resolved
-if test -n "$SOURCE_HUB_STATE"; then
-  # backward compatibility for users who have not installed new hub-state extension
-  if hub_state_cli_exist; then
-    _state="$($hubctl state show "$SOURCE_HUB_STATE" -o json | jq -cMr '.stateLocation.uri | select(.)')"
-    if test -n "$_state"; then
-      echo "Found state file: $_state"
-      SOURCE_HUB_STATE="$_state"
-    fi
-  fi
-fi
 
 echo "Resolving stack name"
 hub_stack_name_param="$($params env HUB_STACK_NAME | jq -cMr '.name | select(.)')"

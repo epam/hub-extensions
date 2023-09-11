@@ -18,13 +18,11 @@ else
     ./bin/color w "'hubctl pull' is not available until you install Node.js and NPM"
 fi
 
-# Install Hub state extension
-HUB_STATE_VERSION=$(curl -sLH "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/epam/hub-state/releases/latest" | jq -crM '.tag_name')
-if ! ./hub-state -v > /dev/null 2>&1 || test "$(cat ./hub-state.version)" != "$HUB_STATE_VERSION"; then
-    TEMP_DIR=$(mktemp -d || exit 2)
-    mkdir -p "$TEMP_DIR"
-    trap 'rm -rf $TEMP_DIR' EXIT
-    curl -sLJ "https://github.com/epam/hub-state/releases/download/$HUB_STATE_VERSION/hub-state_$(uname -s)_$(uname -m).tar.gz" | tar xz -C "$TEMP_DIR"
-    mv "$TEMP_DIR/hub-state" .
-    echo "$HUB_STATE_VERSION" > hub-state.version
+# TODO: remove this after 3 months since the issue https://github.com/epam/hub-extensions/issues/104 will be closed
+# Drop support of hub-state extension. Remove redundant binary and version files
+if test -f "hub-state"; then
+    rm -r "hub-state"
+fi
+if test -f "hub-state.version"; then
+    rm -r "hub-state.version"
 fi

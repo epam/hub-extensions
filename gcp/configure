@@ -164,46 +164,6 @@ gsutil label ch -l "managed-by":"hubctl" "gs://$HUB_STATE_BUCKET" > /dev/null 2>
 HUB_STATE_FILE="$(files abspath ".hub/$HUB_DOMAIN_NAME.state"),gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
 HUB_ELABORATE_FILE="$(files abspath ".hub/$HUB_DOMAIN_NAME.elaborate"),gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
 
-# if check_api_enabled "cloudfunctions.googleapis.com"; then
-#   echo -n "* Enabling API for cloudfunctions.googleapis.com... "
-#   gcloud services enable "cloudfunctions.googleapis.com" && echo "done"
-# fi
-
-### State function
-# STATE_FUNCTION_REGION="us-central1"
-# STATE_FUNCTION_REPO="https://github.com/epam/hub-state.git"
-# STATE_FUNCTION_REF="master"
-# echo "Configuring state management cloud function "
-# version=$(git ls-remote --head $STATE_FUNCTION_REPO $STATE_FUNCTION_REF | awk '{print $1}' | cut -c-7)
-# current_version=$(gcloud functions describe stacks --region $STATE_FUNCTION_REGION --format='value(labels.version)' 2>&1 || true)
-# if test "$version" = "$current_version" && test -z "$FORCE_FUNCTION_UPDATE"; then
-#   echo "* State management cloud function already deployed to $GOOGLE_PROJECT ($current_version). Use --force flag to redeploy"
-# else
-#   echo -n "* Deploying the function version $version to $GOOGLE_PROJECT (it could take up to 2 minutes). "
-#   TEMP_DIR=$(mktemp -d || exit 2)
-#   mkdir -p "$TEMP_DIR"
-#   trap 'rm -rf $TEMP_DIR' EXIT
-#   git clone --depth 1 "$STATE_FUNCTION_REPO" "$TEMP_DIR" >/dev/null 2>&1
-#   git -C "$TEMP_DIR" checkout "$STATE_FUNCTION_REF" >/dev/null 2>&1
-#   if gcloud functions deploy stacks \
-#     --region="$STATE_FUNCTION_REGION" \
-#     --quiet \
-#     --runtime=nodejs18 \
-#     --trigger-http \
-#     --memory=4096MB \
-#     --update-labels="version=$version" \
-#     --source="$TEMP_DIR/api" \
-#     --entry-point=stacks 2>&1; then
-#     echo "Deployed"
-#   else
-#     cat << EOF | color err
-# Error occured, see the details below:
-# $RESULT
-# EOF
-#     exit 1
-#   fi
-# fi
-
 $dotenv contains 'HUB_CLOUD_PROVIDER'   || $dotenv set 'HUB_CLOUD_PROVIDER' "$HUB_CLOUD_PROVIDER"
 $dotenv contains 'HUB_STATE_BUCKET'     || $dotenv set 'HUB_STATE_BUCKET' "$HUB_STATE_BUCKET"
 $dotenv contains 'STATE_BUCKET'         || $dotenv set 'STATE_BUCKET' "$HUB_STATE_BUCKET"
