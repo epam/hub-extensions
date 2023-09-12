@@ -397,10 +397,11 @@ if test -n "$SOURCE_HUB_STATE"; then
     elif echo "$state" | grep -e '^s3\?://' >/dev/null 2>&1; then
       printf "* Downloading from: %s... " "$state"
       aws_profile=$(dotenv get AWS_PROFILE)
-      aws_region=$(dotenv get AWS_PROFILE)
+      aws_region=$(dotenv get AWS_REGION)
       aws s3 cp "$state" "$temp" \
         --profile "$aws_profile" \
-        --region "$aws_region"
+        --region "$aws_region" \
+        --quiet
       echo "done"
     elif echo "${state}" | grep -e '^az\?://' >/dev/null 2>&1; then
       printf "* Downloading from: %s... " "${state}"
