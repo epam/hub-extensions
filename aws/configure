@@ -3,7 +3,7 @@
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 # shellcheck disable=SC2046,SC2086
 
@@ -101,10 +101,9 @@ if test -z "$DOT_ENV"; then
   exit 2
 fi
 
-r53_deploy="$(files -e find-in-path aws/route53/deploy)"
 s3_deploy="$(files -e find-in-path aws/s3-bucket/deploy)"
-zone_id="$(files -e find-in-path aws/route53/zone-id)"
 bubble_dns_update="$(files -e find-in-path bubble-dns/update)"
+r53_deploy="$(files -e find-in-path aws/route53/deploy)"
 r53_upsert="$(files -e find-in-path aws/route53/upsert)"
 r53_private_zone="$(files -e find-in-path aws/route53/private-zone)"
 r53_zone_id="$(files -e find-in-path aws/route53/zone-id)"
@@ -194,7 +193,7 @@ has_dnsdomain_param="$(param_name HUB_DOMAIN_NAME dns.domain)"
 if test -n "$has_dnsdomain_param"; then
   echo "Configuring AWS Route53"
   printf "* Checking presence of hosted zone %s: " "$HUB_DOMAIN_NAME"
-  ZONE_ID=$($zone_id --domain-name $HUB_DOMAIN_NAME)
+  ZONE_ID=$($r53_zone_id --domain-name $HUB_DOMAIN_NAME)
   color h "${ZONE_ID:-not found}"
 else
   DNS_MANAGER=none

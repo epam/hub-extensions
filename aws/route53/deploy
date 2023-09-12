@@ -3,9 +3,7 @@
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2086
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 usage() {
   cat << EOF
@@ -40,6 +38,11 @@ while [ "$1" != "" ]; do
     shift
 done
 
+VERBOSE=${VERBOSE:-"false"}
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
 if test -z "$HUB_DOMAIN_NAME"; then
   usage
   exit 1
@@ -48,6 +51,7 @@ fi
 export AWS_DEFAULT_OUTPUT=text
 
 hosted_zone_ns() {
+  # shellcheck disable=SC2086
   aws $AWS_OPTS \
     route53 \
     get-hosted-zone \
@@ -57,6 +61,7 @@ hosted_zone_ns() {
 }
 
 tag_hosted_zone() {
+  # shellcheck disable=SC2086
   aws $AWS_OPTS route53 change-tags-for-resource \
     --resource-type "hostedzone" \
     --resource-id "$1" \
@@ -79,6 +84,7 @@ if test -n "$ZONE_ID"; then
 fi
 
 CALLER="hubctl-$(gen_random 7)"
+# shellcheck disable=SC2086
 CHANGE=$(aws $AWS_OPTS route53 create-hosted-zone \
   --name="$HUB_DOMAIN_NAME" \
   --caller-reference="$CALLER" \
@@ -86,6 +92,7 @@ CHANGE=$(aws $AWS_OPTS route53 create-hosted-zone \
 
 sleep 3
 
+# shellcheck disable=SC2086
 aws $AWS_OPTS route53 wait resource-record-sets-changed --id "$CHANGE"
 ZONE_ID=$($zone_id --domain-name "$HUB_DOMAIN_NAME")
 if test -z "$ZONE_ID"; then
@@ -95,12 +102,13 @@ fi
 
 for record_type in "NS" "SOA"
 do
-  RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id $ZONE_ID  \
+  RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id "$ZONE_ID" \
     --output json \
     --query "ResourceRecordSets[?Type == '$record_type' ]" | jq -Mc ". |  .[].TTL = 60 | .[] | {\"Changes\":[{\"Action\": \"UPSERT\",\"ResourceRecordSet\": .} ]}")
 
-  CHANGE=$(aws route53 change-resource-record-sets --output json --hosted-zone-id $ZONE_ID --change-batch "${RECORD}" \
+  CHANGE=$(aws route53 change-resource-record-sets --output json --hosted-zone-id "$ZONE_ID" --change-batch "${RECORD}" \
     | jq  -Mr '.ChangeInfo.Id')
+  # shellcheck disable=SC2086
   aws $AWS_OPTS route53 wait resource-record-sets-changed --id "$CHANGE"
 done
 

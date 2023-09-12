@@ -1,13 +1,12 @@
 #!/bin/sh -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2086
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 NS_OUTPUT=text
+VERBOSE=${VERBOSE:-"false"}
 while [ "$1" != "" ]; do
     case $1 in
         --domain-name )   shift
@@ -15,11 +14,15 @@ while [ "$1" != "" ]; do
                           ;;
         --json )          NS_OUTPUT=json
                           ;;
-        --verbose )       set -x
+        --verbose )       VERBOSE="true"
                           ;;
     esac
     shift
 done
+
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
   color e "Flag --domain-name DOMAIN is not defined"
@@ -29,6 +32,7 @@ fi
 zone_id="$(files find-in-path aws/route53/zone-id)"
 ZONE_ID=$($zone_id --domain-name "$HUB_DOMAIN_NAME")
 if test -n "$ZONE_ID"; then
+  # shellcheck disable=SC2086
   aws $AWS_OPTS \
     route53 \
     get-hosted-zone \

@@ -3,9 +3,7 @@
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2086
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 usage() {
   cat << EOF
@@ -57,6 +55,11 @@ while [ "$1" != "" ]; do
     shift
 done
 
+VERBOSE=${VERBOSE:-"false"}
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
 if  test -z "$ZONE_ID" -o -z "$REC_NAME" -o -z "$REC_VALUE"; then
   usage
   exit 1
@@ -64,7 +67,7 @@ fi
 
 temp="$(mktemp)"
 trap 'rm -f $temp' EXIT
-cat <<EOF > $temp
+cat <<EOF > "$temp"
 {
   "Changes": [{
     "Action": "UPSERT",
@@ -78,10 +81,12 @@ cat <<EOF > $temp
 EOF
 
 CHANGE=$( \
+  # shellcheck disable=SC2086
   aws $AWS_OPTS route53 change-resource-record-sets \
     --hosted-zone-id "$ZONE_ID" \
     --change-batch "file://$temp" \
     --output json \
   | jq  -Mr '.ChangeInfo.Id' )
 sleep 3
+# shellcheck disable=SC2086
 aws --output text $AWS_OPTS route53 wait resource-record-sets-changed --id "$CHANGE"

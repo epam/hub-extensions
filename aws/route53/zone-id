@@ -3,10 +3,9 @@
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-# shellcheck disable=SC2086
-
+VERBOSE=${VERBOSE:-"false"}
 while [ "$1" != "" ]; do
     case $1 in
         --domain-name )   shift
@@ -15,17 +14,22 @@ while [ "$1" != "" ]; do
         --aws-profile )   shift
                           export AWS_PROFILE="$1"
                           ;;
-        --verbose )       set -x
+        --verbose )       VERBOSE="true"
                           ;;
     esac
     shift
 done
+
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
   echo "Error: --domain-name DOMAIN is not defined"
   exit 1
 fi
 
+# shellcheck disable=SC2086
 aws $AWS_OPTS route53 list-hosted-zones \
     --output=text \
     --query 'HostedZones[?Name==`'$HUB_DOMAIN_NAME'.`].Id' \
