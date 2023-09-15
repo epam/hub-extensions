@@ -52,7 +52,7 @@ fi
 
 if test -e "\$HUB_WORKDIR/.env"; then
     set -a
-    . "\$HUB_WORKDIR/.env"
+    source .env
     set +a
 fi;
 

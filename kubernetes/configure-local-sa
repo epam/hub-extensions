@@ -1,11 +1,9 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2086,SC2064,SC2046
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 DOT_ENV=${DOT_ENV:-".env"}
 while [ "$1" != "" ]; do
@@ -24,13 +22,14 @@ if test "$VERBOSE" = "true"; then
 fi
 
 http_ping() {
-  local http_code rv
-  echo -n "* Trying to reach host \"$1\"... "
+  _http_ping_http_code=
+  _http_ping_rv=
+  printf "* Trying to reach host \"%s\"... " "$1"
   set +e
-  http_code=$(curl -sLko  /dev/null -w '%{http_code}' "$1")
-  rv=$?
+  _http_ping_http_code=$(curl -sLko /dev/null -w '%{http_code}' "$1")
+  _http_ping_rv=$?
   set -e
-  if test "$rv" = "0" && test "$http_code" != "000"; then
+  if test "$_http_ping_rv" = "0" && test "$_http_ping_http_code" != "000"; then
     echo "ok"
   else
     echo "not found"
@@ -38,13 +37,13 @@ http_ping() {
   fi
 }
 
-dotenv="dotenv -f $DOT_ENV)"
+dotenv="dotenv -f $DOT_ENV"
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:-$($dotenv get "HUB_DOMAIN_NAME")}
 SERVICEACCOUNT="/var/run/secrets/kubernetes.io/serviceaccount"
 CLUSTER="this-cluster"
 USER="${USER:-this-user}"
-echo -n "* Using service account: $SERVICEACCOUNT"
-if test -d $SERVICEACCOUNT; then
+printf "* Using service account: %s" "$SERVICEACCOUNT"
+if test -d "$SERVICEACCOUNT"; then
   echo
 else
   echo " (not found)"
@@ -67,7 +66,7 @@ if ! http_ping "$APISERVER"; then
   fi
 fi
 
-cat <<EOF > $SAVETO
+cat <<EOF > "$SAVETO"
 {
   "apiVersion": "v1",
   "kind": "Config",
@@ -95,9 +94,9 @@ cat <<EOF > $SAVETO
 }
 EOF
 
-chmod go-rw $SAVETO
+chmod go-rw "$SAVETO"
 export KUBECONFIG="$SAVETO"
-echo -n "* Connecting to API server: "
+printf "* Connecting to API server: "
 if kubectl cluster-info > /dev/null; then
   echo "Connected"
 else

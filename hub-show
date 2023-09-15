@@ -1,11 +1,14 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/
 
-# shellcheck disable=SC2086
+VERBOSE=${VERBOSE:-"false"}
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
@@ -44,7 +47,6 @@ EOF
 
 FORMAT="${FORMAT:-yaml}"
 JQ_ARGS="${JQ_ARGS:- -Sr}"
-eval "$(dotenv -f $HUB_WORKDIR/.env export)"
 
 if ! test -t 0; then
     HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
@@ -98,10 +100,11 @@ while [ "$1" != "" ]; do
     shift
 done
 
-if test ! -f .env; then
-  color error "Error: cannot find .env file"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
   exit 1
 fi
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 HUB_STATE="$(dotenv get HUB_STATE --default "$HUB_STATE")"
 if test -z "$HUB_STATE"; then
@@ -116,10 +119,11 @@ if test -z "$HUB_TOKEN"; then
       HUB_FILES="$(dotenv get HUB_FILES)"
     fi
 
+    # shellcheck disable=SC2086
     has_inventory_configmap="$(yq -N e '[ .extensions.deploy.after ] | select(. == "inventory-configmap")' $HUB_FILES)"
     if test -n "$has_inventory_configmap"; then
       if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -e "$HUB_KUBECONFIG"; then
-        export KUBECONFIG=$HUB_KUBECONFIG
+        export KUBECONFIG="$HUB_KUBECONFIG"
       fi
       ns="kube-system"
       cm="superhub"
@@ -146,6 +150,7 @@ if test -z "$HUB_TOKEN"; then
     fi
   fi
 else
+  # shellcheck disable=SC2086
   RESP=$($hubctl api instance get -j \
       | jq -S '. | if type=="array" then . else [.] end' \
       | jq -cMr '.[] | select(.domain=="'$HUB_DOMAIN_NAME'")')
@@ -161,6 +166,7 @@ if test ! -z "$RAW_OUTPUT"; then
   if test "$FORMAT" = "yaml"; then
     echo "$RESP" | yq e -P 1>&2
   else
+    # shellcheck disable=SC2086
     echo "$RESP" | jq $JQ_ARGS . 1>&2
   fi
   exit 0
@@ -175,17 +181,22 @@ to_obj() {
 
 if test -n "$HUB_COMPONENT"; then
     if test -z "$HUB_TOKEN"; then
+      # shellcheck disable=SC2086
       if test "$(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key] | index("'$HUB_COMPONENT'")')" == "null"; then
         echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$HUB_DOMAIN_NAME\"" 1>&2
         exit 3
       fi
+      # shellcheck disable=SC2086
       OUTPUTS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.outputs != null).outputs')
+      # shellcheck disable=SC2086
       PARAMETERS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.parameters != null).parameters')
     else
+      # shellcheck disable=SC2086
       if test "$(echo "$RESP" | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
         echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$HUB_DOMAIN_NAME\"" 1>&2
         exit 3
       fi
+      # shellcheck disable=SC2086
       OUTPUTS=$(echo "$RESP" | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
       PARAMETERS=$(echo "$RESP" | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
     fi
@@ -219,9 +230,9 @@ else
     DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"parameters": .}')"
 fi
 if test -z "$HUB_TOKEN"; then
-  if test -n "$(echo $RESP | jq -crM '.components|select(.)')"; then
+  if test -n "$(echo "$RESP" | jq -crM '.components|select(.)')"; then
     if test -z "$HUB_COMPONENT"; then
-      DOCBASE=$(echo $RESP | jq -crM '{
+      DOCBASE=$(echo "$RESP" | jq -crM '{
         "meta" : {
           "kind": .meta.kind | select("."),
           "name": .meta.name | select("."),
@@ -233,7 +244,7 @@ if test -z "$HUB_TOKEN"; then
         }
       }')
     else
-      DOCBASE=$(echo $RESP | jq --arg c "$HUB_COMPONENT" -crM '{
+      DOCBASE=$(echo "$RESP" | jq --arg c "$HUB_COMPONENT" -crM '{
         "meta" : {
           "kind": "component",
           "name": $c,
@@ -246,14 +257,14 @@ if test -z "$HUB_TOKEN"; then
     fi
   else
     # derive components from "provides"
-    DOCBASE=$(echo $RESP | jq -crM '{
+    DOCBASE=$(echo "$RESP" | jq -crM '{
       "components" : [.provides|to_entries[].value|select(.)[]] | unique,
       "provides" : [select(.provides != null).provides|to_entries[]|.key],
       "status" : ""
     }')
   fi
 else
-  DOCBASE=$(echo $RESP | jq -crM '{
+  DOCBASE=$(echo "$RESP" | jq -crM '{
       "environment": .environment.name,
       "provides": [.provides|to_entries[]|.key],
       "components": .componentsEnabled,
@@ -264,12 +275,12 @@ else
 fi
 
 if test "$FORMAT" = "yaml"; then
-    # shellcheck disable=SC2090
+    # shellcheck disable=SC2090,SC2086
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
     | jq $JQ_ARGS \
     | yq e -P 'del(.. | select((tag == "!!map" and length == 0) or (tag == "!!seq" and length == 0) or (. == null)))' -
 else
-    # shellcheck disable=SC2090
+    # shellcheck disable=SC2090,SC2086
     echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
     | jq $JQ_ARGS
 fi

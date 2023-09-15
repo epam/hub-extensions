@@ -131,7 +131,7 @@ abspath() {
   else
     name="$(basename "$1")"
     dir="$(dirname "$1")"
-    if test -n "dir"; then
+    if test -n "$dir"; then
       echo "$(abspath "$dir")/$name"
     fi
   fi

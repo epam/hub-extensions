@@ -1,11 +1,9 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2046,SC2086
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 usage() {
   cat << EOF
@@ -37,13 +35,11 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-if test ! -f ".env"; then
-  echo "Error: cannot find .env file. Please run 'hubctl configure'"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
   exit 1
 fi
-set +a
 eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
-set -a
 
 if test -z "$AWS_PROFILE"; then
   export AWS_PROFILE
@@ -59,13 +55,13 @@ if test ! -f "$HUB_YAML"; then
 fi
 
 param() {
-  local rv
-  rv=$(
-      yq e -o=json $HUB_YAML | jq -r \
+  _param_rv=$(
+      #shellcheck disable=2086
+      yq e -o=json "$HUB_YAML" | jq -r \
       '.extensions.parameters? | select(.)[] | select(.name=="'$1'").value'
     )
-  if test -n "$rv"; then
-    echo "$rv"
+  if test -n "$_param_rv"; then
+    echo "$_param_rv"
   else
     echo "$2"
   fi

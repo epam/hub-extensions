@@ -1,14 +1,13 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
@@ -39,11 +38,11 @@ if test -z "$hubctl"; then
   exit 1
 fi
 
-if test ! -f .env; then
-  echo "* Error: configuration '.env' has not been found"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
   exit 1
 fi
-eval "$(dotenv export -f "$HUB_WORKDIR/.env" )"
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 HUB_OPTS=
 while [ "$1" != "" ]; do
@@ -84,18 +83,13 @@ EOF
 fi
 
 if test -z "$HUB_STATE"; then
-  if test -f ".hub/$HUB_DOMAIN_NAME.state"; then
-    HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+  if test -f "$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"; then
+    HUB_STATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
   fi
 fi
 
-# if test -n "$HUB_STATE"; then
-#   echo "* Using hubctl state: $HUB_STATE"
-#   HUB_OPTS="$HUB_OPTS -s $HUB_STATE"
-# fi
-
 if test -z "$HUB_ELABORATE"; then
-  HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
+  HUB_ELABORATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate"
 fi
 
 cat << EOF
@@ -109,14 +103,13 @@ Proceeding with: elaborate
 EOF
 
 verb="elaborate"
-work_dir="$(pwd)"
 script_dir=$(dirname "$0")
 
-
+# shellcheck disable=SC2086
 BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$BEFORE" | xargs -n1); do
-  if test -f "$work_dir/.hub/$i/before-${verb}"; then
-    hook="$work_dir/.hub/$i/before-${verb}"
+  if test -f "$HUB_WORKDIR/.hub/$i/before-${verb}"; then
+    hook="$HUB_WORKDIR/.hub/$i/before-${verb}"
   elif test -f "$script_dir/$i/before-${verb}"; then
     hook="$script_dir/$i/before-${verb}"
   else
@@ -131,10 +124,11 @@ done
 # shellcheck disable=SC2086
 $hubctl elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS
 
+# shellcheck disable=SC2086
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$AFTER" | xargs -n1); do
-  if test -f "$work_dir/.hub/$i/after-${verb}"; then
-    hook="$work_dir/.hub/$i/after-${verb}"
+  if test -f "$HUB_WORKDIR/.hub/$i/after-${verb}"; then
+    hook="$HUB_WORKDIR/.hub/$i/after-${verb}"
   elif test -f "$script_dir/$i/after-${verb}"; then
     hook="$script_dir/$i/after-${verb}"
   else

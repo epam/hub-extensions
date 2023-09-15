@@ -1,18 +1,19 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
 
 usage() {
   cat << EOF
 Use or change currently active stack
 
-Usage: hubctl stack use STACK
+Usage: $HUB_EXTENSION STACK
 
   where STACK is the name of the stack to use as an active
 
@@ -34,7 +35,7 @@ else
   dotfile="$HUB_WORKDIR/.hub/env/$1.env"
 fi
 
-if test ! -d .hub/env; then
+if test ! -d "$HUB_WORKDIR/.hub/env"; then
   color error "Error: no stacks available"
   exit 2
 fi
@@ -53,15 +54,15 @@ EOF
 fi
 
 
-if test -L ".env"; then
+if test -L "$HUB_WORKDIR/.env"; then
   echo "* Unlinking .env"
-  unlink ".env"
-elif test -f ".env"; then
+  unlink "$HUB_WORKDIR/.env"
+elif test -f "$HUB_WORKDIR/.env"; then
   echo "* Backing up .env as .env.bak"
-  mv ".env" ".env.bak"
+  mv "$HUB_WORKDIR/.env" "$HUB_WORKDIR/.env.bak"
 fi
 
-if test ! -f ".env"; then
+if test ! -f "$HUB_WORKDIR/.env"; then
   echo "* Setting .env link to $1"
-  ln -sf "$dotfile" ".env"
+  ln -sf "$dotfile" "$HUB_WORKDIR/.env"
 fi

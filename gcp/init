@@ -1,9 +1,9 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 
 usage() {
@@ -17,18 +17,18 @@ EOF
 }
 
 contains() {
-  local pattern result
-  pattern="$1"
+  _contains_pattern="$1"
+  _contains_result=
   shift
 
   # shellcheck disable=SC2048
   for w in $*; do
-    if test "$w" = "$pattern"; then
-      result="$w"
+    if test "$w" = "$_contains_pattern"; then
+      _contains_result="$w"
       break
     fi
   done
-  test -n "$result"
+  test -n "$_contains_result"
 }
 
 ident() {
@@ -61,9 +61,10 @@ while [ "$1" != "" ]; do
   shift
 done
 
-# if test "$VERBOSE" = "true"; then
-#   set -x
-# fi
+VERBOSE=${VERBOSE:-"false"}
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
 dotenv="dotenv -f $DOT_ENV"
 # shellcheck disable=SC2089
 curl="curl -isH 'Metadata-Flavor: Google'"

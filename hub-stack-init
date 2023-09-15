@@ -5,11 +5,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-# shellcheck disable=SC2016,SC2068,SC2086
-
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
 
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_HOME HUB_EXTENSION
@@ -38,7 +36,7 @@ maybe_download() {
   elif is_url "$1"; then
     files download "$1" "$filepath"
     echo "(downloaded)"
-    KNOWN_URLS=$(dirname $1 | xargs)
+    KNOWN_URLS=$(dirname "$1" | xargs)
   else
     for url in $KNOWN_URLS; do
       # shellcheck disable=SC2001
@@ -63,6 +61,7 @@ if test -z "$hubctl"; then
 fi
 
 real_files() {
+  # shellcheck disable=SC2068
   for f in $@; do
     if test -f "$f"; then
       printf " %s" "$f"
@@ -96,6 +95,7 @@ State ref:
 EOF
 
   if test -n "$@"; then
+    # shellcheck disable=SC2068
     for req in $@; do
       init=$(files find-in-path "$req/init")
       if test -n "$init"; then
@@ -121,10 +121,8 @@ ident() {
 
 finalize() {
   rv="$?"
+  # shellcheck disable=SC2068
   rm -rf $@
-  # if test "$rv" != "0"; then
-  #   color e "Finished wih error!"
-  # fi
   exit $rv
 }
 
@@ -136,7 +134,7 @@ HUB_INTERACTIVE="${HUB_INTERACTIVE:-1}"
 bubbles_new_name="$(files -e find-in-path bubble-dns/new-name)"
 bubbles_new_domain="$(files -e find-in-path bubble-dns/new)"
 
-while [ "$1" != "" ]; do
+while test "$1" != ""; do
   case "$1" in
     -f | --file )
       shift
@@ -148,10 +146,6 @@ while [ "$1" != "" ]; do
         fi
       fi
       ;;
-    # -s | --state )
-    #   shift
-    #   SOURCE_HUB_STATE="$1"
-    #   ;;
     --force )
       HUB_USE_FORCE="1"
       ;;
@@ -172,17 +166,17 @@ while [ "$1" != "" ]; do
       else
         SOURCE_HUB_STATE="$1"
       fi
+      shift
       ;;
   esac
-  shift
 done
 
 if $VERBOSE; then
   set -x
 fi
 
-if test -z "$HUB_FILES" -a -f "hub.yaml"; then
-  HUB_FILES="hub.yaml"
+if test -z "$HUB_FILES" -a -f "$HUB_WORKDIR/hub.yaml"; then
+  HUB_FILES="$HUB_WORKDIR/hub.yaml"
 fi
 
 if test -f "$HUB_WORKDIR/.env" -a -z "$HUB_USE_FORCE"; then
@@ -234,6 +228,7 @@ EXPANDED=""
 export DOT_ENV
 
 expand_hub_files() {
+  # shellcheck disable=SC2068
   for f in $@; do
     if test -z "$f"; then continue; fi
     if echo "$EXPANDED" | grep -q "$f"; then continue; fi
@@ -244,6 +239,7 @@ expand_hub_files() {
       EXPANDED=$(echo "$EXPANDED $f" | xargs)
       included="$(to_json "$f" | jq -cMr '.extensions.include|select(.)[]')"
       if test -n "$included"; then
+        # shellcheck disable=SC2086
         expand_hub_files $included
       fi
     elif maybe_download "$f"; then
@@ -318,7 +314,7 @@ else
   echo "Initializing a new stack"
 fi
 
-printf "Using working directory"
+printf "Using working directory "
 color b "$HUB_WORKDIR"
 if test -L "$HUB_WORKDIR/.env"; then
   echo "* Unlinking .env"
@@ -328,26 +324,25 @@ elif test -f "$HUB_WORKDIR/.env" ; then
   rm -rf "$HUB_WORKDIR/.env"
 fi
 
+# shellcheck disable=SC2086
 expand_hub_files $HUB_FILES
+# shellcheck disable=SC2086
 HUB_FILES="$(real_files $EXPANDED | xargs)"
 params="params -S"
 export HUB_FILES
 
-# mkdir -p "$HUB_WORKDIR/.hub/env"
-# if test -x "$HUB_WORKDIR/.hub/before-init"; then
-#   echo "Running before init script..."
-#   $HUB_WORKDIR/.hub/before-init
-# fi
-
+# shellcheck disable=SC2086
 HUB_STACK_REQUIRES="$(yq e '' $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.init).init[]')"
 for req in $HUB_STACK_REQUIRES; do
   init=$(files find-in-path "$req/init")
   if test -x "$HUB_WORKDIR/$req"; then
     color b "* Running init script $req"
-    $HUB_WORKDIR/$req $ARGS
+    # shellcheck disable=SC2086
+    "$HUB_WORKDIR/$req" $ARGS
   elif test -n "$init"; then
     printf "Initializing "
     color h "$req"
+    # shellcheck disable=SC2086
     $init $ARGS
   else
     color w "Cannot find neither init script $req neither extension $req/init"
@@ -504,7 +499,7 @@ if test -n "$HUB_STATE"; then
       continue
     fi
     for state in $HUB_STATE; do
-      if test ! -f $state; then
+      if test ! -f "$state"; then
         continue
       fi
 
@@ -539,7 +534,7 @@ This may overwrite settings
 
 If you want to use the stack then run the following:
 
-  hubctl stack set $HUB_DOMAIN_NAME
+  hubctl stack use $HUB_DOMAIN_NAME
 
 EOF
   exit 1
@@ -552,7 +547,7 @@ fi
 
 echo "Checking hooks"
 for hubfile in $HUB_FILES; do
-  for hook in $(to_json $hubfile | getConfigureScripts); do
+  for hook in $(to_json "$hubfile" | getConfigureScripts); do
     printf "* Checking configure %s " "$hook"
     if files -e find-in-path "$hook/configure" > /dev/null; then
       echo "(extension)"
@@ -562,7 +557,7 @@ for hubfile in $HUB_FILES; do
       color w "Warning: $hook not found"
     fi
   done
-  for hook in $(to_json $hubfile | getDeployHooks "before"); do
+  for hook in $(to_json "$hubfile" | getDeployHooks "before"); do
     printf "* Checking deploy before %s " "$hook"
     if files -e find-in-path "$hook/before-deploy" > /dev/null; then
       echo "(extension)"
@@ -572,7 +567,7 @@ for hubfile in $HUB_FILES; do
       color w "Warning: $hook not found"
     fi
   done
-  for hook in $(to_json $hubfile | getDeployHooks "after"); do
+  for hook in $(to_json "$hubfile" | getDeployHooks "after"); do
     printf "* Checking deploy after %s " "$hook"
     if files -e find-in-path "$hook/after-deploy" > /dev/null; then
       echo "(extension)"
@@ -582,7 +577,7 @@ for hubfile in $HUB_FILES; do
       color w "Warning: $hook not found"
     fi
   done
-  for hook in $(to_json $hubfile | getAllComponentHooks); do
+  for hook in $(to_json "$hubfile" | getAllComponentHooks); do
     printf "* Checking component %s " "$hook"
     if maybe_download "$hook"; then
       chmod +x "$hook"
@@ -594,20 +589,18 @@ done
 
 echo "Checking components"
 for hubfile in $HUB_FILES; do
-  if test ! -f $hubfile; then
+  if test ! -f "$hubfile"; then
     color warn "* Warning: skipping $hubfile due to not found"
     continue
   fi
-  # hubfile_dir="$(dirname "$(files abspath "$hubfile")")"
   for comp in $(to_json "$hubfile" | components); do
     printf "* Component %s: " "$comp"
     _dir=$(to_json "$hubfile" | componentDir "$comp")
-    # to_json "$hubfile" | componentDir "$comp"
     if test -z "$_dir"; then
       color w "Warning: component $comp has no directory"
       exit 1
     fi
-    comp_dir=$(files relpath "$_dir" "$HUB_WORKDIR")
+    comp_dir="$HUB_WORKDIR/$_dir"
 
     if test -d "$comp_dir"; then
       echo "exist"
@@ -615,64 +608,50 @@ for hubfile in $HUB_FILES; do
     fi
     echo "fetching"
 
+    temp_dir=$(temp_file)
+    mkdir -p "$temp_dir";
+
     git_repo=$(to_json "$hubfile" | componentSourceRepo "git" "$comp")
     if test -n "$git_repo"; then
       subdir=$(to_json "$hubfile" | componentSourceSubdir "git" "$comp")
       ref=$(to_json "$hubfile" | componentSourceRef "git" "$comp")
-      temp_dir=$(temp_file)
-      echo "  Retrieving from git source repository"
-      echo "  Running: git clone $git_repo"
-      mkdir -p "$temp_dir";
+      cat << EOF | ident
+Retrieving from git source repository
+Running: git clone $git_repo
+EOF
       git clone $GIT_OPTS "$git_repo" "$temp_dir" >/dev/null
-      (
-        cd "$temp_dir";
-        git config advice.detachedHead "false" >/dev/null
-        head="$(git rev-parse --abbrev-ref HEAD)";
-        printf "  Using ref: ";
-        if test "$ref" = "__auto__"; then
-          color b "$head";
-        else
-          color b "$ref";
-          if test "$head" != "$ref"; then
-            git fetch $GIT_OPTS --all --tags >/dev/null;
-            git checkout $GIT_OPTS "$ref" >/dev/null;
-          fi
-        fi
-      )
-
-      echo "  Saving component: $comp_dir"
-      mkdir -p "$comp_dir"
-      cp -rf "$temp_dir/$subdir/." "$comp_dir"
-      continue
     fi
 
     gcp_repo=$(to_json "$hubfile" | componentSourceRepo "gcp" "$comp")
     if test -n "$gcp_repo"; then
       subdir=$(to_json "$hubfile" | componentSourceSubdir "gcp" "$comp")
       ref=$(to_json "$hubfile" | componentSourceRef "gcp" "$comp")
-      temp_dir=$(temp_file)
-      echo "  Retrieving from gcp source repository"
-      echo "  Running: gcloud source repos clone $gcp_repo"
+      cat << EOF | ident
+Retrieving from gcp source repository
+Running: gcloud source repos clone $gcp_repo
+EOF
       gcloud --no-user-output-enabled source repos clone "$gcp_repo" "$temp_dir"
-      (
-        cd "$temp_dir";
-        head="$(git rev-parse --abbrev-ref HEAD)";
-        printf "  Using ref: ";
-        if test "$ref" = "__auto__"; then
-          color b "$head";
-        else
-          color b "$ref";
-          if test "$head" != "$ref"; then
-            git fetch $GIT_OPTS --all --tags >/dev/null;
-            git checkout $GIT_OPTS "$ref" -b "$ref" >/dev/null;
-          fi
-        fi
-      )
-      echo "  Saving component: $comp_dir"
-      mkdir -p "$HUB_WORKDIR/$comp_dir"
-      cp -rf "$temp_dir/$subdir/." "$HUB_WORKDIR/$comp_dir"
-      continue
     fi
+
+    (
+      cd "$temp_dir";
+      head="$(git rev-parse --abbrev-ref HEAD)";
+      printf "  Using ref: ";
+      if test "$ref" = "__auto__"; then
+        color b "$head";
+      else
+        color b "$ref";
+        if test "$head" != "$ref"; then
+          git fetch $GIT_OPTS --all --tags >/dev/null;
+          git checkout $GIT_OPTS "$ref" -b "$ref" >/dev/null;
+        fi
+      fi
+    )
+
+    echo "  Saving component: $comp_dir"
+    mkdir -p "$comp_dir"
+    cp -rf "$temp_dir/$subdir/." "$comp_dir"
+    continue
   done
 done
 dotenv set "HUB_AUTOCONFIGURE" "$HUB_AUTOCONFIGURE"
@@ -685,17 +664,12 @@ if test -n "$HUB_STATE"; then
 fi
 echo "Saving configuration"
 temp="$(temp_file)"
-HUB_DOMAIN_NAME=$(dotenv -f "DOT_ENV" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
-dotenv merge -f "$DOT_ENV" -f ".hub/env/$HUB_DOMAIN_NAME.env" > "$temp"
+HUB_DOMAIN_NAME=$(dotenv -f "$DOT_ENV" get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
+dotenv merge -f "$DOT_ENV" -f "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" > "$temp"
 echo "* Saving configuration to .hub/env/$HUB_DOMAIN_NAME.env"
 files copy "$temp" "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" | ident
 update_symlink "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env" "$HUB_WORKDIR/.env"
 
-# if test -x "$HUB_WORKDIR/.hub/after-init"; then
-#   export DOT_ENV="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env"
-#   color w "Deprecated functionality: after-init will be removed "
-#   $HUB_WORKDIR/.hub/after-init
-# fi
 cat << EOF
 
 Stack has been initialized!
