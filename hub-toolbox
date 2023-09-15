@@ -7,12 +7,11 @@
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
 HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH HUB_WORKDIR
-DOT_ENV="$(files abspath .env)"
-export DOT_ENV
+DOT_ENV="$(files abspath "$HUB_WORKDIR/.env")"
+export PATH HUB_WORKDIR DOT_ENV
 
 usage() {
 cat << EOF

@@ -1,11 +1,9 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2046,SC2068,SC2064,SC2086
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
@@ -21,7 +19,7 @@ usage() {
   cat << EOF
 Reads configuration information in ${HUB_FILES:-hub.yaml} and configures stack for deployment.
 
-The result of configuration is saved under ".hub/env/" with a symlink ".env" pointing
+The result of configuration is saved under "$HUB_WORKDIR/.hub/env/" with a symlink "$HUB_WORKDIR/.env" pointing
 to the current configuration.
 
 Usage:
@@ -42,22 +40,23 @@ EOF
     if echo "$2" | grep -oh "\w*$req\w*"; then
       continue
     fi
-    local configure
+    _usage_configure=
     if test -f "$HUB_WORKDIR/.hub/$req/configure"; then
-      configure="$HUB_WORKDIR/.hub/$req/configure"
+      _usage_configure="$HUB_WORKDIR/.hub/$req/configure"
     elif test -f "$HUB_HOME/$req/configure"; then
-      configure=$HUB_HOME/$req/configure
+      _usage_configure=$HUB_HOME/$req/configure
     else
       continue
     fi
-    $configure --help
+    $_usage_configure --help
   done
 }
 
 real_files() {
+  # shellcheck disable=SC2068
   for f in $@; do
     if test -f "$f"; then
-      echo -n " $f"
+      printf " %s" "$f"
     fi
   done
   echo
@@ -69,8 +68,27 @@ HELP=false
 ARGS=$*
 HUB_FILES=""
 
-if test -f ".env"; then
-  eval $(dotenv export -f ".env" )
+if test -f "$HUB_WORKDIR/.env"; then
+  echo "Environment file: exist"
+  if test -L "$HUB_WORKDIR/.env"; then
+    DOT_ENV="$(readlink -n "$HUB_WORKDIR/.env")"
+  else
+    DOT_ENV="$HUB_WORKDIR/.env"
+  fi
+  export DOT_ENV
+  # shellcheck disable=SC2046
+  eval $(dotenv export -f "$HUB_WORKDIR/.env")
+  if test -n "$HUB_CLOUD_PROVIDER"; then
+    echo "* Cloud provider: $HUB_CLOUD_PROVIDER";
+  fi
+else
+  cat << EOF | color e
+Error: cannot find .env file
+
+Did you run?
+  hubctl stack init
+EOF
+  exit 1
 fi
 
 while [ "$1" != "" ]; do
@@ -92,10 +110,6 @@ EOF
       shift
       REQS=$(echo "$REQS $1" | xargs)
       ;;
-    # -i | --init-dotenv )
-    #   shift
-    #   INIT_DOTENV="$1"
-    #   ;;
     -S | --silent )
       SILENT=true
       ;;
@@ -114,53 +128,53 @@ if $VERBOSE; then
   set -x
 fi
 
-# if test -n "$INIT_DOTENV" -a ! -f "$INIT_DOTENV"; then
-#   echo "Error: init dotenv $INIT_DOTENV file not found"
-#   exit 1
-# fi
-
 TEMP_FILES=""
 temp_file(){
-  local temp
-  temp=$(mktemp) || exit 1
-  TEMP_FILES="$TEMP_FILES $temp"
-  echo $temp
+  _temp_file_temp=
+  _temp_file_temp=$(mktemp) || exit 1
+  TEMP_FILES="$TEMP_FILES $_temp_file_temp"
+  echo "$_temp_file_temp"
 }
 
 update_symlink() {
+  # shellcheck disable=SC2046
   if test -L "$2" && test $(readlink -n "$2") != "$1"; then
     unlink "$2"
   fi
   if test ! -f "$2"; then
     ln -sf "$1" "$2"
-    echo "* Updated .env link to $(basename $1)"
+    echo "* Updated .env link to $(basename "$1")"
   fi
 }
 
 finalize() {
   # shellcheck disable=SC2046
-  local rv=$?
-  local profiles
-  if test "$rv" != "0"; then
+  _finalize_rv=$?
+  _finalize_profiles=
+  if test "$_finalize_rv" != "0"; then
     cat << EOF | color e
 See error above!
 
 Configuration has been reverted!
 EOF
-    exit $rv
+    exit $_finalize_rv
   fi
-  if test -d "$HUB_WORKDIR/.hub/profiles"; then profiles="$profiles $(ls "$HUB_WORKDIR/.hub/profiles")"; fi
-  if test -d "$HUB_HOME/profiles"; then profiles="$profiles $(ls $HUB_HOME/profiles)"; fi
+  if test -d "$HUB_WORKDIR/.hub/profiles"; then
+    _finalize_profiles="$_finalize_profiles $(ls "$HUB_WORKDIR/.hub/profiles")";
+  fi
+  if test -d "$HUB_HOME/profiles"; then
+    _finalize_profiles="$_finalize_profiles $(ls "$HUB_HOME/profiles")";
+  fi
   HUB_DOMAIN_NAME=$(dotenv get "HUB_DOMAIN_NAME" --default "$HUB_DOMAIN_NAME")
   HUB_STACK_NAME=$(dotenv get "HUB_STACK_NAME" --default "$HUB_STACK_NAME")
   if test -n "$HUB_DOMAIN_NAME"; then
-    dotenv_file="$(files abspath .hub/env/$HUB_DOMAIN_NAME.env)"
+    dotenv_file="$(files abspath "$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.env")"
   elif test -n "$HUB_STACK_NAME"; then
-    dotenv_file="$(files abspath .hub/env/$HUB_STACK_NAME.env)"
+    dotenv_file="$(files abspath "$HUB_WORKDIR/.hub/env/$HUB_STACK_NAME.env")"
   else
-    dotenv_file="$(files abspath .hub/env/.env)"
+    dotenv_file="$(files abspath "$HUB_WORKDIR/.hub/env/.env")"
   fi
-  if test "$(files abspath $DOT_ENV)" != "$dotenv_file"; then
+  if test "$(files abspath "$DOT_ENV")" != "$dotenv_file"; then
     echo "Saving configuration as: $(basename "$dotenv_file")"
     if files copy "$DOT_ENV" "$dotenv_file" | ident; then
       echo "* Removing old: $DOT_ENV"
@@ -184,14 +198,14 @@ EOF
 
 if test -z "$HUB_WORKDIR"; then
   FIRST_FILE="$(echo "$HUB_FILES" | awk '{print $1;}')"
-  if test -f $FIRST_FILE; then
+  if test -f "$FIRST_FILE"; then
     HUB_WORKDIR=$(dirname "$FIRST_FILE")
   else
     HUB_WORKDIR=$(pwd)
   fi
 fi
 
-if test ! -d $HUB_WORKDIR; then
+if test ! -d "$HUB_WORKDIR"; then
   mkdir -p "$HUB_WORKDIR"
 fi
 
@@ -217,6 +231,7 @@ WORKDIR="$HUB_WORKDIR"
 # will be used by exact extensions
 export WORKDIR SILENT VERBOSE HUB_FILES HUB_HOME KUBECONFIG HUB_WORKDIR
 if test -z "$REQS"; then
+  # shellcheck disable=SC2086
   REQS="$(yq e '' $HUB_FILES -o json | jq -cMr 'select(.extensions).extensions | select(.configure).configure[]')"
 fi
 
@@ -225,31 +240,10 @@ if $HELP; then
   exit
 fi
 
+# shellcheck disable=SC2086
 HUB_FILES="$(real_files $HUB_FILES)"
 export HUB_FILES
 trap 'finalize $?' EXIT
-
-if test -f "$HUB_WORKDIR/.env"; then
-  echo "Environment file: exist"
-  if test -L "$HUB_WORKDIR/.env"; then
-    DOT_ENV="$(readlink -n "$HUB_WORKDIR/.env")"
-  else
-    DOT_ENV="$HUB_WORKDIR/.env"
-  fi
-  export DOT_ENV
-  eval $(dotenv export -f "$HUB_WORKDIR/.env")
-  if test -n "$HUB_CLOUD_PROVIDER"; then
-    echo "* Cloud provider: $HUB_CLOUD_PROVIDER";
-  fi
-else
-  cat << EOF | color e
-Error: cannot find .env file
-
-Did you run?
-  hubctl stack init
-EOF
-  exit 1
-fi
 
 for req in $(echo "$REQS" | xargs -n1); do
   if test -x "$HUB_WORKDIR/$req"; then
@@ -262,9 +256,11 @@ for req in $(echo "$REQS" | xargs -n1); do
     continue
   fi
 
-  echo -n "Running configuration for: "
+  printf "Running configuration for: "
   color b "$req"
+  # shellcheck disable=SC2086
   if $configure --output "$DOT_ENV" $ARGS; then
+    # shellcheck disable=SC2046
     eval $(dotenv export -f "$DOT_ENV")
   else
     cat << EOF | color e
@@ -289,6 +285,7 @@ if ! dotenv contains "HUB_DEPLOY_PROFILE"; then
 
   # We don't want run pod if inside of the pod
   if test ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token"; then
+      # shellcheck disable=SC2086
       r="$(yq e '' $HUB_FILES -o=json | jq -cMr --arg a "kubernetes" '.requires|select(.)[]|select(.==$a)')"
       if test -n "$r"; then
         HUB_DEPLOY_PROFILE="kubernetes"
@@ -314,10 +311,10 @@ dotenv set "HUB_FILES" "$HUB_FILES"
 
 if ! dotenv contains "HUB_STATE"; then
   echo "* Setting hubctl state to local file"
-  dotenv set "HUB_STATE" "$(files abspath ".hub/$HUB_DOMAIN_NAME.state")"
+  dotenv set "HUB_STATE" "$(files abspath "$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state")"
 fi
 
 if ! dotenv contains "HUB_ELABORATE"; then
   echo "* Setting hubctl elaborate to local file"
-  dotenv set  "HUB_ELABORATE" "$(files abspath ".hub/$HUB_DOMAIN_NAME.elaborate")"
+  dotenv set  "HUB_ELABORATE" "$(files abspath "$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate")"
 fi

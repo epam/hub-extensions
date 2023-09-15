@@ -1,40 +1,31 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2068,SC2086,SC2155
-
-usage() {
-  cat << EOF
-Check if kubernetes cluster has been reachable
-EOF
-}
-
-if test ! -f ".env"; then
-  color err "Error: cannot find .env file. Please run 'hubctl stack configure'"
-  exit 1
-fi
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 dotenv="dotenv -f $HUB_WORKDIR/.env"
-set +a
-eval "$($dotenv "export")"
-set -a
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
+  exit 1
+fi
+eval "$($dotenv export)"
 
 hub_kubeconfig=$($dotenv get "HUB_KUBECONFIG")
 if test -n "$hub_kubeconfig"; then
   KUBECONFIG=$($dotenv get "HUB_KUBECONFIG" --default "$KUBECONFIG")
   export KUBECONFIG
-  echo -n "* Using kubeconfig:"
+  printf "* Using kubeconfig:"
   color bold "$KUBECONFIG"
 else
-  color warn "* Warning: expected variable HUB_KUBECONFIG has not been found in .env file"
-  color warn "  This may lead to invalid deployment of the kubenretes components"
+  cat << EOF | color warn
+* Warning: expected variable HUB_KUBECONFIG has not been found in .env file"
+  This may lead to invalid deployment of the kubenretes components"
+EOF
 fi
 
-echo -n "* Checking connectivity to cluster: "
+printf "* Checking connectivity to cluster: "
 if kubectl cluster-info > /dev/null; then
   color bold "Connected"
 else
@@ -42,7 +33,7 @@ else
 fi
 
 if test "$(kubectl config current-context)" != "$HUB_DOMAIN_NAME"; then
-  echo -n "* Setting $HUB_DOMAIN_NAME kube-context to: "
+  printf "* Setting %s kube-context to: " "$HUB_DOMAIN_NAME"
   if ! kubectl config set-context "$HUB_DOMAIN_NAME"; then
     color warn "* Warning: encountered error setting kubectontext to $HUB_DOMAIN_NAME"
   fi

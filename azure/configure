@@ -1,13 +1,9 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2046,SC2086
-
-set -o pipefail
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 usage() {
   cat << EOF
@@ -17,15 +13,9 @@ Azure parameters:
   --azure-subscription          Azure Subscription (defaults to value from: AZURE_SUBSCRIPTION_ID, ARM_SUBSCRIPTION_ID)
   --dry-run                     Do not deploy cloud resources, show what will happen
   --domain-name                 Custom DNS domain name under existing base domain
-  --base-domain-resource-group  Resource Group for base domain (in case base domain
-                                    zone is located in another resource group)
-  --base-domain-subscription    Subscription for base domain (in case base domain
-                                    zone is located in another subscription)
   --prefer-local                Save deployment state locally only
 
 Bubble DNS parameters:
-  --dns-update  Request to update DNS registration
-
   New DNS record request:
     --parent-domain       Parent domain for stack (defaults to: epam.devops.delivery)
 
@@ -38,7 +28,6 @@ Bubble DNS parameters:
 EOF
 }
 
-BUBBLES_FLAGS=$* # TODO untangle Bubble DNS global vars into function args
 DRY_RUN=false
 DNS_MANAGER=bubbles
 PREFER_LOCAL_STATE=false
@@ -56,22 +45,10 @@ while [ "$1" != "" ]; do
     --domain-name )           shift
                               HUB_DOMAIN_NAME="$1"
                               ;;
-    --base-domain-resource-group ) shift
-                              HUB_BASE_DOMAIN_AZURE_RESOURCE_GROUP_NAME="$1"
-                              echo "Sorry, not implemented"
-                              exit 1
-                              ;;
-    --base-domain-subscription ) shift
-                              HUB_BASE_DOMAIN_AZURE_SUBSCRIPTION_ID="$1"
-                              echo "Sorry, not implemented"
-                              exit 1
-                              ;;
     --bubbles-secret-key )    shift
                               HUB_DOMAIN_SECRET="$1"
                               ;;
     --prefer-local )          PREFER_LOCAL_STATE=true
-                              ;;
-    --dns-update )            DNS_ACTION="update"
                               ;;
     --dry-run )               DRY_RUN=true
                               ;;
@@ -108,19 +85,18 @@ getParamFromState() {
 }
 
 getParamValueByEnvVar() {
-  param="$(params envvar "$2" | jq -cMr '.name')"
-  if test -n "$param"; then
-    getParamFromState "$1" "$param"
+  _getParamValueByEnvVar_param="$(params envvar "$2" | jq -cMr '.name')"
+  if test -n "$_getParamValueByEnvVar_param"; then
+    getParamFromState "$1" "$_getParamValueByEnvVar_param"
   fi
 }
 
 param_name() {
-  local result
-  result="$(params env "$1" | jq -r '.name | select(.)')"
-  if test -z "$result" -a -n "$2"; then
-    result="$(params json "$2" | jq -r '.name | select(.)')"
+  _param_name_result="$(params env "$1" | jq -r '.name | select(.)')"
+  if test -z "$_param_name_result" -a -n "$2"; then
+    _param_name_result="$(params json "$2" | jq -r '.name | select(.)')"
   fi
-  echo "$result"
+  echo "$_param_name_result"
 }
 
 stackname_param="$(param_name HUB_STACK_NAME dns.name)"
@@ -133,11 +109,11 @@ if test -z "$has_dnsdomain_param"; then
     # taking dns.domain from stack name
     HUB_STACK_NAME="$(params value "$stackname_param" -d "$DOT_ENV" -d "$HUB_WORKDIR/.env")"
     if test -n "$HUB_STACK_NAME"; then
-      echo -n "Using stack name: "
+      printf "Using stack name: "
       color b "$HUB_STACK_NAME"
       HUB_DOMAIN_NAME="$HUB_STACK_NAME"
     else
-      echo -n "Generating new stack name: "
+      printf "Generating new stack name: "
       new_name="$(files find-in-path bubble-dns/new-name)"
       HUB_STACK_NAME="$(eval "$new_name" | cut -d. -f1)"
       color b "$HUB_STACK_NAME"
@@ -159,11 +135,11 @@ fi
 
 if dotenv contains HUB_DOMAIN_SECRET; then
   DNS_MANAGER=bubbles
-  echo -n "* Using domain name provided by bubbles dns: ";
+  printf "* Using domain name provided by bubbles dns: ";
   color b "$HUB_DOMAIN_NAME"
 else
   DNS_MANAGER=user
-  echo -n "* Using domain name provided by user: ";
+  printf "* Using domain name provided by user: ";
   color b "$HUB_DOMAIN_NAME"
 fi
 
@@ -210,7 +186,8 @@ if test -z "$AZURE_SUBSCRIPTION_ID"; then
   exit 2
 fi
 
-echo -n "  Setting Azure subscription: "; color b "$AZURE_SUBSCRIPTION_ID"
+printf "  Setting Azure subscription: "
+color b "$AZURE_SUBSCRIPTION_ID"
 resource_group="$(params value 'azure.resourceGroup')"
 if test -z "$resource_group"; then
   resource_group_param="$(param_name AZURE_RESOURCE_GROUP_NAME)"
@@ -248,7 +225,8 @@ if test -z "$resource_group"; then
     --suggest "$suggestion" -random -empty
   AZURE_RESOURCE_GROUP_NAME=$(dotenv get AZURE_RESOURCE_GROUP_NAME)
 else
-  echo -n "  Setting Azure resource group: "; color b "$resource_group"
+  printf "  Setting Azure resource group: "
+  color b "$resource_group"
   AZURE_RESOURCE_GROUP_NAME="$resource_group"
 fi
 
@@ -287,12 +265,13 @@ fi
 if test -z "$AZURE_REGION"; then
   # https://docs.microsoft.com/en-us/cli/azure/azure-cli-configuration
   # AZURE_DEFAULTS_* automatically recognized up by `az`
-  eval $(az configure --list-defaults | jq -r '.[] | "AZURE_CONFIG_DEFAULTS_" + (.name | ascii_upcase) + "=" + .value')
+  eval "$(az configure --list-defaults | jq -r '.[] | "AZURE_CONFIG_DEFAULTS_" + (.name | ascii_upcase) + "=" + .value')"
 
   location=${AZURE_REGION:-${AZURE_DEFAULTS_LOCATION:-$AZURE_CONFIG_DEFAULTS_LOCATION}}
   if test -n "$location"; then
     echo "* Using Azure location from environment variables"
   else
+    # shellcheck disable=SC2086
     location="$(az group show $AZ_OPTS -o tsv --query 'location')"
     if test -n "$location"; then
       echo "* Using Azure location from resource group $AZURE_RESOURCE_GROUP_NAME"
@@ -315,7 +294,8 @@ if test -z "$location"; then
   exit 2
 fi
 
-echo -n "  Setting Azure location: "; color b "$location"
+printf "  Setting Azure location: "
+color b "$location"
 AZURE_REGION="$location"
 AZURE_LOCATION="$location"
 AZ_LOCATION_OPTS=""
@@ -326,13 +306,14 @@ fi
 # TODO state storage account per region?
 echo "Configuring Azure Storage Account"
 if test -z "$HUB_STATE_BUCKET"; then
-  HUB_STATE_BUCKET="hubctl$(echo $AZURE_SUBSCRIPTION_ID | cut -d- -f1)"
+  HUB_STATE_BUCKET="hubctl$(echo "$AZURE_SUBSCRIPTION_ID" | cut -d- -f1)"
 fi
 if test -z "$HUB_STATE_CONTAINER"; then
   HUB_STATE_CONTAINER=hubctl
 fi
 
-echo -n "* Checking presence of storage account $resource_group/$HUB_STATE_BUCKET: "
+printf "* Checking presence of storage account %s: " "$resource_group/$HUB_STATE_BUCKET"
+# shellcheck disable=SC2086
 if az storage account show $AZ_OPTS -n "$HUB_STATE_BUCKET" -o none 2>/dev/null; then
   echo "exist"
 else
@@ -348,7 +329,7 @@ else
     az storage account create $AZ_OPTS $AZ_STORAGE_LOCATION_OPTS --allow-blob-public-access false --sku 'Standard_ZRS' --kind 'StorageV2' -n "$HUB_STATE_BUCKET" -o none
   fi
 fi
-echo -n "* Checking presence of blob container $HUB_STATE_CONTAINER: "
+printf "* Checking presence of blob container %s: " "$HUB_STATE_CONTAINER"
 if az storage container show --account-name "$HUB_STATE_BUCKET" -n "$HUB_STATE_CONTAINER" --auth-mode login -o 'none' 2>/dev/null; then
   echo "exist"
 else
@@ -357,17 +338,20 @@ else
   else
     echo "not found"
     echo "* Deploying storage account $resource_group/$HUB_STATE_BUCKET blob container $HUB_STATE_CONTAINER..."
-    az storage container create $AZ_OPTS --account-name $HUB_STATE_BUCKET --auth-mode login --public-access off -n $HUB_STATE_CONTAINER -o none
+    # shellcheck disable=SC2086
+    az storage container create $AZ_OPTS --account-name "$HUB_STATE_BUCKET" --auth-mode login --public-access off -n "$HUB_STATE_CONTAINER" -o none
   fi
 fi
 
 if ! $DRY_RUN; then
-  HUB_STATE_REGION="$(az storage account show $AZ_OPTS -n $HUB_STATE_BUCKET -o json | jq -r .location)"
+  # shellcheck disable=SC2086
+  HUB_STATE_REGION="$(az storage account show $AZ_OPTS -n "$HUB_STATE_BUCKET" -o json | jq -r .location)"
 fi
 
 echo "Configuring Azure DNS"
-echo -n "* Checking presence of zone $HUB_DOMAIN_NAME: "
-ZONE_ID=$(az network dns zone show $AZ_OPTS -n $HUB_DOMAIN_NAME -o json 2>/dev/null | jq -r .id || true)
+printf "* Checking presence of zone %s: " "$HUB_DOMAIN_NAME"
+# shellcheck disable=SC2086
+ZONE_ID=$(az network dns zone show $AZ_OPTS -n "$HUB_DOMAIN_NAME" -o json 2>/dev/null | jq -r .id || true)
 echo "${ZONE_ID:-not found}"
 
 if $DRY_RUN; then
@@ -385,13 +369,15 @@ EOF
 elif test "$DNS_MANAGER" = "bubbles"; then
   if test -z "$ZONE_ID"; then
     echo "* Deploying zone $HUB_DOMAIN_NAME... "
+    # shellcheck disable=SC2086
     az network dns zone create $AZ_OPTS -n "$HUB_DOMAIN_NAME" -o none
     echo "Done"
   fi
 elif test "$DNS_MANAGER" = "user"; then
-  PARENT_DOMAIN="$(echo $HUB_DOMAIN_NAME | cut -d. -f2-)"
-  echo -n "* Checking presence of parent zone $PARENT_DOMAIN: "
-  PARENT_ZONE_ID=$(az network dns zone show $AZ_OPTS -n $PARENT_DOMAIN -o json 2>/dev/null | jq -r .id || true)
+  PARENT_DOMAIN="$(echo "$HUB_DOMAIN_NAME" | cut -d. -f2-)"
+  printf "* Checking presence of parent zone %s: " "$PARENT_DOMAIN"
+  # shellcheck disable=SC2086
+  PARENT_ZONE_ID=$(az network dns zone show $AZ_OPTS -n "$PARENT_DOMAIN" -o json 2>/dev/null | jq -r .id || true)
   echo "${PARENT_ZONE_ID:-not found}"
   if test -z "$ZONE_ID"; then
     if test -z "$PARENT_ZONE_ID"; then
@@ -403,11 +389,12 @@ and creating a zone "$HUB_DOMAIN_NAME" or "$PARENT_DOMAIN".
 
 Then run again:
 
-$ hubctl configure -r azure --domain-name $HUB_DOMAIN_NAME
+$ hubctl stack configure -r azure --domain-name $HUB_DOMAIN_NAME
 EOF
       exit 5
     else
       echo "* Deploying zone $HUB_DOMAIN_NAME... "
+      # shellcheck disable=SC2086
       az network dns zone create $AZ_OPTS --parent-name "$PARENT_DOMAIN" -n "$HUB_DOMAIN_NAME" -o none
       echo "Done"
       zone_just_created=1
@@ -417,9 +404,10 @@ EOF
     echo "* Updating $HUB_DOMAIN_NAME NS records in $PARENT_DOMAIN... "
     # TODO all add-record errors are suppressed for now
     # BadRequestError: Operation failed with status: 'Bad Request'. Details: The list of record sets of type 'NS' may not contain multiple entries with the same 'nsdname'
+    # shellcheck disable=SC2086
     az network dns zone show $AZ_OPTS -n $HUB_DOMAIN_NAME -o json | jq -r .nameServers[] |
       xargs -n1 \
-        az network dns record-set ns add-record $AZ_OPTS -z $PARENT_DOMAIN -n $(echo "$HUB_DOMAIN_NAME" | cut -f1 -d.) --if-none-match --ttl 300 -d 2>/dev/null || true
+        az network dns record-set ns add-record $AZ_OPTS -z "$PARENT_DOMAIN" -n "$(echo "$HUB_DOMAIN_NAME" | cut -f1 -d.)" --if-none-match --ttl 300 -d 2>/dev/null || true
     echo "Done"
   fi
   # make sure .env file is up-to-date
@@ -456,6 +444,7 @@ if test "$DNS_MANAGER" = "bubbles"; then
     echo "  - $ns"
     ns_opts="$ns_opts -ns $ns"
   done
+  # shellcheck disable=SC2086
   $bubbles_update $ns_opts
 # AK: remove this comment as curretnly misleading until we will resolve back 72 hours
 #   cat <<EOF | color green
@@ -469,7 +458,7 @@ fi
 STACK=${STACK:-$(basename "$(pwd)")}
 if test -z "$HUB_STATE"; then
   echo "* Setting hubctl state file location"
-  HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
+  HUB_STATE_FILE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
   if ! $PREFER_LOCAL_STATE; then
     HUB_STATE_FILE="$HUB_STATE_FILE,az://$HUB_STATE_BUCKET/$HUB_STATE_CONTAINER/$HUB_DOMAIN_NAME/hubctl/$STACK/hub.state"
   fi
@@ -477,7 +466,7 @@ if test -z "$HUB_STATE"; then
 fi
 if test -z "$HUB_ELABORATE"; then
   echo "* Setting hubctl elaborate file location"
-  HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
+  HUB_ELABORATE_FILE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate"
   if ! $PREFER_LOCAL_STATE; then
     HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,az://$HUB_STATE_BUCKET/$HUB_STATE_CONTAINER/$HUB_DOMAIN_NAME/hubctl/$STACK/hub.elaborate"
   fi

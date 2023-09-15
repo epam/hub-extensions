@@ -75,9 +75,11 @@ if test -z "$hubctl"; then
   exit 1
 fi
 
-if test -f ".env"; then
-  eval "$(dotenv -f "$HUB_WORKDIR/.env" export -f ".env" )"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
+  exit 1
 fi
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 TOOLBOX_NAMESPACE=${TOOLBOX_NAMESPACE:-hubctl}
 kubectl="kubectl -n $TOOLBOX_NAMESPACE"

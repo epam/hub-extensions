@@ -1,20 +1,25 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
 
 usage() {
 cat << EOF
 Wrapper script around vault. With only difference it uses a port-forward
 
-Usage: 
-  $(basename "$0") [args] [vault sub-command] [vault args]
+Usage:
+  $HUB_EXTENSION [args] [vault sub-command] [vault args]
 
 Current kubecontext:
-  $(basename "$0") [no arg] or [-c _] or [--current-kubecontext]
+  $HUB_EXTENSION [no arg] or [-c _] or [--current-kubecontext]
 
 Parameters:
   -n --namespace         Vault namespace
@@ -27,12 +32,13 @@ Parameters:
   -V --verbose           Add some verbosity to output
   -h --help              Print this message
 
-Example: 
-  $(basename "$0") [-c _] status
-  $(basename "$0") [-c _] -S svc/vault list
+Example:
+  $HUB_EXTENSION [-c _] status
+  $HUB_EXTENSION [-c _] -S svc/vault list
 
-Sub-command $(basename "$0"):
+Sub-command $HUB_EXTENSION:
 EOF
+  # shellcheck disable=SC2086
   vault $VAULT_ARGS --help
 }
 
@@ -42,17 +48,20 @@ VAULT_SVC="svc/vault"
 SILENT=${SILENT:-false}
 VAULT_ARGS=
 
-# shellcheck disable=SC1091
-test ! -f ".env" || source ".env"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
+  exit 1
+fi
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 while [ "$1" != "" ]; do
   case "$1" in
     -n | --namespace )      shift
                             namespace="$1"
-                            ;; 
+                            ;;
     -k | --kubeconfig )     shift
                             export KUBECONFIG="$1"
-                            ;; 
+                            ;;
     -c | --kubecontext )    shift
                             context="$1"
                             ;;
@@ -74,11 +83,11 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if test "$context" == "_"; then
+if test "$context" = "_"; then
   context="$(kubectl config current-context)"
 fi
 
-$SILENT || cat << EOF 
+$SILENT || cat << EOF
 Proceeding to initialize: $VAULT_SVC
 * Using context: $context
 * Using namespace: $namespace
@@ -90,26 +99,26 @@ export VAULT_ADDR
 
 KUBECTL=${KUBECTL:-kubectl --context="$context" --namespace="$namespace"}
 
-$SILENT || echo -n "* Using service: $VAULT_SVC"
+$SILENT || echo "* Using service: $VAULT_SVC"
 set +e
-SERVICE_PAYLOAD=$($KUBECTL get -o json $VAULT_SVC)
+SERVICE_PAYLOAD=$($KUBECTL get -o json "$VAULT_SVC")
 if test "$?" != "0"; then
-  $SILENT || echo " Error: cannot find service $COMPONENT_NAME"
+  $SILENT || color error "Error: cannot find service $COMPONENT_NAME"
   exit 2
 fi
 set -e
 
-VAULT_PORT=$(echo $SERVICE_PAYLOAD \
+VAULT_PORT=$(echo "$SERVICE_PAYLOAD" \
              | jq -r '.spec.ports[] | select(.name=="http").port | if . == "" then 8200 else . end' \
             )
 
 connect() {
   trap 'kill $(jobs -p) || exit 0' EXIT
-  $SILENT || echo -n "* Starting port forwarding to $1: "
+  $SILENT || printf "* Starting port forwarding to %s: " "$1"
   success=false
   kfctl_pid=0
   for _ in $(seq 30); do
-    $SILENT || echo -n "."
+    $SILENT || printf "."
     if ! ps -p $kfctl_pid > /dev/null; then
       $KUBECTL port-forward "$VAULT_SVC" "$1:$VAULT_PORT" >/dev/null 2>&1 &
       kfctl_pid=$!
@@ -125,17 +134,16 @@ connect() {
   done
 
   if ! $success; then
-    $SILENT || echo " Error"
-    $SILENT || echo "Timed out trying to establish port forwarding to vault"
+    $SILENT || color error "Error: Timed out trying to establish port forwarding to vault"
     exit 1
   fi
-  $SILENT || echo " Done"
+  $SILENT || echo "done"
 }
 
 $SILENT || echo ":$VAULT_PORT"
 connect "$VAULT_LOCAL_PORT"
 if ! $SILENT; then
-  echo -n "* Checking vault at $VAULT_ADDR: "
+  printf "* Checking vault at %s: " "$VAULT_ADDR"
   # see: https://www.vafultproject.io/api-docs/system/health#read-health-information
   code=$(curl -sLko /dev/null -w "%{http_code}" "$VAULT_ADDR/v1/sys/health")
   case "$code" in

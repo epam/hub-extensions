@@ -1,15 +1,12 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2086
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
@@ -35,15 +32,14 @@ if test -z "$1"; then
   exit 1
 fi
 
-if test ! -f .env; then
-  echo "* Error: configuration '.env' has not been found"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
   exit 1
 fi
-
-eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  color error "Error: HUB_DOMAIN_NAME has not been defined"
   exit 2
 fi
 
@@ -60,18 +56,18 @@ while test "$1" != ""; do
 done
 
 if test -z "$HUB_BACKUP_NAME"; then
-  echo "Error: name of the bakcup is missing"
+  color error "Error: name of the bakcup is missing"
   usage
   exit 2
 fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
-  echo "Error: HUB_DOMAIN_NAME has not been defined"
+  color error "Error: HUB_DOMAIN_NAME has not been defined"
   exit 2
 fi
 
 if test -z "$HUB_BACKUP_DIR"; then
-  HUB_BACKUP_DIR=".hub/backups"
+  HUB_BACKUP_DIR="$HUB_WORKDIR/.hub/backups"
 fi
 
 backup_path="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$HUB_BACKUP_NAME"
@@ -80,13 +76,14 @@ if test ! -d "$backup_path"; then
 fi
 
 if test ! -d "$backup_path"; then
-  echo "Error: directory $backup_path not found"
+  color error "Error: directory $backup_path not found"
   exit 3
 fi
+
 if test -f "$backup_path/hub-bundle.yaml.gz"; then
   gunzip -c "$backup_path/hub-bundle.yaml.gz" | yq e -
 fi
 
 if test -f "$backup_path/hub-bundle.yaml"; then
-  cat "$backup_path/hub-bundle.yaml" | yq e -
+  yq e < "$backup_path/hub-bundle.yaml"
 fi

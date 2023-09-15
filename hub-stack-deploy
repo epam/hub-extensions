@@ -5,8 +5,25 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-# shellcheck disable=SC2086
-HUB_EXTENSION="$(basename "$0" | sed -e 's/hub-/hubctl /g' -e 's/-/ /g')"
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
+HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH HUB_WORKDIR
+DOT_ENV="$(files abspath "$HUB_WORKDIR/.env")"
+export DOT_ENV
+
+hubctl="$(which hubctl 2>/dev/null || true)"
+if test -z "$hubctl"; then
+  # backward compatibility
+  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
+  hubctl="$(which hub 2>/dev/null || true)"
+fi
+if test -z "$hubctl"; then
+  color error "hubctl not found in PATH. Please install hubctl first."
+  exit 1
+fi
 
 verb="$(basename "$0" | cut -d- -f3)"
 
@@ -74,9 +91,24 @@ Parameters:
 END
 }
 
+is_url() {
+  # shellcheck disable=SC2317
+  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+}
+
+maybe_verb=$(basename "$0" | cut -d- -f3)
+if test -z "$maybe_verb"; then
+  usage
+  exit 1
+fi
+verb="$maybe_verb"
+
+eval "$(dotenv -f "$HUB_WORKDIR/.env" "export")"
+
 FULL_STACK=true
+WORKDIR=$(pwd)
 HUB_OPTS=
-VERBOSE=
+VERBOSE=false
 
 while test "$1" != ""; do
     case $1 in
@@ -84,25 +116,15 @@ while test "$1" != ""; do
                             deprecated_syntax "$1" "$2" "$2"
                             HUB_COMPONENT="$2"
                             shift
-                            # HUB_OPTS="$HUB_OPTS -c $1"
-                            # FULL_STACK=false
                             ;;
         -o | --offset )     deprecated_syntax "$1" "$2" "$2..."
                             HUB_OPTS="$HUB_OPTS -o $2"
-                            FULL_STACK=false
+                            FULL_STACK="false"
                             shift
                             ;;
-        -l | --limit )      color w <<END
-Deprecation notice this syntax will soon retire:
-  $HUB_EXTENSION $1 $2 you can now use
-
-new syntax:
-
-  $HUB_EXTENSION ...$2
-END
-                            deprecated_syntax "$1" "$2" "...$2"
+        -l | --limit )      deprecated_syntax "$1" "$2" "...$2"
                             HUB_OPTS="$HUB_OPTS -l $2"
-                            FULL_STACK=false
+                            FULL_STACK="false"
                             shift
                             ;;
         --tty )             HUB_OPTS="$HUB_OPTS --tty true"
@@ -187,6 +209,7 @@ EOF
 trap 'finalize $?' EXIT
 
 if test "$VERBOSE" = "true"; then
+  export VERBOSE
   set -x
 fi
 
@@ -195,11 +218,11 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_WORKDIR
-DOT_ENV="$(files abspath $HUB_WORKDIR/.env)"
+DOT_ENV="$(files abspath "$HUB_WORKDIR/.env")"
 export DOT_ENV
 
 if test -f $DOT_ENV; then
-  eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
+  eval "$(dotenv -f "$HUB_WORKDIR/.env" "export")"
 fi
 
 # deploy expressions
@@ -209,18 +232,20 @@ if test -n "$HUB_COMPONENT"; then
   color --bold --color 0 "  This is experimental syntax. Please let us know if old syntax is better for you or something not working"
 fi
 
-if test ! -f .env; then
+if test ! -f "$DOT_ENV"; then
 color e << EOF
-Stack configuration (.env)
+Stack configuration ($DOT_ENV)
 
 To resolve please run:
-  $ hubctl stack configure -f hub.yaml
+  hubctl configure -f hub.yaml
 
 To explore more configuration options:
-  $ hubctl stack configure -f hub.yaml --help
+  hubctl configure -f hub.yaml --help
 EOF
   exit 1
 fi
+
+eval "$(dotenv export -f "$DOT_ENV")"
 
 if test -z "$HUB_FILES"; then
   color e << EOF
@@ -229,12 +254,12 @@ Cannot find hubctl definition files (HUB_FILES) in .env"
 Probably because stack has not been initialized for deployment yet!
 
 Example:
-  $ hubctl stack init -f hub.yaml
+  hubctl stack init
 
 To explore more configuration options:
-  $ hubctl stack init -f hub.yaml --help
-EOF
+  hubctl stack init --help
 
+EOF
   exit 2
 fi
 
@@ -242,8 +267,8 @@ if test "$HUB_AUTOCONFIGURE" = "1"; then
   printf "Proceeding with:"; color h "configure"
   hubctl stack configure "$(test "$VERBOSE" = "true" && echo "--verbose")"
   echo "Reloading .env file"
-  eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
-  printf "Proceeding with:"; color h "$verb"
+  eval "$(dotenv export -f "$DOT_ENV")"
+  printf "Proceeding with: "; color h "$verb"
 fi
 
 if test -z "$HUB_DOMAIN_NAME"; then
@@ -284,10 +309,10 @@ fi
 HUB=${HUB:-hub}
 
 if test -z "$HUB_STATE"; then
-  HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+  HUB_STATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
 fi
 echo "* Using hubctl state:"
-for i in $(echo $HUB_STATE | sed "s/,/ /g"); do
+for i in $(echo "$HUB_STATE" | sed "s/,/ /g"); do
   echo "  - $i"
 done
 
@@ -295,7 +320,7 @@ if test -z "$HUB_ELABORATE"; then
   HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
 fi
 echo "* Using hubctl elaborate:"
-for i in $(echo $HUB_ELABORATE | sed "s/,/ /g"); do
+for i in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
   echo "  - $i"
   if ! is_url "$i"; then
     HUB_ELABORATE_FILE=$i
@@ -307,7 +332,7 @@ if test -n "$HUB_CLOUD_PROVIDER"; then
   HUB_OPTS="--clouds=$HUB_CLOUD_PROVIDER $HUB_OPTS"
 fi
 
-if $FULL_STACK || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
+if test "$FULL_STACK" = "true" || test -n "$HUB_ELABORATE_FILE" -a ! -e "$HUB_ELABORATE_FILE"; then
   hub-stack-elaborate
 elif test -n "$HUB_ELABORATE_FILE"; then
   if ! check-elaborate "$HUB_ELABORATE_FILE" "$HUB_FILES"; then
@@ -325,9 +350,10 @@ fi
 
 export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 
+# shellcheck disable=SC2086
 BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
 for i in $(echo "$BEFORE" | xargs -n1); do
-  if test -x "$i"; then
+  if test -x "$i" -a -f "$i"; then
     hook="$i"
   else
     hook=$(files find-in-path "$i/before-${verb}")
@@ -345,7 +371,7 @@ for i in $(echo "$BEFORE" | xargs -n1); do
   $hook
 done
 
-lifecycle=$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE/${verb}");
+exe=$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE/${verb}");
 if test -z "$lifecycle"; then
   color e << EOF
 Cannot find deployment profile: $HUB_DEPLOY_PROFILE
@@ -365,9 +391,11 @@ Proceeding with: ${verb}
 
 EOF
 
+# shellcheck disable=SC2086
 $lifecycle $VERBOSE "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
 echo
 
+# shellcheck disable=SC2086
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 if test -n "$AFTER"; then
   status="$(hubctl show -jq '.status.status|select(.)')"
@@ -385,7 +413,7 @@ EOF
     AFTER=""
   fi
   for i in $(echo "$AFTER" | xargs -n1); do
-    if test -x "$i"; then
+    if test -x "$i" -a -f "$i"; then
       hook="$i"
     else
       hook=$(files find-in-path "$i/after-${verb}")

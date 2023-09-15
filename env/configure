@@ -1,11 +1,9 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2046,SC2086,SC2034
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 usage() {
   cat << EOF
@@ -20,15 +18,15 @@ ident() {
 }
 
 if test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
-  INTERACTIVE=true
+  HUB_INTERACTIVE="1"
 else
-  INTERACTIVE=false
+  HUB_INTERACTIVE="0"
 fi
 
 while [ "$1" != "" ]; do
   case $1 in
     --defaults )
-      INTERACTIVE=false
+      HUB_INTERACTIVE="0"
       ;;
     --output )
       shift
@@ -46,9 +44,11 @@ while [ "$1" != "" ]; do
   shift
 done
 
+export HUB_INTERACTIVE
+
 if test -z "$HUB_WORKDIR"; then
   FIRST_FILE="$(echo "$HUB_FILES" | awk '{print $1;}')"
-  if test -f $FIRST_FILE; then
+  if test -f "$FIRST_FILE"; then
     HUB_WORKDIR="$(dirname "$FIRST_FILE")"
   else
     HUB_WORKDIR="$(pwd)"
@@ -56,7 +56,7 @@ if test -z "$HUB_WORKDIR"; then
   export HUB_WORKDIR
 fi
 
-if test $VERBOSE = "true"; then
+if test "$VERBOSE" = "true"; then
   set -x
 fi
 
@@ -70,5 +70,5 @@ fi
 for e in $(params listenv); do
   pname="$(params "$e" envvar | jq -cMr '.name? | select(.)')"
   pcomponent="$(params "$e" envvar | jq -cMr '.component? | select(.)')"
-  ask env "$e" -m "parameter $pname $pcomponent" +empty -d "$DOT_ENV" -d "$(files abspath ".env")" -ask-env
+  ask env "$e" -m "parameter $pname $pcomponent" +empty -d "$DOT_ENV" -d "$(files abspath "$HUB_WORKDIR/.env")" -ask-env
 done

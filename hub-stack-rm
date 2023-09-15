@@ -1,14 +1,14 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_WORKDIR
 
@@ -26,7 +26,7 @@ Parameters:
 EOF
 }
 
-DOT_ENV=".env"
+DOT_ENV="$HUB_WORKDIR/.env"
 while [ "$1" != "" ]; do
     case $1 in
     -V | --verbose )    set -x
@@ -34,9 +34,9 @@ while [ "$1" != "" ]; do
     -h | --help )       usage
                         exit
                         ;;
-    initialized )       DOT_ENV=".hub/env/.env"
+    initialized )       DOT_ENV="$HUB_WORKDIR/.hub/env/.env"
                         ;;
-    * )                 DOT_ENV=".hub/env/$1.env"
+    * )                 DOT_ENV="$HUB_WORKDIR/.hub/env/$1.env"
                         ;;
     esac
     shift
@@ -58,7 +58,7 @@ in_directory() {
 
 rm_in_workdir() {
   if test -L "$1"; then
-    rm_in_workdir "$(readlinkreadlink -n "$1")"
+    rm_in_workdir "$(readlink -n "$1")"
     echo "* Unlinking: $f"
     unlink "$1"
   elif test -f "$1"; then
@@ -66,13 +66,13 @@ rm_in_workdir() {
       echo "* Removing: $1"
       rm -rf "$1"
     else
-      color w "Skipping $1 (not in .hub directory)"
+      color w "Skipping $1 (not in $HUB_WORKDIR/.hub directory)"
     fi
   fi
 }
 
 if test -L "$DOT_ENV" -a ! -e "$DOT_ENV"; then
-  echo "* Unlinking: .env"
+  echo "* Unlinking: $HUB_WORKDIR/.env"
   unlink "$HUB_WORKDIR/.env"
   exit
 fi
@@ -95,14 +95,14 @@ dotenv="dotenv -f $DOT_ENV"
 HUB_DOMAIN_NAME="$($dotenv get "HUB_DOMAIN_NAME")"
 if test -z "$HUB_DOMAIN_NAME"; then
   HUB_DOMAIN_NAME="$($dotenv get "HUB_STACK_NAME")"
-  if test -L .env; then
-    FILES="$FILES $(readlink -n .env)"
+  if test -L "$HUB_WORKDIR/.env"; then
+    FILES="$FILES $(readlink -n "$HUB_WORKDIR/.env")"
   fi
 fi
 
 if test -n "$HUB_DOMAIN_NAME"; then
   echo "Removing configuration for: $HUB_DOMAIN_NAME"
-  FILES="$FILES $(find .hub -name "$HUB_DOMAIN_NAME.*" -print0  | xargs -0)"
+  FILES="$FILES $(find "$HUB_WORKDIR/.hub" -name "$HUB_DOMAIN_NAME.*" -print0  | xargs -0)"
 else
   echo "Removing configuration for: initialized"
 fi
@@ -127,7 +127,7 @@ for f in $FILES; do
   rm_in_workdir "$f"
 done
 
-if test -L ".env" -a ! -e ".env"; then
+if test -L "$HUB_WORKDIR/.env" -a ! -e "$HUB_WORKDIR/.env"; then
   echo "* Unlinking: .env"
   unlink "$HUB_WORKDIR/.env"
 fi
