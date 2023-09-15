@@ -6,27 +6,12 @@
 # file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 # shellcheck disable=SC2086
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_EXTENSION="$(basename "$0" | sed -e 's/hub-/hubctl /g' -e 's/-/ /g')"
 
-verb=deploy/undeploy
+verb="$(basename "$0" | cut -d- -f3)"
 
-usage_new_syntax() {
-  cat << END
-  $HUB_EXTENSION foo
-${verb}s component foo
-
-  $HUB_EXTENSION foo,bar
-${verb}s two components and foo and bar
-
-  $HUB_EXTENSION foo...bar
-${verb}s deploys all components between foo and bar (including foo and bar)
-
-  $HUB_EXTENSION ...foo
-${verb}s all components before and including foo
-
-  $HUB_EXTENSION foo...
-${verb}s foo and all components after
-END
+capitalize() {
+  echo "$1" | awk '{print toupper(substr($0,0,1))tolower(substr($0,2))}'
 }
 
 deprecated_syntax() {
@@ -53,11 +38,30 @@ cat << END
 ${verb}s a stack
 
 Usage:
-  $HUB_EXTENSION
-${verb}s entire stack
 
-Deploy individdual component:
-$(usage_new_syntax)
+$(capitalize "$verb") entire stack
+
+  $HUB_EXTENSION
+
+$(capitalize "$verb") component foo
+
+  $HUB_EXTENSION foo
+
+$(capitalize "$verb") two components and foo and bar
+
+  $HUB_EXTENSION foo,bar
+
+$(capitalize "$verb") foo and bar and all components in between
+
+  $HUB_EXTENSION foo...bar
+
+$(capitalize "$verb") all components from the first to foo (including)
+
+  $HUB_EXTENSION ...foo
+
+${verb} all components starting from foo till the last
+
+  $HUB_EXTENSION foo...
 
 Parameters:
     --executor            Executor to run automation task, one of: local, docker, kubernetes
@@ -129,6 +133,10 @@ END
     shift
 done
 
+is_url() {
+   echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+ }
+
 hub_opts() {
   last=""
   first=""
@@ -159,7 +167,7 @@ hub_opts() {
 }
 
 finalize() {
-  status="$($hubctl show -jq '.status.status')"
+  status="$(hubctl show -jq '.status.status')"
   printf "Deployment status: "
   if test "$1" = "0"; then
     color green "$status"
@@ -182,10 +190,22 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH HUB_WORKDIR
+DOT_ENV="$(files abspath $HUB_WORKDIR/.env)"
+export DOT_ENV
+
+if test -f $DOT_ENV; then
+  eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
+fi
+
 # deploy expressions
 if test -n "$HUB_COMPONENT"; then
   # shellcheck disable=SC2046
-  HUB_OPTS="$HUB_OPTS $(hub_opts $(echo "$HUB_COMPONENT" | sed "s/\.\.*/\\ .. /g" | sed "s/,/\\ /g"))"
+  HUB_OPTS="$HUB_OPTS $(hub_opts $(echo "$HUB_COMPONENT" | sed -e "s/\.\.*/\\ .. /g" -e "s/,/\\ /g"))"
   color --bold --color 0 "  This is experimental syntax. Please let us know if old syntax is better for you or something not working"
 fi
 
@@ -220,7 +240,7 @@ fi
 
 if test "$HUB_AUTOCONFIGURE" = "1"; then
   printf "Proceeding with:"; color h "configure"
-  $hubctl stack configure "$(test "$VERBOSE" = "true" && echo "--verbose")"
+  hubctl stack configure "$(test "$VERBOSE" = "true" && echo "--verbose")"
   echo "Reloading .env file"
   eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
   printf "Proceeding with:"; color h "$verb"
