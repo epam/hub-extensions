@@ -30,9 +30,9 @@ if test -z "\$hubctl"; then
   hubctl="\$(which hub 2>/dev/null || true)"
 fi
 
-if test -e ".env"; then
+if test -e "\$HUB_WORKDIR/.env"; then
     set -a
-    source .env
+    source \$HUB_WORKDIR/.env
     set +a
 fi;
 

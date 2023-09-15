@@ -1,6 +1,6 @@
 #!/bin/bash -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -26,9 +26,11 @@ if test -z "$POD"; then
   exit 1
 fi
 
-if test -f ".env"; then
-  eval "$(dotenv -f $HUB_WORKDIR/.env export)"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
+  exit 1
 fi
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 # these AWS_* vars are passed into pod by ./template as we may copy files to the non-default locations
 # or switch to the default locations instead

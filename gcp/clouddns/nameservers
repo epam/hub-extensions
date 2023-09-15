@@ -1,16 +1,11 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-# shellcheck disable=SC2086
-
-set -o pipefail
-
-JQ_ARGS="-cMr"
-jq="jq $JQ_ARGS"
+jq="jq -cMr"
 
 while [ "$1" != "" ]; do
     case $1 in
@@ -31,7 +26,7 @@ fi
 ZONE_NAME=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
   --format json | $jq '.[].name' | xargs)
 
-if gcloud dns managed-zones describe "$ZONE_NAME"\
+if gcloud dns managed-zones describe "$ZONE_NAME" \
     --format json | $jq '.nameServers|select(.)[]'; then
   exit
 fi

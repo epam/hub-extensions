@@ -1,14 +1,12 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-# shellcheck disable=SC2086
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
@@ -22,6 +20,10 @@ if test -z "$hubctl"; then
   color error "hubctl not found in PATH. Please install hubctl first."
   exit 1
 fi
+
+is_url() {
+  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+}
 
 usage() {
 cat << EOF
@@ -41,22 +43,19 @@ Parameters:
     -t --tag              Backup tags
     -c --component        Components to backup
     -V  --verbose         Verbose outputs for debug purpose
-    --tty                 Use TTY (terminal) mode for hubctl ${verb}
-    --no-tty              Do not use TTY (terminal) mode for hubctl ${verb}
-    --                    Separator to define "hubctl ${verb}" low level parameters (see: "hubctl ${verb} --help")
+    --tty                 Use TTY (terminal) mode for hubctl
+    --no-tty              Do not use TTY (terminal) mode for hubctl
+    --                    Separator to define "hubctl" low level parameters (see: "hubctl --help")
     -h  --help            Print this message
 
 EOF
 }
 
-
-if test ! -f .env; then
-  echo "* Error: configuration '.env' has not been found"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
   exit 1
 fi
-
-
-eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 FULL_STACK=true
 HUB_OPTS=
@@ -109,20 +108,22 @@ elif test -n "$KUBECONFIG" -a -f "$KUBECONFIG"; then
 fi
 
 if test -z "$HUB_STATE"; then
-  HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+  HUB_STATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
 fi
+
 echo "* Using hubctl state:"
-for i in ${HUB_STATE//,/ }; do
+hub_state=$(echo "$HUB_STATE" | sed 's/,/ /g')
+for i in ${hub_state}; do
   echo "  - $i"
 done
 
 if test -z "$HUB_ELABORATE"; then
-  HUB_ELABORATE=".hub/$HUB_DOMAIN_NAME.elaborate"
+  HUB_ELABORATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate"
 fi
 echo "* Using hubctl elaborate:"
-for i in ${HUB_ELABORATE//,/ }; do
+for i in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
   echo "  - $i"
-  if ! grep :// <<<$i >/dev/null; then
+  if ! is_url "$i"; then
     HUB_ELABORATE_FILE=$i
   fi
 done
@@ -149,7 +150,7 @@ fi
 
 # export HUB_YAML HUB_FILES HUB_STATE HUB_ELABORATE
 if test -z "$HUB_BACKUP_DIR"; then
-  HUB_BACKUP_DIR=".hub/backups"
+  HUB_BACKUP_DIR="$HUB_WORKDIR/.hub/backups"
 fi
 
 hub_backup_dir="$HUB_BACKUP_DIR"
@@ -185,7 +186,7 @@ if test -n "$HUB_BACKUP_TAG"; then
     echo "  Unlinking $tag_path"
     unlink "$tag_path"
   fi
-  echo "  Reference to backup: $(basename $HUB_BACKUP_DIR)"
+  echo "  Reference to backup: $(basename "$HUB_BACKUP_DIR")"
   mkdir -p "$(dirname "$tag_path")"
   ln -s "$HUB_BACKUP_DIR" "$tag_path"
 fi

@@ -292,7 +292,7 @@ fi
 STACK=${STACK:-$(basename "$(pwd)")}
 if test -z "$HUB_STATE"; then
   echo "* Setting hubctl state file location"
-  HUB_STATE_FILE=".hub/$HUB_DOMAIN_NAME.state"
+  HUB_STATE_FILE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
   if ! $PREFER_LOCAL_STATE; then
     HUB_STATE_FILE="$HUB_STATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.state"
   fi
@@ -300,7 +300,7 @@ if test -z "$HUB_STATE"; then
 fi
 if test -z "$HUB_ELABORATE"; then
   echo "* Setting hubctl elaborate file location"
-  HUB_ELABORATE_FILE=".hub/$HUB_DOMAIN_NAME.elaborate"
+  HUB_ELABORATE_FILE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate"
   if ! $PREFER_LOCAL_STATE; then
     HUB_ELABORATE_FILE="$HUB_ELABORATE_FILE,s3://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/$STACK/hub.elaborate"
   fi

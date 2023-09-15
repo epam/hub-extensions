@@ -1,10 +1,15 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH
 
 usage() {
   cat << EOF
@@ -13,10 +18,10 @@ Helper tool that dowloads components specified in hub.yaml
 Use flags "-A" or "-C" to download all components or subset of them
 
 Usage:
-$ $(basename "$0") -A -F
+$ $HUB_EXTENSION -A -F
 To download all components and overwrite if they already exist
 
-$ $(basename "$0") -F -C minio,tiller
+$ $HUB_EXTENSION -F -C minio,tiller
 To download specified componenets and overwrite if they already exist
 
 
@@ -33,70 +38,75 @@ EOF
 
 # shellcheck disable=SC2086
 local_dir() {
-  local f res
-  for f in $HUB_FILES; do
-    res=$(
-      yq e -o=json "$f" | \
+  _local_dir_f=
+  _local_dir_res=
+  for _local_dir_f in $HUB_FILES; do
+    _local_dir_res=$(
+      yq e -o=json "$_local_dir_f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.dir'
     )
-    test -z "$res" || break
+    test -z "$_local_dir_res" || break
   done
-  echo "$res"
+  echo "$_local_dir_res"
 }
 
 # shellcheck disable=SC2086
 git_sub_dir() {
-    local f res
-    for f in $HUB_FILES; do
-      res=$(
-        yq e -o=json "$f" | \
-        jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.subDir|select(.)'
-      )
-      test -z "$res" || break
-    done
-    echo "$res"
+  _git_sub_dir_f=
+  _git_sub_dir_res=
+  for _git_sub_dir_f in $HUB_FILES; do
+    _git_sub_dir_res=$(
+      yq e -o=json "$_git_sub_dir_f" | \
+      jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.subDir|select(.)'
+    )
+    test -z "$_git_sub_dir_res" || break
+  done
+  echo "$_git_sub_dir_res"
 }
 
 # shellcheck disable=SC2086
 git_remote() {
-  local f res
-  for f in $HUB_FILES; do
-    res=$(
-      yq e -o=json "$f" | \
+  _git_remote_f=
+  _git_remote_res=
+  for _git_remote_f in $HUB_FILES; do
+    _git_remote_res=$(
+      yq e -o=json "$_git_remote_f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.remote|select(.)'
     )
-    test -z "$res" || break
+    test -z "$_git_remote_res" || break
   done
-  echo "$res"
+  echo "$_git_remote_res"
 }
 
 # shellcheck disable=SC2086
 git_cloned_dir() {
-  local f res
-  for f in $HUB_FILES; do
-    res=$(
-      yq e -o=json "$f" | \
+  _git_cloned_dir_f=
+  _git_cloned_dir_res=
+  for _git_cloned_dir_f in $HUB_FILES; do
+    _git_cloned_dir_res=$(
+      yq e -o=json "$_git_cloned_dir_f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.remote|select(.)|split("/")[-1] |split(".")[0]'
     )
-    test -z "$res" || break
+    test -z "$_git_cloned_dir_res" || break
   done
-  echo "$res"
+  echo "$_git_cloned_dir_res"
 }
 
 # shellcheck disable=SC2086
 git_ref() {
-  local f res
-  for f in $HUB_FILES; do
-    res=$(
-      yq e -o=json "$f" | \
+  _git_ref_f=
+  _git_ref_res=
+  for _git_ref_f in $HUB_FILES; do
+    _git_ref_res=$(
+      yq e -o=json "$_git_ref_f" | \
       jq -r '.components?|select(.)[]|select(.name=="'$1'")|.source.git.ref|select(.)'
     )
-    if test -n "$res"; then
-      echo "$res"
+    if test -n "$_git_ref_res"; then
+      echo "$_git_ref_res"
       break;
     fi
   done
-  if test -z "$res"; then
+  if test -z "$_git_ref_res"; then
     echo "main"
   fi
 }
@@ -106,15 +116,14 @@ if test -z "$*"; then
   exit 1
 fi
 
-if test -f ".env"; then
-  set +a
-  eval "$(dotenv export -f ".env" )"
-  set -a
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
+  exit 1
 fi
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 CHECK=${CHECK:-true}
 COMPONENT_JSON_PATH=${COMPONENT_JSON_PATH:-.hub/component_rev.json}
-WORKDIR=${WORKDIR:-$(pwd)}
 while [ "$1" != "" ]; do
     case $1 in
     -f | --file)        shift
@@ -143,7 +152,7 @@ while [ "$1" != "" ]; do
 done
 
 if test -z "$HUB_FILES"; then
-  echo "Error: cannot find hubctl files. Please run this command with --file flag"
+  color error "Error: cannot find hubctl files. Please run this command with --file flag"
   exit 1
 fi
 
@@ -154,14 +163,15 @@ if test -z "$COMPONENTS"; then
     # GIT_URLS=$(yq e -o=json hub.yaml | jq -r '.components[].source.git.remote | select(length > 0)'  | sort | uniq)
   done
   if test -z "$COMPONENTS"; then
-    echo "Error: cannot find components in [$HUB_FILES]"
+    color error "Error: cannot find components in [$HUB_FILES]"
+    exit 2
   fi
 fi
 
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf $TEMP_DIR' EXIT
 for component in $COMPONENTS; do
-  echo -n "* Checking component $component: "
+  printf "* Checking component %s: " "$component"
   to_dir=$(local_dir "$component")
   if test -d "$to_dir"; then
     echo "already exists"
@@ -174,13 +184,13 @@ for component in $COMPONENTS; do
 
   temp="$TEMP_DIR/$(echo "$remote+$ref" | sed 's/[^0-9a-zA-Z-]*//g')"
   if test ! -d "$temp"; then
-    echo -n "  Cloning remote $remote ($ref): "
+    printf "  Cloning remote %s (%s): " "$remote" "$ref"
     git clone "$remote" "$temp" > /dev/null 2>&1
     git -C "$temp" checkout "$ref" > /dev/null 2>&1
     echo "done"
   fi
-  echo -n "  Store to $to_dir: "
-  mkdir -p "$(dirname $WORKDIR/$to_dir)"
-  cp -rf "$temp/$sub_dir" "$WORKDIR/$to_dir"
+  printf "  Store to %s: " "$to_dir"
+  mkdir -p "$(dirname "$HUB_WORKDIR/$to_dir")"
+  cp -rf "$temp/$sub_dir" "$HUB_WORKDIR/$to_dir"
   echo "Done"
 done

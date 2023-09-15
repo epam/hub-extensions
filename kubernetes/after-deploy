@@ -1,15 +1,12 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-# shellcheck disable=SC2068,SC2086,SC2155
-
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 dotenv="dotenv -f $HUB_WORKDIR/.env"
-
-export PATH
 
 hubctl="$(which hubctl 2>/dev/null || true)"
 if test -z "$hubctl"; then
@@ -21,31 +18,27 @@ if test -z "$hubctl"; then
   exit 1
 fi
 
-usage() {
-  echo "Check Kubernetes cluster is reachable"
-}
-
 checkCluster() {
-  local KUBECONTEXT
+  _checkCluster_KUBECONTEXT=
   if test -n "$1";then
-    KUBECONFIG="$1"
+    _checkCluster_KUBECONTEXT="$1"
     export KUBECONFIG
-    echo "* Trying kubeconfig: $KUBECONFIG"
+    echo "* Trying kubeconfig: $_checkCluster_KUBECONTEXT"
   fi
-  KUBECONTEXT="$2"
+  _checkCluster_KUBECONTEXT="$2"
 
-  if test -z "$KUBECONTEXT"; then
-    KUBECONTEXT="$(kubectl config current-context)"
+  if test -z "$_checkCluster_KUBECONTEXT"; then
+    _checkCluster_KUBECONTEXT="$(kubectl config current-context)"
   fi
 
-  if test -z "$(kubectl config view -o json | jq ".contexts[] | select(.name==\"$KUBECONTEXT\").name")"; then
-    echo "* Context $KUBECONTEXT: not found"
+  if test -z "$(kubectl config view -o json | jq ".contexts[] | select(.name==\"$_checkCluster_KUBECONTEXT\").name")"; then
+    echo "* Context $_checkCluster_KUBECONTEXT: not found"
     return 1
   fi
-  echo "* Context $KUBECONTEXT: exist"
+  echo "* Context $_checkCluster_KUBECONTEXT: exist"
 
-  echo -n "* Checking connectivty to $KUBECONTEXT: "
-  if kubectl cluster-info --context="$KUBECONTEXT"> /dev/null; then
+  printf "* Checking connectivty to %s: " "$_checkCluster_KUBECONTEXT"
+  if kubectl cluster-info --context="$_checkCluster_KUBECONTEXT"> /dev/null; then
     echo "connected"
   else
     return $?
@@ -67,11 +60,11 @@ checkClusterAndSave() {
   fi
 }
 
-if test -f "$HUB_WORKDIR/.env"; then
-  set +a
-  eval "$($dotenv export)"
-  set -a
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
+  exit 1
 fi
+eval "$($dotenv export)"
 
 echo "Finalizing kubernetes deployment"
 
@@ -86,7 +79,7 @@ else
   echo "* File .env does not provide HUB_KUBECONFIG"
 fi
 
-SAVETO="$(pwd)/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
+SAVETO="$HUB_WORKDIR/.hub/env/$HUB_DOMAIN_NAME.kubeconfig"
 if test -f "$SAVETO"; then
   if checkClusterAndSave "$SAVETO"; then
     exit 0
@@ -96,7 +89,7 @@ else
 fi
 
 if test -z "$HUB_STATE"; then
-  HUB_STATE=".hub/$HUB_DOMAIN_NAME.state"
+  HUB_STATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
 fi
 
 cat << EOF
@@ -143,5 +136,5 @@ if test -d "/var/run/secrets/kubernetes.io/serviceaccount"; then
   fi
 fi
 
-echo "Error: unable to configure kubeconfig!"
+color error "Error: unable to configure kubeconfig!"
 exit 1

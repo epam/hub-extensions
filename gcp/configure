@@ -1,11 +1,9 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2090
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 usage() {
     cat <<EOF
@@ -26,8 +24,6 @@ check_api_enabled() {
 }
 
 jq='jq -cM'
-# shellcheck disable=SC2089
-# curl='curl -isH "Metadata-Flavor: Google"'
 dotenv="dotenv -f $DOT_ENV"
 DNSSEC_STATE="on"
 while [ "$1" != "" ]; do
@@ -39,9 +35,6 @@ while [ "$1" != "" ]; do
     --gcp-project-id)
         shift
         GOOGLE_PROJECT="$1"
-        ;;
-    --force)
-        FORCE_FUNCTION_UPDATE=1
         ;;
     --domain-name)
         shift
@@ -62,17 +55,16 @@ fi
 HUB_CLOUD_PROVIDER="gcp"
 export HUB_CLOUD_PROVIDER
 
-echo -n "Setting current GCP project to: "
+printf "Setting current GCP project to: "
 color b "$GOOGLE_PROJECT"
 echo "* $(gcloud config set project "$GOOGLE_PROJECT" -q 2>&1)"
 
-# shellcheck disable=SC1091
 if test -z "$(params env HUB_DOMAIN_NAME)"; then
   stack_name_param=$(params env "HUB_STACK_NAME" | jq -cMr '.name | select(.)')
   if test -n "$stack_name_param"; then
     HUB_STACK_NAME="$(params value "$stack_name_param" -d "$DOT_ENV" -d "$HUB_WORKDIR/.env")"
     if test -z "$HUB_STACK_NAME"; then
-      echo -n "Generating new stack name: "
+      printf "Generating new stack name: "
       new_name="$(files find-in-path bubble-dns/new-name)"
       HUB_STACK_NAME="$(eval "$new_name" | cut -d. -f1)"
       color b "$HUB_STACK_NAME"
@@ -84,7 +76,7 @@ if test -z "$(params env HUB_DOMAIN_NAME)"; then
     fromEnv: HUB_DOMAIN_NAME
 EOF
     else
-      echo -n "Using stack name: "
+      printf "Using stack name: "
       color b "$HUB_STACK_NAME"
       HUB_DOMAIN_NAME="$HUB_STACK_NAME"
     fi
@@ -106,16 +98,16 @@ else
   if test -z "$HUB_DOMAIN_NAME"; then
     echo "* Requesting new DNS name"
     # shellcheck disable=SC1090
-    source "$(dirname "$0")/../bubble-dns/include"
+    . "$(files -e find-in-path bubble-dns/include)"
     configureBubbleDNS
   fi
-  echo -n "* Enabling API for dns.googleapis.com... "
+  printf "* Enabling API for dns.googleapis.com... "
   gcloud services enable "dns.googleapis.com" && echo "done"
-  echo -n "* Cloud DNS Zone "
+  printf "* Cloud DNS Zone "
   color -n b "$HUB_DOMAIN_NAME... "
   FOUND=$(gcloud dns managed-zones list --filter=dnsName:"$HUB_DOMAIN_NAME" \
     --format json | $jq '. | length' | xargs)
-  if test "$FOUND" == "0"; then
+  if test "$FOUND" = "0"; then
     echo "not found"
     echo "  Creating (takes a minute)... "
     gcloud dns managed-zones create "$(echo "$HUB_DOMAIN_NAME" | cut -d. -f1)" \
@@ -146,12 +138,12 @@ fi
 if test -z "$HUB_STATE_BUCKET"; then
   HUB_STATE_BUCKET="superhub-$GOOGLE_PROJECT"
 fi
-echo -n "Configuring state storage: "
+printf "Configuring state storage: "
 color b "gs://$HUB_STATE_BUCKET"
 if gsutil -q ls -b "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
   echo "* Bucket gs://$HUB_STATE_BUCKET already exist in $GOOGLE_PROJECT"
 else
-  echo -n "* Creating bucket gs://$HUB_STATE_BUCKET... "
+  printf "* Creating bucket gs://%s... " "$HUB_STATE_BUCKET"
 	if gsutil mb -c standard -b on "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1; then
 		echo "done"
 	else
@@ -161,8 +153,8 @@ else
 fi
 gsutil label ch -l "managed-by":"hubctl" "gs://$HUB_STATE_BUCKET" > /dev/null 2>&1
 
-HUB_STATE_FILE="$(files abspath ".hub/$HUB_DOMAIN_NAME.state"),gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
-HUB_ELABORATE_FILE="$(files abspath ".hub/$HUB_DOMAIN_NAME.elaborate"),gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
+HUB_STATE_FILE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.state"
+HUB_ELABORATE_FILE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate,gs://$HUB_STATE_BUCKET/$HUB_DOMAIN_NAME/hub/hub.elaborate"
 
 $dotenv contains 'HUB_CLOUD_PROVIDER'   || $dotenv set 'HUB_CLOUD_PROVIDER' "$HUB_CLOUD_PROVIDER"
 $dotenv contains 'HUB_STATE_BUCKET'     || $dotenv set 'HUB_STATE_BUCKET' "$HUB_STATE_BUCKET"
@@ -175,8 +167,10 @@ $dotenv contains 'HUB_ELABORATE'        || $dotenv set 'HUB_ELABORATE' "$HUB_ELA
 $dotenv contains 'HUB_TOOLBOX_IMAGE'    || $dotenv set 'HUB_TOOLBOX_IMAGE' 'ghcr.io/epam/hub-toolbox:gcp'
 
 if test -n "$CLOUD_SHELL"; then
-  echo "* Hubctl runs inside a Cloud Shell environment"
-  echo "  Setting deploy profile to: local"
+  cat << EOF
+* Hubctl runs inside a Cloud Shell environment
+  Setting deploy profile to: local
+EOF
   $dotenv set "HUB_DEPLOY_PROFILE" "local"
 fi
 if test -z "$HUB_STACK_NAME" -a -n "$HUB_DOMAIN_NAME"; then

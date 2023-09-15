@@ -1,11 +1,9 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2086,SC2064,SC2046
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
@@ -42,13 +40,11 @@ fi
 
 echo "Finalizing stack deployment"
 
-if test ! -f ".env"; then
-  echo "Error: cannot find .env file. Please run 'hubctl configure'"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
   exit 1
 fi
-set +a
-eval "$(dotenv export -f "$HUB_WORKDIR.env" )"
-set -a
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 if test -n "$HUB_KUBECONTEXT"; then
   echo "* Setting kubecontext to: $HUB_KUBECONTEXT"
@@ -62,24 +58,26 @@ if test -f "$HUB_DOMAIN_NAME"; then
 fi
 
 if test -z "$HUB_ELABORATE"; then
-  echo "Error: cannot find elaborate file: '$HUB_ELABORATE'"
+  color e "Error: cannot find elaborate file: '$HUB_ELABORATE'"
   exit 2
 fi
 
 if test -z "$HUB_STATE"; then
-  echo "Error: cannot find state file: '$HUB_STATE'"
+  color e "Error: cannot find state file: '$HUB_STATE'"
   exit 2
 fi
 
 ns="kube-system"
-cm="superhub"
+cm="hubctl"
+# shellcheck disable=SC2086
 explained=$($HUB explain $HUB_ELABORATE $HUB_STATE --json -g | base64 | tr -d \\n)
 
-echo -n "* Saving state in $ns/$cm configmap: "
+printf "* Saving state in %s/%s configmap: " "$ns" "$cm"
 if kubectl -n $ns get configmap $cm >/dev/null 2>&1; then
   kubectl -n $ns get configmap $cm -o json |
     jq ".data += {\"${HUB_DOMAIN_NAME}\": \"${explained}\"}" |
     kubectl -n $ns replace -f -
 else
+  # shellcheck disable=SC2086
   kubectl -n $ns create configmap $cm --from-literal=${HUB_DOMAIN_NAME}=${explained}
 fi

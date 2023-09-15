@@ -3,7 +3,7 @@
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
@@ -21,12 +21,12 @@ if test -z "$hubctl"; then
 fi
 
 CURRENT=""
-if test -f ".env"; then
-  CURRENT=$(basename "$(readlink .env)" .env)
+if test -f "$HUB_WORKDIR/.env"; then
+  CURRENT=$(basename "$(readlink "$HUB_WORKDIR/.env")" .env)
 fi
 
-if test ! -d .hub/env; then
-  color e  "No stacks available"
+if test ! -d "$HUB_WORKDIR/.hub/env"; then
+  color e "No stacks available"
   exit 1
 fi
 
@@ -60,9 +60,8 @@ temp_file() {
 
 print_stacks() {
   echo "ACTIVE|STACK|STATUS|TIMESTAMP"
-  if test -d ".hub/env"; then
-    # shellcheck disable=SC2045
-    for f in $(ls -t .hub/env/*.env .hub/env/.env 2>/dev/null); do
+  if test -d "$HUB_WORKDIR/.hub/env"; then
+    for f in "$HUB_WORKDIR"/.hub/env/*.env "$HUB_WORKDIR"/.hub/env/.env; do
       if test ! -f "$f"; then
         continue
       fi

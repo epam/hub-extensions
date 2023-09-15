@@ -1,15 +1,12 @@
-#!/bin/bash -e
-# Copyright (c) 2022 EPAM Systems, Inc.
-# 
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# shellcheck disable=SC2086
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
@@ -49,24 +46,24 @@ done
 
 
 if test -z "$HUB_BACKUP_TAG"; then
-  echo "Error: tag name is missing"
+  color error "Error: tag name is missing"
   usage
   exit 2
 fi
 
-if test ! -f .env; then
-  echo "* Error: configuration '.env' has not been found"
+if test ! -f "$HUB_WORKDIR/.env"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
   exit 1
 fi
+eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
-eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
 if test -z "$HUB_BACKUP_DIR"; then
-  HUB_BACKUP_DIR=".hub/backups"
+  HUB_BACKUP_DIR="$HUB_WORKDIR/.hub/backups"
 fi
 
 tag_path="$HUB_BACKUP_DIR/tags/$HUB_BACKUP_TAG"
 if test ! -L "$tag_path"; then
-  echo "Error: $HUB_BACKUP_TAG not found"
+  color error "Error: $HUB_BACKUP_TAG not found"
   exit 3
 fi
 
