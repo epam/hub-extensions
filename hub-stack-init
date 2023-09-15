@@ -484,9 +484,11 @@ if test -z "$HUB_STACK_NAME"; then
     HUB_STACK_NAME="$($params value "$hub_stack_name_param")"
   fi
   if test -z "$HUB_STACK_NAME" -a -n "$HUB_DOMAIN_NAME"; then
+    echo "* Using dns bubbles to generate domain name"
     HUB_STACK_NAME="$(echo "$HUB_DOMAIN_NAME" | cut -d "." -f1)"
   fi
   if test -z "$HUB_STACK_NAME"; then
+    echo "* Using dns bubbles to generate stack name"
     HUB_STACK_NAME="$($bubbles_new_name | cut -d "." -f1)"
   fi
 fi

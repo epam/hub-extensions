@@ -5,23 +5,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-usage() {
-  cat << EOF
-AWS parameters:
-  --aws-region               AWS Region (defaults to value from: AWS_REGION)
-  --aws-profile              AWS Profile (defaults to value from: AWS_PROFILE)
-EOF
-}
 
 r53_undeploy="$(files -e find-in-path aws/route53/undeploy)"
 r53_zoneid="$(files -e find-in-path aws/route53/zone-id)"
 
-echo "Starting AWS cleanup..."
+echo "Starting AWS cleanup... $HUB_DOMAIN_NAME"
 
 if test -n "$HUB_DOMAIN_NAME"; then
   zone_id=$($r53_zoneid --domain-name "$HUB_DOMAIN_NAME")
   if test -n "$zone_id"; then
-    echo "* Deleting Route53 zone $HUB_DOMAIN_NAME"
     $r53_undeploy --domain-name "$HUB_DOMAIN_NAME"
   fi
 fi

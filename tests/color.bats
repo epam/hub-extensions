@@ -89,3 +89,24 @@ do_not_print_newline() {
     assert_success
     assert_output "$MESSAGE"
 }
+
+@test "color --color: should print message in color" {
+    run color --color 0 "$MESSAGE"
+    assert_success
+    assert_output "$MESSAGE"
+    run color -c 0 "$MESSAGE"
+    assert_success
+    assert_output "$MESSAGE"
+    run color +c 0 "$MESSAGE"
+    assert_success
+    assert_output "$MESSAGE"
+}
+
+@test "color --bold: should print message in bold" {
+    run color +b "$MESSAGE"
+    assert_success
+    assert_output "$MESSAGE"
+    run color --bold "$MESSAGE"
+    assert_success
+    assert_output "$MESSAGE"
+}

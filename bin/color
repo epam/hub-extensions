@@ -11,7 +11,7 @@ usage() {
 Print colored message (if terminal supports colorings)
 
 Parameters:
-  -c --color COLOR_CODE   Use color with this code
+  +c --color COLOR_CODE   Use color with this code
   -n                      Do not print the trailing newline character
   +b --bold               Use bold text
   -e --stderr             Write output to stderr instead of stdout
@@ -54,9 +54,9 @@ while test -n "$1"; do
       set -x
       shift; continue
     ;;
-    -c | --color )
-      _tput setaf "$1"
+    -c | +c | --color )
       shift
+      _tput setaf "$1"
       shift; continue
     ;;
     -n )

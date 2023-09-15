@@ -19,6 +19,7 @@ Parameters:
 EOF
 }
 
+USE_FORCE="0"
 while [ "$1" != "" ]; do
     case $1 in
         --aws-region )    shift
@@ -28,7 +29,9 @@ while [ "$1" != "" ]; do
                           export AWS_PROFILE="$1"
                           ;;
         --domain-name )   shift
-                          HUB_DOMAIN_NAME="$1"
+                          domain_name="$1"
+                          ;;
+        -f |--force )     USE_FORCE="1"
                           ;;
         -h | --help )     usage
                           exit
@@ -37,7 +40,7 @@ while [ "$1" != "" ]; do
     shift
 done
 
-if test -z "$HUB_DOMAIN_NAME"; then
+if test -z "$domain_name"; then
   usage
   exit 1
 fi
@@ -52,8 +55,17 @@ hosted_zone_id() {
     | xargs | cut -d " " -f1
 }
 
-printf "* Checking Route53 hosted zone %s... " "$HUB_DOMAIN_NAME";
-ZONE_ID=$(hosted_zone_id "$HUB_DOMAIN_NAME")
+strip_dot() {
+  echo "$1" | sed 's/\.$//'
+}
+
+domain_name="$(strip_dot "$domain_name")"
+if test -z "$HUB_DOMAIN_NAME"; then
+  HUB_DOMAIN_NAME="$domain_name"
+fi
+
+printf "* Checking Route53 hosted zone %s... " "$domain_name";
+ZONE_ID=$(hosted_zone_id "$domain_name")
 
 if test -z "$ZONE_ID"; then
   color w "not found"
@@ -61,6 +73,8 @@ if test -z "$ZONE_ID"; then
 fi
 color h "$(basename "$ZONE_ID")"
 
+# We check if current stack represented by HUB_DOMAIN_NAME
+# actually owns the zone by checking the presence of a tag
 tag_name="hubctl.io/stack/$HUB_DOMAIN_NAME"
 printf "* Checking presence of a tag %s: " "$tag_name"
 
@@ -72,8 +86,13 @@ tag_value="$(
   )"
 color h "${tag_value:-not found}"
 
-if test "$tag_value" != "owned"; then
-  color w "* Aborting due to hosted zone found but it is not owned by this stack"
+if test "$tag_value" != "owned" -a "$USE_FORCE" = "0"; then
+  color w <<END
+* Not deleting Route53 zone $HUB_DOMAIN_NAME because it is not owned by this stack
+  Please, delete it manually if you don't need it anymore.
+
+  Note: Route 53 owned by this stack should have tag: $tag_name="owned"
+END
   exit 0
 fi
 
@@ -96,7 +115,7 @@ for i in $(seq 0 "$(jq -r '.ResourceRecordSets | length - 1' "$temp/records.json
 }
 EOF
 
-    printf '%s' "  - Deleting record $type $name "
+    printf '%s' "  - Deleting $type $name "
     CHANGE=$(aws route53 change-resource-record-sets \
       --hosted-zone-id "$(basename "$ZONE_ID")" \
       --change-batch "file://$temp/change-$i.json" \

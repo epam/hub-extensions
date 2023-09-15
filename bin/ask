@@ -34,10 +34,10 @@ Parameters
   -f  --file FILE                specify hubfile  (can repeat, defaults to HUB_FILES .env or environemnt variable)
   -m  --message TEXT             add a text message to display to the user
   -a  --alternative-param PARAM  alternative parameter name to search for
-  -d --dotenv FILE               locatin for dotenv file (defaults to DOT_ENV or .env)
-  --suggest   VALUE              value to use as a suggested default
+  -d  --dotenv FILE              locatin for dotenv file (defaults to DOT_ENV or .env)
   -t  --suggest-tag HASHTAG      tag name to apply for suggested value (default: suggested)
   -p  --priority HINTS           set hints priority (default see below)
+  -s  --suggest VALUE            value to use as a suggested default
   --non-interactive              set hints priority (defaults to TTY)
   --brief                        add brief user text (effectively replaces .brief of parameter)
 
@@ -105,14 +105,17 @@ if test -z "$HUB_WORKDIR"; then
   HUB_WORKDIR="$(dirname "$(files abspath .env)")"
 fi
 
+interactive=true
 if test "$HUB_INTERACTIVE" = "0"; then
-  HUB_INTERACTIVE=false
+  info="  Working in non-interactive mode (set by HUB_INTERACTIVE)"
+  interactive=false
 elif test -n "HUB_INTERACTIVE"; then
-  HUB_INTERACTIVE=true
+  interactive=true
 elif test -n "$(which tty)" && tty -s || echo "$-" | grep 'i'; then
-  HUB_INTERACTIVE=true
+  interactive=true
 else
-  HUB_INTERACTIVE=false
+  info="  Working in non-interactive mode (no tty)"
+  interactive=false
 fi
 
 while test -n "$1"; do
@@ -152,7 +155,7 @@ while test -n "$1"; do
       shift
     ;;
 
-    --suggest | --suggested )
+    -s | --suggest | --suggested )
       suggested_value="$2"
       shift
     ;;
@@ -163,7 +166,7 @@ while test -n "$1"; do
     ;;
 
     --non-interactive )
-      HUB_INTERACTIVE=false
+      interactive=false
     ;;
 
     +parameter | +random | +hubstate | +env | +history | +default | +empty )
@@ -220,8 +223,6 @@ fi
 
 if test -z "$message"; then
   message="$ENV variable"
-elif test -n "$ENV"; then
-  message="$message"
 fi
 
 export HUB_FILES DOT_ENV HUB_WORKDIR
@@ -305,7 +306,7 @@ if test "$hint" = "suggested" -a -n "$suggested_tag"; then
   hashtag="$suggested_tag"
 fi
 
-if ! $HUB_INTERACTIVE; then
+if ! $interactive; then
   VALUE="$hint_val"
 elif test -n "$hint" && ! contains "$hint" "$ask"; then
   VALUE="$hint_val"
@@ -318,6 +319,10 @@ else
   echo -n "  Enter value ("
   color -n b "$shorty"
   read -rp " #$hashtag): " VALUE
+fi
+
+if test -n "$info"; then
+  color --bold --color 0 "$info"
 fi
 
 if test -n "$VALUE" -a "$VALUE" != "$hint_val"; then
