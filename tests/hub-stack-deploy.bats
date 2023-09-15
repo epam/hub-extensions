@@ -5,19 +5,17 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-setup_file() {
-    cat > "$BATS_RUN_TMPDIR/.env" << EOF
+gen_stack() {
+    mkdir -p "$1/component"
+    cat > "$1/.env" << EOF
 HUB_DOMAIN_NAME="iamtest"
 HUB_STACK_NAME="iamtest"
-HUB_WORKDIR="$BATS_RUN_TMPDIR"
 HUB_INTERACTIVE="0"
-HUB_FILES="hub.yaml"
-HUB_STATE="$BATS_RUN_TMPDIR/hub.state"
-HUB_ELABORATE="$BATS_RUN_TMPDIR/hub.elaborate"
+HUB_FILES="$1/hub.yaml"
+HUB_STATE="$1/hub.state"
+HUB_ELABORATE="$1/hub.elaborate"
 EOF
-
-    mkdir -p "$BATS_RUN_TMPDIR/component"
-    cat > "$BATS_RUN_TMPDIR/hub.yaml" << EOF
+    cat > "$1/hub.yaml" << EOF
 version: 1
 kind: stack
 components:
@@ -32,30 +30,31 @@ parameters:
   fromEnv: HUB_STACK_NAME
 EOF
 
-    cat <<EOF > "$BATS_RUN_TMPDIR/hubctl"
-#!/bin/sh
-echo "\$ hubctl \$@"
-EOF
-    cat <<EOF > "$BATS_RUN_TMPDIR/component/hub-component.yaml"
----
+    cat <<EOF > "$1/component/hub-component.yaml"
 version: 1
 kind: component
 parameters:
 - name: hub.stackName
   env: WORLD
 EOF
-    cat <<EOF > "$BATS_RUN_TMPDIR/component/deploy"
+    cat <<EOF > "$1/component/deploy"
 #!/bin/sh -e
 echo "hello, \$WORLD \$VERB!"
 EOF
-    cat <<EOF > "$BATS_RUN_TMPDIR/component/undeploy"
+    cat <<EOF > "$1/component/undeploy"
 #!/bin/sh -e
 echo "hello, \$WORLD \$VERB!"
 EOF
-    chmod +x \
-        "$BATS_RUN_TMPDIR/component/deploy" \
-        "$BATS_RUN_TMPDIR/component/undeploy" \
-        "$BATS_RUN_TMPDIR/hubctl"
+    chmod +x "$1/component/deploy" "$1/component/undeploy"
+}
+
+gen_hubctl_double() {
+    mkdir -p "$1"
+    cat <<EOF > "$1/hubctl"
+#!/bin/sh
+echo ">> hubctl \$@"
+EOF
+    chmod +x "$1/hubctl"
 }
 
 setup() {
@@ -66,14 +65,31 @@ setup() {
     # get the containing directory of this file
     # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
     # as those will point to the bats executable's location or the preprocessed file respectively
-    DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
-
+    CURRDIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
+    HUB_WORKDIR="$BATS_RUN_TMPDIR"
     # make executables visible to PATH
-    PATH="$BATS_RUN_TMPDIR:$DIR/../bin:$PATH"
+    PATH="$CURRDIR/../bin:$PATH"
+    HUB_OPTS="$HUB_WORKDIR/hub.elaborate -s $HUB_WORKDIR/hub.state"
 
-    HUB_OPTS="$BATS_RUN_TMPDIR/hub.elaborate -s $BATS_RUN_TMPDIR/hub.state"
+    export HUB_WORKDIR PATH
+
+    gen_stack "$HUB_WORKDIR"
+    gen_hubctl_double "$HUB_WORKDIR"
 }
 
+@test "hubctl stack deploy: from another directory" {
+    refute test "$CURRDIR" = "$HUB_WORKDIR"
+
+    cd "$HUB_WORKDIR"
+    run hub-stack-deploy
+    assert_success
+    assert_line -p ">> hubctl deploy $HUB_OPTS"
+
+    cd "$CURRDIR"
+    run hub-stack-deploy
+    assert_success
+    assert_line -p ">> hubctl deploy $HUB_OPTS"
+}
 
 @test "hubctl stack deploy: new syntax usage" {
     run hub-stack-deploy --help
@@ -86,24 +102,22 @@ setup() {
 }
 
 @test "hubctl stack deploy: deploy full stack" {
-    cd "$BATS_RUN_TMPDIR"
-
+    cd "$HUB_WORKDIR"
     run hub-stack-deploy
-    assert_line -p "hubctl elaborate hub.yaml -o $BATS_RUN_TMPDIR/hub.elaborate"
-    assert_line -p "hubctl deploy $HUB_OPTS"
+    assert_line -p ">> hubctl deploy $HUB_OPTS"
     assert_success
 }
 
 @test "hubctl stack deploy: new syntax" {
-    cd "$BATS_RUN_TMPDIR"
+    cd "$HUB_WORKDIR"
 
     run hub-stack-deploy dummy1
     assert_success
-    assert_line -p "hubctl deploy $HUB_OPTS -c dummy1"
+    assert_line -p ">> hubctl deploy $HUB_OPTS -c dummy1"
 
     run hub-stack-deploy dummy1,dummy2
     assert_success
-    assert_line -p "hubctl deploy $HUB_OPTS -c dummy1,dummy2"
+    assert_line -p ">> hubctl deploy $HUB_OPTS -c dummy1,dummy2"
 
     # right now we do not support this syntax
     run hub-stack-deploy dummy1 dummy2
@@ -111,27 +125,27 @@ setup() {
 
     run hub-stack-deploy dummy1...
     assert_success
-    assert_line -p "hubctl deploy $HUB_OPTS -o dummy1"
+    assert_line -p ">> hubctl deploy $HUB_OPTS -o dummy1"
 
     run hub-stack-deploy ...dummy1
     assert_success
-    assert_line -p "hubctl deploy $HUB_OPTS -l dummy1"
+    assert_line -p ">> hubctl deploy $HUB_OPTS -l dummy1"
 
     run hub-stack-deploy dummy1...dummy2
     assert_success
-    assert_line -p "hubctl deploy $HUB_OPTS -o dummy1 -l dummy2"
+    assert_line -p ">> hubctl deploy $HUB_OPTS -o dummy1 -l dummy2"
 
     # actually ... is an alias for .., so this is the same as above
     run hub-stack-deploy dummy1..dummy2
     assert_success
-    assert_line -p "hubctl deploy $HUB_OPTS -o dummy1 -l dummy2"
+    assert_line -p ">> hubctl deploy $HUB_OPTS -o dummy1 -l dummy2"
 
 
     run hub-stack-deploy dummy1,dummy2...dummy3
     assert_success
-    assert_line -p "hubctl deploy $HUB_OPTS -c dummy1,dummy2 -o dummy2 -l dummy3"
+    assert_line -p ">> hubctl deploy $HUB_OPTS -c dummy1,dummy2 -o dummy2 -l dummy3"
 }
 
 teardown() {
-    cd "$DIR"
+    cd "$CURRDIR"
 }
