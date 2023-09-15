@@ -5,11 +5,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-# shellcheck disable=SC2086
-
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
+HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl /g' | sed 's/-/ /g')"
 HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_WORKDIR
@@ -29,33 +27,64 @@ fi
 
 verb=deploy/undeploy
 
-usage() {
-cat << EOF
+usage_new_syntax() {
+  cat << END
+  $HUB_EXTENSION foo
+${verb}s component foo
 
-${verb} the stack
+  $HUB_EXTENSION foo,bar
+${verb}s two components and foo and bar
+
+  $HUB_EXTENSION foo...bar
+${verb}s deploys all components between foo and bar (including foo and bar)
+
+  $HUB_EXTENSION ...foo
+${verb}s all components before and including foo
+
+  $HUB_EXTENSION foo...
+${verb}s foo and all components after
+END
+}
+
+deprecated_syntax() {
+color w <<END
+Deprecation notice: this syntax will soon retire:
+
+  $HUB_EXTENSION $1 $2
+
+new syntax:
+
+  $HUB_EXTENSION $3
+END
+cat <<END
+To learn more about new syntax:
+
+  $HUB_EXTENSION --help
+
+END
+}
+
+usage() {
+cat << END
+
+${verb}s a stack
 
 Usage:
-$ $HUB_EXTENSION
+  $HUB_EXTENSION
 ${verb}s entire stack
 
-$ $HUB_EXTENSION -c component1,component2
-${verb}s two components
-
-$ $HUB_EXTENSION -c component1,component2 --profile kubernetes
-${verb}s two components and executes deployment in a kubernetes
+Deploy individdual component:
+$(usage_new_syntax)
 
 Parameters:
-    -c --component        Components to ${verb}
-    -o --offset           Start with the given component
-    -l --limit            Component to stop ${verb} at
-    --profile             Deployment profile, one of: local, docker, kubernetes
-    -V  --verbose         Verbose outputs for debug purpose
+    --executor            Executor to run automation task, one of: local, docker, kubernetes
     --tty                 Use TTY (terminal) mode for hubctl ${verb}
     --no-tty              Do not use TTY (terminal) mode for hubctl ${verb}
-    --                    Separator to define "hubctl ${verb}" low level parameters (see: "hubctl ${verb} --help")
-    -h  --help            Print this message
+    --verbose  -V         Verbose outputs for debug purpose
+    --                    Separator to define "hubctl ${verb}" lower-level parameters (see: "hubctl ${verb} --help")
+    --help     -h         Print this message
 
-EOF
+END
 }
 
 is_url() {
@@ -72,29 +101,42 @@ verb="$maybe_verb"
 eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
 
 FULL_STACK=true
-WORKDIR=$(pwd)
 HUB_OPTS=
 VERBOSE=false
+HUB_COMPONENT=""
 
 while test "$1" != ""; do
     case $1 in
-        -c | --component )  shift
-                            HUB_OPTS="$HUB_OPTS -c $1"
-                            FULL_STACK=false
+        -c | --component )
+                            deprecated_syntax "$1" "$2" "$2"
+                            HUB_COMPONENT="$2"
+                            shift
+                            # HUB_OPTS="$HUB_OPTS -c $1"
+                            # FULL_STACK=false
                             ;;
-        -o | --offset )     shift
-                            HUB_OPTS="$HUB_OPTS -o $1"
+        -o | --offset )     deprecated_syntax "$1" "$2" "$2..."
+                            HUB_OPTS="$HUB_OPTS -o $2"
                             FULL_STACK=false
+                            shift
                             ;;
-        -l | --limit )      shift
-                            HUB_OPTS="$HUB_OPTS -l $1"
+        -l | --limit )      color w <<END
+Deprecation notice this syntax will soon retire:
+  $HUB_EXTENSION $1 $2 you can now use
+
+new syntax:
+
+  $HUB_EXTENSION ...$2
+END
+                            deprecated_syntax "$1" "$2" "...$2"
+                            HUB_OPTS="$HUB_OPTS -l $2"
                             FULL_STACK=false
+                            shift
                             ;;
         --tty )             HUB_OPTS="$HUB_OPTS --tty true"
                             ;;
         --no-tty )          HUB_OPTS="$HUB_OPTS --tty false"
                             ;;
-        --profile )         shift
+        --executor )         shift
                             export HUB_DEPLOY_PROFILE="$1"
                             ;;
         -V | --verbose )    VERBOSE=true
@@ -106,11 +148,46 @@ while test "$1" != ""; do
                             HUB_OPTS="$HUB_OPTS $*"
                             break
                             ;;
-        * )                 usage
-                            exit 1
+        * )
+                            if test -z "$HUB_COMPONENT"; then
+                              HUB_COMPONENT="$HUB_COMPONENT $1"
+                            else
+                              printf "Invalid argument: "; color err "$1"
+                              usage
+                              exit 1
+                            fi
     esac
     shift
 done
+
+hub_opts() {
+  last=""
+  first=""
+  limit=""
+  offset=""
+  components=""
+  while test "$1" != ""; do
+    if test "$last" = ""; then
+      first="$1"
+    elif test "$last" = '..' -a "$1" != '..'; then
+      limit="-l $1"
+      first=""
+    elif test "$1" = '..' -a "$last" != '..'; then
+      offset="-o $last"
+      first=""
+    else
+      components="$components $first $1"
+      first=""
+    fi
+    last="$1"
+    shift
+  done
+  components=$(echo "$first $components" | xargs | tr ' ' ',')
+  if test -n "$components"; then
+    components="-c $components"
+  fi
+  echo $components $offset $limit
+}
 
 finalize() {
   status="$($hubctl show -jq '.status.status')"
@@ -136,15 +213,22 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
+# deploy expressions
+if test -n "$HUB_COMPONENT"; then
+  # shellcheck disable=SC2046
+  HUB_OPTS="$HUB_OPTS $(hub_opts $(echo "$HUB_COMPONENT" | sed "s/\.\.*/\\ .. /g" | sed "s/,/\\ /g"))"
+  color --bold --color 0 "  This is experimental syntax. Please let us know if old syntax is better for you or something not working"
+fi
+
 if test ! -f .env; then
 color e << EOF
 Stack configuration (.env)
 
 To resolve please run:
-  $ hubctl configure -f hub.yaml
+  $ hubctl stack configure -f hub.yaml
 
 To explore more configuration options:
-  $ hubctl configure -f hub.yaml --help
+  $ hubctl stack configure -f hub.yaml --help
 EOF
   exit 1
 fi
