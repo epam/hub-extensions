@@ -6,10 +6,13 @@
 # file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
 
+verb="elaborate"
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH
+export PATH HUB_WORKDIR HUB_HOME
+DOT_ENV="$(files abspath "$HUB_WORKDIR/.env")"
+export DOT_ENV
 
 usage() {
 cat << EOF
@@ -27,22 +30,12 @@ Parameters:
 EOF
 }
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
+if test ! -f "$DOT_ENV"; then
+  color e "* Error: configuration '.env' has not been found"
   exit 1
 fi
 
-if test ! -f "$HUB_WORKDIR/.env"; then
-  color error "Error: cannot find .env file in $HUB_WORKDIR"
-  exit 1
-fi
-eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
+eval "$(dotenv export -f "$DOT_ENV" )"
 
 HUB_OPTS=
 while [ "$1" != "" ]; do
@@ -65,11 +58,56 @@ while [ "$1" != "" ]; do
     shift
 done
 
-echo "Reconciling deployment plan for $HUB_STACK_NAME"
-echo "* Using domain name: $HUB_DOMAIN_NAME"
+is_abs() {
+  case "$1" in
+    /*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
-if test -z "$HUB_FILES"; then
-  cat << EOF
+find_first() {
+  result=
+  while test "$1" != "" -a -z "$result"; do
+    result="$(files find-in-path "$1")"
+    shift
+  done
+  echo "$result"
+}
+
+abs_files() {
+  while [ "$1" != "" ]; do
+    if test -f "$1"; then
+      printf '%s ' "$(files abspath "$1")"
+    elif test -f "$HUB_WORKDIR/$1"; then
+      printf '%s ' "$(files abspath "$HUB_WORKDIR/$1")"
+    else
+      color e "Error: file not found: $1"
+      exit 1
+    fi
+    shift
+  done
+}
+
+rel_files() {
+  while [ "$1" != "" ]; do
+    if test -f "$1"; then
+      printf '%s ' "$(files relpath "$1" "$HUB_WORKDIR")"
+    elif test -f "$HUB_WORKDIR/$1"; then
+      printf '%s ' "$(files relpath "$HUB_WORKDIR/$1" "$HUB_WORKDIR")"
+    else
+      color e "Error: file not found: $1"
+      exit 1
+    fi
+    shift
+  done
+}
+
+printf "Elaborating stack: "; color h "$HUB_STACK_NAME"
+# shellcheck disable=SC2086
+hub_files=$(abs_files $HUB_FILES)
+
+if test -z "$hub_files"; then
+  color err <<END
 Error: cannot find hubctl definition files (HUB_FILES)"
 
 Probably because stack has not been configured for deployment yet!
@@ -77,8 +115,7 @@ Probably because stack has not been configured for deployment yet!
 Example:
   $ hubctl configure -f hub.yaml
 
-EOF
-
+END
   exit 2
 fi
 
@@ -89,52 +126,51 @@ if test -z "$HUB_STATE"; then
 fi
 
 if test -z "$HUB_ELABORATE"; then
-  HUB_ELABORATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate"
+  HUB_ELABORATE="$(files abspath "$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate")"
+  echo "* Setting elaborate file location"
+  dotenv -f "$DOT_ENV" set HUB_ELABORATE "$HUB_ELABORATE"
+elif ! is_abs "$HUB_ELABORATE"; then
+  HUB_ELABORATE="$(files abspath "$HUB_WORKDIR/$HUB_ELABORATE")"
+  color warn "* Elaborate file is not absolute path (correcting)"
 fi
 
-cat << EOF
-
-Proceeding with: elaborate
-* Result will be saved saved to: $HUB_ELABORATE
-* Running CLI command:
-
-  $ hubctl elaborate $HUB_FILES -o $HUB_ELABORATE $HUB_OPTS
-
-EOF
-
-verb="elaborate"
-script_dir=$(dirname "$0")
-
 # shellcheck disable=SC2086
-BEFORE=$(yq -N e .extensions.${verb}.before.[] $HUB_FILES | sort | uniq)
+BEFORE=$(yq -N e .extensions.${verb}.before[] $hub_files | sort | uniq)
 for i in $(echo "$BEFORE" | xargs -n1); do
-  if test -f "$HUB_WORKDIR/.hub/$i/before-${verb}"; then
-    hook="$HUB_WORKDIR/.hub/$i/before-${verb}"
-  elif test -f "$script_dir/$i/before-${verb}"; then
-    hook="$script_dir/$i/before-${verb}"
-  else
-    echo "Warning! cannot find before hook: $i"
+  hook="$(find_first "$i" "$i/before-${verb}" "$i/pre-${verb}")"
+  if test ! -x "$hook"; then
+    color warn "Cannot find hook: $i"
     continue
   fi
-  echo "Running before ${verb} hook: $i"
+
+  printf "Running pre %s: " "$verb"
+  color bold "$(rel_files "$hook")"
   $hook
 done
 
 
 # shellcheck disable=SC2086
-$hubctl elaborate $HUB_FILES -o "$HUB_ELABORATE" $HUB_OPTS
+color green <<END
+* Running CLI command:
+
+  hubctl elaborate $(rel_files $hub_files) $HUB_ELABORATE $HUB_OPTS
+
+END
 
 # shellcheck disable=SC2086
-AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
+hubctl elaborate $hub_files -o "$HUB_ELABORATE" $HUB_OPTS
+dotenv -f "$DOT_ENV" set HUB_ELABORATE "$HUB_ELABORATE"
+
+# shellcheck disable=SC2086
+AFTER=$(yq -N e .extensions.${verb}.after[] $hub_files | sort | uniq)
 for i in $(echo "$AFTER" | xargs -n1); do
-  if test -f "$HUB_WORKDIR/.hub/$i/after-${verb}"; then
-    hook="$HUB_WORKDIR/.hub/$i/after-${verb}"
-  elif test -f "$script_dir/$i/after-${verb}"; then
-    hook="$script_dir/$i/after-${verb}"
-  else
-    echo "Warning! cannot find after hook: $i"
+  hook="$(find_first "$i" "$i/after-${verb}" "$i/post-${verb}")"
+  if test ! -x "$hook"; then
+    color warn "Cannot find hook: $i"
     continue
   fi
-  echo "Running after ${verb} hook: $i"
+
+  printf "Running post %s: " "$verb"
+  color bold "$(rel_files "$hook")"
   $hook
 done

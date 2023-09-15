@@ -5,15 +5,47 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
-HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl /g' | sed 's/-/ /g')"
-HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
-PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-DOT_ENV="$(files abspath "$HUB_WORKDIR/.env")"
-export PATH HUB_WORKDIR DOT_ENV
+# shellcheck disable=SC2086
+HUB_EXTENSION="$(basename "$0" | sed -e 's/hub-/hubctl /g' -e 's/-/ /g')"
 
-verb=deploy/undeploy
+verb="$(basename "$0" | cut -d- -f3)"
+
+usage_new_syntax() {
+  cat << END
+  $HUB_EXTENSION foo
+${verb}s component foo
+
+  $HUB_EXTENSION foo,bar
+${verb}s two components and foo and bar
+
+  $HUB_EXTENSION foo...bar
+${verb}s deploys all components between foo and bar (including foo and bar)
+
+  $HUB_EXTENSION ...foo
+${verb}s all components before and including foo
+
+  $HUB_EXTENSION foo...
+${verb}s foo and all components after
+END
+}
+
+deprecated_syntax() {
+  color w <<END
+Deprecation notice: this syntax will soon retire:
+
+  $HUB_EXTENSION $1 $2
+
+new syntax:
+
+  $HUB_EXTENSION $3
+END
+cat <<END
+To learn more about new syntax:
+
+  $HUB_EXTENSION --help
+
+END
+}
 
 usage() {
 cat << END
@@ -122,6 +154,39 @@ while test "$1" != ""; do
     shift
 done
 
+is_url() {
+   echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+ }
+
+hub_opts() {
+  last=""
+  first=""
+  limit=""
+  offset=""
+  components=""
+  while test "$1" != ""; do
+    if test "$last" = ""; then
+      first="$1"
+    elif test "$last" = '..' -a "$1" != '..'; then
+      limit="-l $1"
+      first=""
+    elif test "$1" = '..' -a "$last" != '..'; then
+      offset="-o $last"
+      first=""
+    else
+      components="$components $first $1"
+      first=""
+    fi
+    last="$1"
+    shift
+  done
+  components=$(echo "$first $components" | xargs | tr ' ' ',')
+  if test -n "$components"; then
+    components="-c $components"
+  fi
+  echo $components $offset $limit
+}
+
 finalize() {
   status="$(hubctl show -jq '.status.status')"
   printf "Deployment status: "
@@ -144,23 +209,35 @@ trap 'finalize $?' EXIT
 
 if test "$VERBOSE" = "true"; then
   export VERBOSE
+  HUB_OPTS="$HUB_OPTS --verbose"
   set -x
 fi
 
-if test ! -f "$DOT_ENV"; then
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH HUB_WORKDIR
+DOT_ENV="$(files abspath $HUB_WORKDIR/.env)"
+export DOT_ENV
+
+if test ! -f "$HUB_WORKDIR/.env"; then
 color e << EOF
-Stack configuration ($DOT_ENV)
+Stack configuration not found ($DOT_ENV)
 
-To resolve please run:
-  hubctl configure -f hub.yaml
+To resolve please init a new stack:
 
-To explore more configuration options:
-  hubctl configure -f hub.yaml --help
+  hubctl init -f hub.yaml
+
+Or select existing stack:
+
+  hubctl stack ls
+  hubctl stack use <existing-stack>
 EOF
   exit 1
 fi
 
-eval "$(dotenv export -f "$DOT_ENV")"
+eval "$(dotenv -f $HUB_WORKDIR/.env "export")"
 
 if test -z "$HUB_FILES"; then
   color e << EOF
@@ -176,6 +253,13 @@ To explore more configuration options:
 
 EOF
   exit 2
+fi
+
+# deploy expressions
+if test -n "$HUB_COMPONENT"; then
+  # shellcheck disable=SC2046
+  HUB_OPTS="$HUB_OPTS $(hub_opts $(echo "$HUB_COMPONENT" | sed -e "s/\.\.*/\\ .. /g" -e "s/,/\\ /g"))"
+  color --bold --color 0 "  This is experimental syntax. Please let us know if old syntax is better for you or something not working"
 fi
 
 if test "$HUB_AUTOCONFIGURE" = "1"; then
@@ -238,7 +322,7 @@ echo "* Using hubctl elaborate:"
 for i in $(echo "$HUB_ELABORATE" | sed "s/,/ /g"); do
   echo "  - $i"
   if ! is_url "$i"; then
-    HUB_ELABORATE_FILE=$i
+    HUB_ELABORATE_FILE="$(files abspath $i)"
   fi
 done
 
@@ -286,8 +370,8 @@ for i in $(echo "$BEFORE" | xargs -n1); do
   $hook
 done
 
-lifecycle=$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE/${verb}");
-if test -z "$lifecycle"; then
+executor=$(files find-in-path "profiles/$HUB_DEPLOY_PROFILE/${verb}");
+if test -z "$executor"; then
   color e << EOF
 Cannot find deployment profile: $HUB_DEPLOY_PROFILE
 
@@ -296,7 +380,7 @@ EOF
   exit 5
 fi
 
-  color green << EOF
+color green << EOF
 
 Proceeding with: ${verb}
 * Using profile: $HUB_DEPLOY_PROFILE
@@ -306,11 +390,8 @@ Proceeding with: ${verb}
 
 EOF
 
-$lifecycle $VERBOSE "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
-echo
-
 # shellcheck disable=SC2086
-$lifecycle $VERBOSE "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
+$executor "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
 echo
 
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
