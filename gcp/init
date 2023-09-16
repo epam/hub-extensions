@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Copyright (c) 2023 EPAM Systems, Inc.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,18 +17,18 @@ EOF
 }
 
 contains() {
-  local pattern result
-  pattern="$1"
+  _result=""
+  _pattern="$1"
   shift
 
   # shellcheck disable=SC2048
   for w in $*; do
-    if test "$w" = "$pattern"; then
-      result="$w"
+    if test "$w" = "$_pattern"; then
+      _result="$w"
       break
     fi
   done
-  test -n "$result"
+  test -n "$_result"
 }
 
 ident() {
@@ -61,9 +61,10 @@ while [ "$1" != "" ]; do
   shift
 done
 
-# if test "$VERBOSE" = "true"; then
-#   set -x
-# fi
+if test "$VERBOSE" = "true"; then
+  set -x
+fi
+
 dotenv="dotenv -f $DOT_ENV"
 # shellcheck disable=SC2089
 curl="curl -isH 'Metadata-Flavor: Google'"
