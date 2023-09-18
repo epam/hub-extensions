@@ -7,7 +7,7 @@
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/hub-/hubctl-/g' | sed 's/-/ /g')"
+HUB_EXTENSION="$(basename "$0" | sed -e 's/hub-/hubctl /g' -e 's/-/ /g')"
 
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_HOME HUB_EXTENSION
@@ -18,7 +18,7 @@ export HUB_WORKDIR
 KNOWN_URLS=""
 
 is_url() {
-  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+  echo "$1" | grep -e '[[:alnum:]]*://' >/dev/null 2>&1
 }
 
 get_filepath() {
@@ -166,9 +166,9 @@ while test "$1" != ""; do
       else
         SOURCE_HUB_STATE="$1"
       fi
-      shift
       ;;
   esac
+  shift
 done
 
 if $VERBOSE; then
@@ -642,8 +642,9 @@ EOF
       else
         color b "$ref";
         if test "$head" != "$ref"; then
+          git config advice.detachedHead true
           git fetch $GIT_OPTS --all --tags >/dev/null;
-          git checkout $GIT_OPTS "$ref" -b "$ref" >/dev/null;
+          git checkout $GIT_OPTS "$ref" >/dev/null;
         fi
       fi
     )

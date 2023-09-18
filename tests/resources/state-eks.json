@@ -1,0 +1,95 @@
+{
+  "meta": {
+    "kind": "stack"
+  },
+  "timestamp": "2023-09-19T16:08:43.944176+03:00",
+  "status": "incomplete",
+  "message": "Mandatory components state:\n\tdeployed =\u003e network\n\tundeployed =\u003e cluster",
+  "stackParameters": {
+    "cloud.iam.permissionsBoundary.arn": "arn:aws:iam::398683725631:policy/eo_role_boundary",
+    "cloud.lb.name|nginx-lb": "thick-pilot-241-nginx",
+    "cloud.region": "eu-central-1",
+    "cloud.role.assumeRolePolicyFilePath|dns-manager-role": "etc/iam/aws/dns-manager-assume-role-policy-document.json",
+    "cloud.role.assumeRolePolicyFilePath|storage-manager": "etc/iam/aws/ebs-manager-assume-role-policy-document.json",
+    "cloud.role.name|cluster": "thick-pilot-241-storage-manager",
+    "cloud.role.name|dns-manager-role": "thick-pilot-241-dns-manager",
+    "cloud.role.name|storage-manager": "thick-pilot-241-storage-manager",
+    "cloud.role.policyDocumentFilePath|dns-manager-role": "etc/iam/aws/dns-manager-policy.json",
+    "cloud.role.policyDocumentFilePath|storage-manager": "etc/iam/aws/storage-manager-policy.json",
+    "cloud.sg.allowIps|network": "195.56.119.209/32 10.0.0.0/16",
+    "dex.issuer": "http://dex.kube-ingress.svc.cluster.local:5556",
+    "dex.passwordDb.email": "akranga",
+    "dex.passwordDb.password": "u1f55cowhwiygs6neirrdli26xqf1epz",
+    "dns.domain": "thick-pilot-241.epam.devops.delivery",
+    "hub.deploymentId": "6dd0eb61-046e-4fa9-adaf-6d93f38728cb",
+    "hub.stackName": "thick-pilot-241",
+    "ingress.hosts|dex": "dex.thick-pilot-241.epam.devops.delivery",
+    "ingress.protocol": "https",
+    "istio.version": "1.18.0",
+    "kubernetes.cluster.name": "thick-pilot-241",
+    "kubernetes.cluster.version": "1.26",
+    "kubernetes.namespace": "kube-ingress",
+    "kubernetes.namespace|istio": "istio-system",
+    "kubernetes.node.capacityTypes": "SPOT",
+    "kubernetes.node.count": "1",
+    "kubernetes.node.maxCount": "1",
+    "kubernetes.node.minCount": "1",
+    "kubernetes.node.size": "t3.medium m3.medium",
+    "kubernetes.serviceAccount|cert-manager": "dns-manager",
+    "kubernetes.serviceAccount|external-dns": "dns-manager"
+  },
+  "components": {
+    "cluster": {
+      "timestamp": "2023-09-19T16:08:43.944157+03:00",
+      "timestamps": {
+        "start": "2023-09-19T16:03:25.255016+03:00",
+        "end": "2023-09-19T16:08:43.944157+03:00"
+      },
+      "status": "undeployed",
+      "parameters": {
+        "cloud.iam.permissionsBoundary.arn": "arn:aws:iam::398683725631:policy/eo_role_boundary",
+        "cloud.vpc.id": "vpc-002f110bdfecff55b",
+        "hub.componentName": "cluster",
+        "hub.provides": "aws kubernetes terraform",
+        "hub.stackName": "thick-pilot-241",
+        "kubernetes.cluster.allowPublicAccess": "true",
+        "kubernetes.cluster.version": "1.26",
+        "kubernetes.eks.cluster": "thick-pilot-241",
+        "kubernetes.node.count": "1",
+        "kubernetes.node.maxCount": "1",
+        "kubernetes.node.minCount": "1",
+        "kubernetes.node.size": "t3.medium m3.medium",
+        "kubernetes.nodes.capacityType": "SPOT"
+      }
+    },
+    "network": {
+      "timestamp": "2023-09-19T15:41:43.400179+03:00",
+      "timestamps": {
+        "start": "2023-09-19T15:41:24.701657+03:00",
+        "end": "2023-09-19T15:41:43.400179+03:00"
+      },
+      "status": "deployed",
+      "parameters": {
+        "cloud.sg.allowIps": "195.56.119.209/32 10.0.0.0/16",
+        "cloud.sg.allowPorts": "32155:32156",
+        "cloud.subnet.private.cidrs": "10.0.1.0/24 10.0.2.0/24",
+        "cloud.subnet.public.cidrs": "10.0.101.0/24 10.0.102.0/24",
+        "cloud.vpc.cidr": "10.0.0.0/16",
+        "cloud.vpc.enableNatGateway": "true",
+        "cloud.vpc.enableVpnGateway": "false",
+        "cloud.vpc.name": "thick-pilot-241",
+        "cloud.vpc.singleNatGateway": "false",
+        "hub.componentName": "network",
+        "hub.provides": "aws kubernetes terraform",
+        "hub.stackName": "thick-pilot-241"
+      },
+      "outputs": {
+        "cloud.sg.master.id": "sg-0cff34ac6818df24a",
+        "cloud.sg.nodes.id": "sg-01763486a3acf910a",
+        "cloud.vpc.id": "vpc-002f110bdfecff55b",
+        "cloud.vpc.name": "thick-pilot-241",
+        "cloud.vpc.nat.publicIps": "3.65.54.140 52.58.157.111"
+      }
+    }
+  }
+}

@@ -24,16 +24,6 @@ if test "$VERBOSE" = "true"; then
   VERBOSE="--verbose"
 fi
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 maybe_verb=$(basename "$0" | cut -d- -f3)
 if test -z "$maybe_verb"; then
   color e "Unable to find local executor"
@@ -45,22 +35,14 @@ run_toolbox_script="$HUB_WORKDIR/.hub/.hub-toolbox"
 cat << EOF > "$run_toolbox_script"
 #!/bin/sh -e
 
-hubctl="\$(which hubctl 2>/dev/null || true)"
-if test -z "\$hubctl"; then
-  hubctl="\$(which hub 2>/dev/null || true)"
-fi
-
-if test -e "\$HUB_WORKDIR/.env"; then
-if test -e "\$HUB_WORKDIR/.env"; then
-    set -a
-    source \$HUB_WORKDIR/.env
-    set +a
-fi;
-
 export PATH="\$HUB_WORKDIR:\$HUB_WORKDIR/bin:/usr/local/share/hub/bin:\$PATH"
 
-exec \$hubctl $verb $HUB_ARGS
+if test -e "\$HUB_WORKDIR/.env"; then
+    eval "\$(dotenv -f "\$HUB_WORKDIR/.env" "export")"
+fi;
+
+exec hubctl $verb $HUB_ARGS
 EOF
 chmod +x "$run_toolbox_script"
 
-exec $hubctl toolbox $VERBOSE /bin/sh "$run_toolbox_script"
+exec hubctl toolbox $VERBOSE "$run_toolbox_script"

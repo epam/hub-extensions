@@ -5,29 +5,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-# shellcheck disable=SC2086
 HUB_EXTENSION="$(basename "$0" | sed -e 's/hub-/hubctl /g' -e 's/-/ /g')"
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+export PATH HUB_WORKDIR HUB_HOME
 
 verb="$(basename "$0" | cut -d- -f3)"
-
-usage_new_syntax() {
-  cat << END
-  $HUB_EXTENSION foo
-${verb}s component foo
-
-  $HUB_EXTENSION foo,bar
-${verb}s two components and foo and bar
-
-  $HUB_EXTENSION foo...bar
-${verb}s deploys all components between foo and bar (including foo and bar)
-
-  $HUB_EXTENSION ...foo
-${verb}s all components before and including foo
-
-  $HUB_EXTENSION foo...
-${verb}s foo and all components after
-END
-}
 
 deprecated_syntax() {
   color w <<END
@@ -87,11 +71,6 @@ Parameters:
     --help     -h         Print this message
 
 END
-}
-
-is_url() {
-  # shellcheck disable=SC2317
-  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
 }
 
 maybe_verb=$(basename "$0" | cut -d- -f3)
@@ -155,8 +134,8 @@ while test "$1" != ""; do
 done
 
 is_url() {
-   echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
- }
+  echo "$1" | grep -e '[[:alnum:]]*://' >/dev/null 2>&1
+}
 
 hub_opts() {
   last=""
@@ -188,7 +167,7 @@ hub_opts() {
 }
 
 finalize() {
-  status="$(hubctl show -jq '.status.status')"
+  status="$(hubctl show -- '.status.status')"
   printf "Deployment status: "
   if test "$1" = "0"; then
     color green "$status"
@@ -213,10 +192,9 @@ if test "$VERBOSE" = "true"; then
   set -x
 fi
 
-HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 HUB_MANUAL_ELABORATE="${HUB_MANUAL_ELABORATE:-"1"}"
-PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+PATH="$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_WORKDIR
 DOT_ENV="$(files abspath $HUB_WORKDIR/.env)"
 export DOT_ENV
@@ -392,11 +370,10 @@ EOF
 
 # shellcheck disable=SC2086
 $executor "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
-echo
 
 AFTER=$(yq -N e .extensions.${verb}.after.[] $HUB_FILES | sort | uniq)
 if test -n "$AFTER"; then
-  status="$(hubctl show -jq '.status.status|select(.)')"
+  status="$(hubctl show -- '.status.status|select(.)')"
   # we execute post-undeploy hook if and only
   # if all component has been undeployed successfully
   # this means stack status beceomes undeployed

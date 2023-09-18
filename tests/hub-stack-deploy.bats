@@ -14,6 +14,7 @@ HUB_INTERACTIVE="0"
 HUB_FILES="$1/hub.yaml"
 HUB_STATE="$1/hub.state"
 HUB_ELABORATE="$1/hub.elaborate"
+HUB_DEPLOY_PROFILE="local"
 EOF
     cat > "$1/hub.yaml" << EOF
 version: 1
@@ -66,32 +67,32 @@ setup() {
     # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
     # as those will point to the bats executable's location or the preprocessed file respectively
     CURRDIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
-    HUB_WORKDIR="$BATS_RUN_TMPDIR"
-    # make executables visible to PATH
-    PATH="$CURRDIR/../bin:$PATH"
-    HUB_OPTS="$HUB_WORKDIR/hub.elaborate -s $HUB_WORKDIR/hub.state"
-
+    HUB_WORKDIR=$($CURRDIR/../bin/files abspath "$BATS_RUN_TMPDIR")
+    PATH="$CURRDIR/..:$CURRDIR/../bin:$HUB_WORKDIR/bin:$PATH"
     export HUB_WORKDIR PATH
+
+    HUB_OPTS="$HUB_WORKDIR/hub.elaborate -s $HUB_WORKDIR/hub.state"
 
     gen_stack "$HUB_WORKDIR"
     gen_hubctl_double "$HUB_WORKDIR"
 }
 
-@test "hubctl stack deploy: from another directory" {
+@test "hubctl stack deploy should allow run another directory" {
     refute test "$CURRDIR" = "$HUB_WORKDIR"
-
+    # avoid trap in another directory if premature exit
     cd "$HUB_WORKDIR"
     run hub-stack-deploy
     assert_success
     assert_line -p ">> hubctl deploy $HUB_OPTS"
 
+    # avoid trap in another directory if premature exit
     cd "$CURRDIR"
     run hub-stack-deploy
     assert_success
     assert_line -p ">> hubctl deploy $HUB_OPTS"
 }
 
-@test "hubctl stack deploy: new syntax usage" {
+@test "hubctl stack deploy should print new syntax usage" {
     run hub-stack-deploy --help
     assert_success
     assert_line -p "hubctl stack deploy foo"
@@ -101,14 +102,14 @@ setup() {
     assert_line -p "hubctl stack deploy foo...bar"
 }
 
-@test "hubctl stack deploy: deploy full stack" {
+@test "hubctl stack deploy should deploy full stack" {
     cd "$HUB_WORKDIR"
     run hub-stack-deploy
     assert_line -p ">> hubctl deploy $HUB_OPTS"
     assert_success
 }
 
-@test "hubctl stack deploy: new syntax" {
+@test "hubctl stack deploy should deploy components with new syntax" {
     cd "$HUB_WORKDIR"
 
     run hub-stack-deploy dummy1
@@ -147,5 +148,6 @@ setup() {
 }
 
 teardown() {
+    # if still trapped in another directory
     cd "$CURRDIR"
 }
