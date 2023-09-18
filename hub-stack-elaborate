@@ -58,6 +58,12 @@ while [ "$1" != "" ]; do
     shift
 done
 
+
+is_url() {
+  # shellcheck disable=SC2317
+  echo "$1" | grep -e '[[:alnum:]]*://' >/dev/null 2>&1
+}
+
 is_abs() {
   case "$1" in
     /*) return 0 ;;
@@ -75,17 +81,20 @@ find_first() {
 }
 
 abs_files() {
-  while [ "$1" != "" ]; do
-    if test -f "$1"; then
-      printf '%s ' "$(files abspath "$1")"
-    elif test -f "$HUB_WORKDIR/$1"; then
-      printf '%s ' "$(files abspath "$HUB_WORKDIR/$1")"
+  while read -r f; do
+    if is_url "$f"; then
+      echo "$f"
+    elif test -f "$f"; then
+      files abspath "$f"
+    elif test -f "$HUB_WORKDIR/$f"; then
+      files abspath "$HUB_WORKDIR/$f"
+    elif ! is_abs "$f"; then
+      files abspath "$HUB_WORKDIR/$f"
     else
-      color e "Error: file not found: $1"
-      exit 1
+      echo "$f"
     fi
-    shift
   done
+  set +x
 }
 
 rel_files() {
@@ -102,9 +111,19 @@ rel_files() {
   done
 }
 
+split() {
+  sed "s/$1/\\n/g"
+}
+
+join() {
+  xargs | sed "s/ /$1/g"
+}
+
 printf "Elaborating stack: "; color h "$HUB_STACK_NAME"
+
 # shellcheck disable=SC2086
-hub_files=$(abs_files $HUB_FILES)
+
+hub_files="$(echo "$HUB_FILES" | split " " | abs_files | join " ")"
 
 if test -z "$hub_files"; then
   color err <<END
@@ -119,20 +138,13 @@ END
   exit 2
 fi
 
-if test -z "$HUB_STATE"; then
-  if test -f "$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"; then
-    HUB_STATE="$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.state"
-  fi
-fi
-
 if test -z "$HUB_ELABORATE"; then
   HUB_ELABORATE="$(files abspath "$HUB_WORKDIR/.hub/$HUB_DOMAIN_NAME.elaborate")"
   echo "* Setting elaborate file location"
   dotenv -f "$DOT_ENV" set HUB_ELABORATE "$HUB_ELABORATE"
-elif ! is_abs "$HUB_ELABORATE"; then
-  HUB_ELABORATE="$(files abspath "$HUB_WORKDIR/$HUB_ELABORATE")"
-  color warn "* Elaborate file is not absolute path (correcting)"
 fi
+
+HUB_ELABORATE="$(echo "$HUB_ELABORATE" | split "," | abs_files | join ",")"
 
 # shellcheck disable=SC2086
 BEFORE=$(yq -N e .extensions.${verb}.before[] $hub_files | sort | uniq)

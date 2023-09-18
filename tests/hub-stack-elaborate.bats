@@ -11,8 +11,7 @@ gen_stack() {
 HUB_DOMAIN_NAME="iamtest"
 HUB_STACK_NAME="iamtest"
 HUB_INTERACTIVE="0"
-HUB_FILES="hub.yaml"
-HUB_STATE="hub.state"
+HUB_FILES="$1/hub.yaml"
 HUB_ELABORATE="hub.elaborate"
 EOF
     cat > "$1/hub.yaml" << EOF
@@ -38,6 +37,7 @@ gen_hubctl_double() {
 echo ">> hubctl \$@"
 EOF
     chmod +x "$1/hubctl"
+    set +x
 }
 
 set_elaborate_hooks() {
@@ -64,29 +64,53 @@ setup() {
     # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
     # as those will point to the bats executable's location or the preprocessed file respectively
     CURRDIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
-    HUB_WORKDIR="$CURRDIR/.tmp"
-    # HUB_WORKDIR="$BATS_RUN_TMPDIR"
-    # make executables visible to PATH
-    PATH="$CURRDIR/../bin:$PATH"
+    HUB_WORKDIR=$($CURRDIR/../bin/files abspath "$BATS_RUN_TMPDIR")
+    PATH="$CURRDIR/..:$CURRDIR/../bin:$HUB_WORKDIR/bin:$PATH"
+    export HUB_WORKDIR PATH
 
     HUB_OPTS="$HUB_WORKDIR/hub.elaborate -s $HUB_WORKDIR/hub.state"
-
-    export HUB_WORKDIR PATH
 
     gen_stack "$HUB_WORKDIR"
     gen_hubctl_double "$HUB_WORKDIR/bin"
 }
 
-@test "hubctl stack elaborate: from another directory with HUB_WORKDIR" {
+@test "hubctl stack elaborate should allow run from another directory" {
+    refute test "$CURRDIR" = "$HUB_WORKDIR"
+    # avoid trap in another directory if premature exit
+    cd "$HUB_WORKDIR"
     run hub-stack-elaborate
     assert_success
-    assert_line -p "hubctl elaborate $HUB_WORKDIR/hub.yaml -o $HUB_WORKDIR/hub.elaborate"
+    assert_line -p ">> hubctl elaborate $HUB_WORKDIR/hub.yaml -o $HUB_WORKDIR/hub.elaborate"
+
+    # avoid trap in another directory if premature exit
+    cd "$CURRDIR"
+    run hub-stack-elaborate
+    assert_success
+    assert_line -p ">> hubctl elaborate $HUB_WORKDIR/hub.yaml -o $HUB_WORKDIR/hub.elaborate"
 }
 
-@test "hubctl stack elaborate: hooks are executed" {
+@test "hubctl stack elaborate should allow multiple elaborate file locations" {
+    cd "$HUB_WORKDIR"
+    run hub-stack-elaborate
+    assert_line -p ">> hubctl elaborate $HUB_WORKDIR/hub.yaml -o $HUB_WORKDIR/hub.elaborate"
+
+    # we should support URLs
+    dotenv set HUB_ELABORATE "$HUB_WORKDIR/hub.elaborate,s3://fakebucket/hub.elaborate"
+    run hub-stack-elaborate
+    assert_line -p ">> hubctl elaborate $HUB_WORKDIR/hub.yaml -o $HUB_WORKDIR/hub.elaborate,s3://fakebucket/hub.elaborate"
+
+    run hub-stack-elaborate
+    dotenv set HUB_ELABORATE "hub.elaborate,s3://fakebucket/hub.elaborate"
+}
+
+@test "hubctl stack elaborate should allow to run pre and post elaborate hooks" {
     set_elaborate_hooks "$HUB_WORKDIR"
     run hub-stack-elaborate
-    assert_success
-    assert_line -p "Running pre elaborate: bin/before"
-    assert_line -p "Running post elaborate: bin/after"
+    assert_line -p "hello from before elaborate"
+    assert_line -p "hello from after elaborate"
+}
+
+teardown() {
+    # if still trapped in another directory
+    cd "$CURRDIR"
 }

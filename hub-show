@@ -12,165 +12,98 @@ fi
 
 HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
-HUB_EXTENSION="$(basename "$0" | sed 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
-export PATH
+export PATH HUB_WORKDIR HUB_HOME
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
+ARGS=
 
 usage()
 {
-cat << EOF
+cat << END
 Print info about stack in JSON format. Stack parameters and outputs are merged by default with the precedence to the outputs. Execute current script with parameter "-o" to see outputs separately
-Usage: $HUB_EXTENSION [COMPONENT]
+
+Usage: hubctl show [COMPONENT]
 Parameters:
-    -s --stack      domain name of the stack
-    -o --split      split stack outpus from parameters
-    -m --machine    transform parameters as nested objects for easy parsing
-    -c --component  display parameters and outputs for the given component
-    -y --yaml       yaml output instead of json (requires yq)
+    -s --state      state file to use (default: $HUB_STATE)
+    -f --foramt     json or yaml (default)
     -r --raw        unconverted output from hub
-    -q -jq --query  jq style query for the results (Implicitly enables -m)
     -h --help       print current message
     --              separator for JQ style arguments see more here: https://stedolan.github.io/jq
-EOF
+
+Deprecated:
+    -c --component  use "hubctl show COMPONENT" instead"
+    -q -jq --query  use "hubctl show -- QUERY" instead
+
+END
+}
+
+deprecated() {
+  color warn <<END
+
+Deprecated: $1
+
+Use instead: $2
+
+END
+}
+
+err() {
+  printf 'Error: %s' "$1" >&2
+  if test -n "$2"; then
+    color err "$2"
+    echo >&2
+    usage >&2
+  fi
+  exit 1
 }
 
 FORMAT="${FORMAT:-yaml}"
-JQ_ARGS="${JQ_ARGS:- -Sr}"
-
-if ! test -t 0; then
-    HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1 | tr -d '"')
-fi
-
+hub_state=
 while [ "$1" != "" ]; do
     case $1 in
-        -s | --stack )      shift
-                            HUB_DOMAIN_NAME=$1
+        -c | --component )  deprecated "argument $1 $2" "hubctl show $1"
+                            shift
+                            hub_state="$1"
+                            deprecated
                             ;;
-        -c | --COMPONENT )  shift
-                            HUB_COMPONENT=$1
-                            SPLIT_OUTPUTS=1
+        -s | --state )      shift
+                            hub_state="$1"
                             ;;
-        -o | --split )      SPLIT_OUTPUTS=1
-                            ;;
-        -m | --machine )    TRANSFORM=1
-                            ;;
-        --format )          shift
+        -f | --format )     shift
                             FORMAT="$1"
                             ;;
         -r | --raw )        RAW_OUTPUT=1
                             ;;
-        -q | -jq |--query ) shift
-                            TRANSFORM=1
+        -q | -jq |--query ) deprecated "argument $1 $2" "hubctl show -- $2"
+                            shift
                             JQ_ARGS="$JQ_ARGS $1"
+                            TRANSFORM=1
                             ;;
         -v | --verbose )    set -x
                             ;;
-        - )                 HUB_DOMAIN_NAME=$(< /dev/stdin xargs | cut -d " " -f1)
-                            ;;
         -- )                shift
-                            # pass all the rest to jq
+                            TRANSFORM=1
                             JQ_ARGS="$JQ_ARGS $*"
+                            YQ_ARGS="-M"
                             break
                             ;;
         -h | --help )       usage
                             exit
                             ;;
         * )
-          if test -n "$HUB_COMPONENT"; then
-            color e "Error: unknown option: $1"
-            echo
-            usage
-            exit 1
+          ARGS="$ARGS $1"
+          if test -n "$component"; then
+            err "unknown option: " "$1"
           fi
-          HUB_COMPONENT=$1
-          SPLIT_OUTPUTS=1
+          component=$1
           ;;
     esac
     shift
 done
 
-if test ! -f "$HUB_WORKDIR/.env"; then
-  color error "Error: cannot find .env file in $HUB_WORKDIR"
-  exit 1
-fi
-eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
-
-HUB_STATE="$(dotenv get HUB_STATE --default "$HUB_STATE")"
-if test -z "$HUB_STATE"; then
-  color error "Error: undefined .env variable HUB_STATE"
-  exit 1
-fi
-
-if test -z "$HUB_TOKEN"; then
-  RESP=$($hubctl explain "$HUB_STATE" --json || echo "") # this will spill into stderr on error
-  if test -z "$RESP"; then
-    if test -z "$HUB_FILES"; then
-      HUB_FILES="$(dotenv get HUB_FILES)"
-    fi
-
-    # shellcheck disable=SC2086
-    has_inventory_configmap="$(yq -N e '[ .extensions.deploy.after ] | select(. == "inventory-configmap")' $HUB_FILES)"
-    if test -n "$has_inventory_configmap"; then
-      if test -z "$KUBECONFIG" -a -n "$HUB_KUBECONFIG" -a -e "$HUB_KUBECONFIG"; then
-        export KUBECONFIG="$HUB_KUBECONFIG"
-      fi
-      ns="kube-system"
-      cm="superhub"
-      kubectl="kubectl -n $ns -o json"
-      if ! $kubectl get configmap "superhub" > /dev/null 2>&1; then
-        >&2 echo "Error: no stack deployed"
-        exit 5
-      fi
-      if test -z "$HUB_DOMAIN_NAME"; then
-        HUB_DOMAIN_NAME=$( \
-          $kubectl get configmap $cm \
-          | jq -r '.data|keys[0]|select(.)'
-        )
-        if test -z "$HUB_DOMAIN_NAME"; then
-          >&2 echo "Error: cannot find stack data"
-          exit 4
-        fi
-      fi
-      RESP=$( \
-        $kubectl get configmap $cm | \
-        jq -r ".data[\"$HUB_DOMAIN_NAME\"] | select(.)" | \
-        base64 -d
-      )
-    fi
-  fi
-else
-  # shellcheck disable=SC2086
-  RESP=$($hubctl api instance get -j \
-      | jq -S '. | if type=="array" then . else [.] end' \
-      | jq -cMr '.[] | select(.domain=="'$HUB_DOMAIN_NAME'")')
-fi
-
-
-if test -z "$RESP"; then
-    echo "Stack $HUB_DOMAIN_NAME not found" | xargs | color e
-    exit 2
-fi
-
-if test ! -z "$RAW_OUTPUT"; then
-  if test "$FORMAT" = "yaml"; then
-    echo "$RESP" | yq e -P 1>&2
-  else
-    # shellcheck disable=SC2086
-    echo "$RESP" | jq $JQ_ARGS . 1>&2
-  fi
-  exit 0
-fi
+component() {
+  jq --arg comp "$1" '.components[$comp]|select(.)'
+}
 
 to_obj() {
     echo "$1" | jq -cMr \
@@ -179,108 +112,128 @@ to_obj() {
             | reduce .key[] as $item (.value; {($item): .})';
 }
 
-if test -n "$HUB_COMPONENT"; then
-    if test -z "$HUB_TOKEN"; then
-      # shellcheck disable=SC2086
-      if test "$(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key] | index("'$HUB_COMPONENT'")')" == "null"; then
-        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '[.components|to_entries[] | .key]') of \"$HUB_DOMAIN_NAME\"" 1>&2
-        exit 3
-      fi
-      # shellcheck disable=SC2086
-      OUTPUTS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.outputs != null).outputs')
-      # shellcheck disable=SC2086
-      PARAMETERS=$(echo "$RESP" | jq -cMr '.components|to_entries[] | select(.key == "'$HUB_COMPONENT'").value | select(.parameters != null).parameters')
-    else
-      # shellcheck disable=SC2086
-      if test "$(echo "$RESP" | jq -cMr '.componentsEnabled | index("'$HUB_COMPONENT'")')" == "null"; then
-        echo "Cannot find \"$HUB_COMPONENT\" in components: $(echo "$RESP" | jq -cMr '.componentsEnabled') of \"$HUB_DOMAIN_NAME\"" 1>&2
-        exit 3
-      fi
-      # shellcheck disable=SC2086
-      OUTPUTS=$(echo "$RESP" | jq -cMr '.status.components[] | select(.name == "'$HUB_COMPONENT'").outputs[] | {(.name):.value}')
-      PARAMETERS=$(echo "$RESP" | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
-    fi
+split_obj() {
+  jq -cMr 'to_entries | .[]
+    | {"key": .key | split(".") | reverse, "value": .value}
+    | reduce .key[] as $item (.value; {($item): .})'
+}
+
+components() {
+  jq '[.components|select(.)|to_entries[]|{name: .key, status: .value.status}.name|select(.)]|sort'
+}
+
+get() {
+  jq -cM --arg tag "$1" '.[$tag]|select(.)'
+}
+
+# deprectated we may not need this function anymore
+zip_obj() {
+  jq -cM -s 'to_entries | [ .[] | {"key": .key | split("|")[0], "value": .value}] | from_entries'
+}
+
+deep_merge() {
+  jq -cM -s 'reduce .[] as $item ({}; . * $item)'
+}
+
+toyaml() {
+  yq e -P 'del(.. | select((tag == "!!map" and length == 0) or (tag == "!!seq" and length == 0) or (. == null)))' -
+}
+
+is_component() {
+  test -n "$(component "$1")"
+}
+
+if test -n "$hub_state"; then
+  HUB_STATE="$hub_state"
 else
-    if test -z "$HUB_TOKEN"; then
-      PARAMETERS=$(echo "$RESP" | jq -cMr 'select(.stackParameters != null).stackParameters');
-      OUTPUTS=$(echo "$RESP" | jq -cMr 'select(.stackOutputs != null).stackOutputs');
-    else
-      PARAMETERS=$(echo "$RESP" | jq -cMr 'select(.parameters).parameters[] | {(.name):.value}')
-      OUTPUTS=$(echo "$RESP" | jq -cMr 'select(.outputs).outputs[] | {(.name):.value}')
-    fi
+  if test ! -f "$HUB_WORKDIR/.env"; then
+    err "cannot find .env file in " "$HUB_WORKDIR"
+  fi
+  eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
+  HUB_STATE="$(dotenv get HUB_STATE --default "$HUB_STATE")"
 fi
 
-if test -n "$TRANSFORM"; then
-    PARAMETERS=$(to_obj "$PARAMETERS");
-    OUTPUTS=$(to_obj "$OUTPUTS");
+if test -z "$HUB_STATE"; then
+  err "undefined .env variable HUB_STATE"
 fi
-PARAMETERS=$(
-  echo "$PARAMETERS" \
-  | jq -cMs 'reduce .[] as $item ({}; . * $item) | to_entries | [ .[] | {"key": .key | split("|")[0], "value": .value}] | from_entries'
-)
-OUTPUTS=$( \
-  echo "$OUTPUTS" \
-  | jq -cMs 'reduce .[] as $item ({}; . * $item) | to_entries | [ .[] | {"key": .key | split("|")[0], "value": .value}] | from_entries'
-)
-if test ! -z "$SPLIT_OUTPUTS"; then
-    DOCEXT="$(echo "$PARAMETERS" | jq -cM '{"parameters": .}')"
-    DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"outputs": .}')"
-else
-    DOCEXT="$(echo "$PARAMETERS" | jq -cM '{"parameters": .}')"
-    DOCEXT="$DOCEXT $(echo "$OUTPUTS" | jq -cM '{"parameters": .}')"
+
+temp=$(mktemp)
+trap 'rm -rf $temp $temp.*' EXIT
+
+hubctl explain "$HUB_STATE" --json > "$temp"
+
+if test -n "$component"; then
+  if ! is_component "$component" < "$temp"; then
+    error "component not found: " "$component"
+  fi
 fi
-if test -z "$HUB_TOKEN"; then
-  if test -n "$(echo "$RESP" | jq -crM '.components|select(.)')"; then
-    if test -z "$HUB_COMPONENT"; then
-      DOCBASE=$(echo "$RESP" | jq -crM '{
-        "meta" : {
-          "kind": .meta.kind | select("."),
-          "name": .meta.name | select("."),
-        },
-        "components": [select(.components != null).components|to_entries[]|{name: .key, status: .value.status, timestamp: .value.timestamp}|select(.status=="deployed" or .status=="incomplete").name],
-        "status" : {
-          "status": .status | select("."),
-          "timestamp": .timestamp | select("."),
-        }
-      }')
+
+if test ! -z "$RAW_OUTPUT"; then
+  if test -z "$component"; then
+    if test "$FORMAT" = "yaml"; then
+      yq e -P "$temp"
     else
-      DOCBASE=$(echo "$RESP" | jq --arg c "$HUB_COMPONENT" -crM '{
-        "meta" : {
-          "kind": "component",
-          "name": $c,
-        },
-        "status" : {
-          "status": .components[$c].status | select(.),
-          "timestamp": .components[$c].timestamp | select(.),
-        }
-      }')
+      # shellcheck disable=SC2086
+      jq $JQ_ARGS . < "$temp"
     fi
   else
-    # derive components from "provides"
-    DOCBASE=$(echo "$RESP" | jq -crM '{
-      "components" : [.provides|to_entries[].value|select(.)[]] | unique,
-      "provides" : [select(.provides != null).provides|to_entries[]|.key],
-      "status" : ""
-    }')
+    if test "$FORMAT" = "yaml"; then
+      component "$component" < "$temp" | yq e -P
+    else
+      # shellcheck disable=SC2086
+      component "$component" < "$temp"
+    fi
   fi
+  exit 0
+fi
+
+
+if test -z "$component"; then
+  if test "$TRANSFORM" = "1"; then
+    get "stackParameters" < "$temp" | split_obj | deep_merge | jq '{"parameters": .}' > "$temp.parameters"
+    get "stackOutputs" < "$temp" | split_obj | deep_merge | jq '{"outputs": .}' > "$temp.outputs"
+  else
+    get "stackParameters" < "$temp" | jq -cM '{"parameters": .}' > "$temp.parameters"
+    get "stackOutputs" < "$temp" | jq -cM '{"outputs": .}' > "$temp.outputs"
+  fi
+
+  cat << EOF > "$temp.base"
+{
+  "meta": $(jq '.meta' < "$temp"),
+  "components": $(components < "$temp"),
+  "status": {
+    "status": $(jq '.status' < "$temp"),
+    "timestamp": $(jq '.timestamp' < "$temp")
+  }
+}
+EOF
 else
-  DOCBASE=$(echo "$RESP" | jq -crM '{
-      "environment": .environment.name,
-      "provides": [.provides|to_entries[]|.key],
-      "components": .componentsEnabled,
-      "state": .stateFiles[0],
-      "template": .template.name,
-      "tags": .tags
-  }')
+  if test -n "$TRANSFORM"; then
+    component "$component" < "$temp" | get "parameters" | split_obj | deep_merge  | jq -cM '{"parameters": .}'  > "$temp.parameters"
+    component "$component" < "$temp" | get "outputs" | split_obj | deep_merge | jq -cM '{"outputs": .}'  > "$temp.outputs"
+  else
+    component "$component" < "$temp" | get "parameters" | jq -cM '{"parameters": .}'  > "$temp.parameters"
+    component "$component" < "$temp" | get "outputs" | jq -cM '{"outputs": .}'  > "$temp.outputs"
+  fi
+  cat << EOF > "$temp.base"
+{
+  "meta": {
+    "kind": "component",
+    "name": "$component"
+  },
+  "status": {
+    "status": $(component "$component" < "$temp" | jq -cM '.status'),
+    "timestamp": $(component "$component" < "$temp" | jq -cM '.timestamp'),
+    "message": $(component "$component" < "$temp" | jq -cM '.message')
+  }
+}
+EOF
 fi
 
 if test "$FORMAT" = "yaml"; then
-    # shellcheck disable=SC2090,SC2086
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
-    | jq $JQ_ARGS \
-    | yq e -P 'del(.. | select((tag == "!!map" and length == 0) or (tag == "!!seq" and length == 0) or (. == null)))' -
+  # shellcheck disable=SC2086
+  cat "$temp".* | deep_merge | jq $JQ_ARGS | toyaml | yq $YQ_ARGS 'sort_keys(.)'
 else
-    # shellcheck disable=SC2090,SC2086
-    echo "$DOCBASE" "$DOCEXT" | jq -cMs 'reduce .[] as $item ({}; . * $item) ' \
-    | jq $JQ_ARGS
+  # shellcheck disable=SC2086
+  cat "$temp".* | deep_merge | jq $JQ_ARGS
 fi

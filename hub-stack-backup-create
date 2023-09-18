@@ -22,7 +22,7 @@ if test -z "$hubctl"; then
 fi
 
 is_url() {
-  echo "$1" | grep -e '^https\?://' >/dev/null 2>&1
+  echo "$1" | grep -e '[[:alnum:]]*://' >/dev/null 2>&1
 }
 
 usage() {

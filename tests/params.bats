@@ -306,10 +306,6 @@ setup() {
   assert_output "account-b"
 }
 
-# teardown_file() {
-#   rm -fv "$DOTENV_FILE" bats.*.yaml
-# }
-
-teardown() {
-  cd "$DIR"
+teardown_file() {
+  rm -fv "$DOTENV_FILE" bats.*.yaml
 }
