@@ -10,17 +10,6 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 is_url() {
   echo "$1" | grep -e '[[:alnum:]]*://' >/dev/null 2>&1
 }
@@ -177,7 +166,7 @@ cat << EOF
 EOF
 
 # shellcheck disable=SC2086
-$hubctl backup create "$HUB_ELABORATE" -s "$HUB_STATE" -o "$HUB_BACKUP_DIR/hub-bundle.yaml.gz" $HUB_OPTS
+hubctl backup create "$HUB_ELABORATE" -s "$HUB_STATE" -o "$HUB_BACKUP_DIR/hub-bundle.yaml.gz" $HUB_OPTS
 
 if test -n "$HUB_BACKUP_TAG"; then
   echo "* Tagging backup: $HUB_BACKUP_TAG"

@@ -65,15 +65,6 @@ gen_random() {
   )
 }
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
 
 if test ! -f "$HUB_WORKDIR/.env"; then
   color error "Error: cannot find .env file in $HUB_WORKDIR"

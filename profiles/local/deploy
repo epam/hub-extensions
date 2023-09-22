@@ -5,16 +5,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 check-tools --omit-optional
 
 maybe_verb=$(basename "$0" | cut -d- -f3)
@@ -25,4 +15,4 @@ fi
 verb="$maybe_verb"
 
 # shellcheck disable=SC2068,SC2086
-$hubctl $verb $@
+hubctl $verb $@

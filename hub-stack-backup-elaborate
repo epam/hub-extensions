@@ -11,17 +11,6 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 usage() {
 cat << EOF
 
@@ -40,7 +29,7 @@ Parameters:
 Additional arguments for: hubctl backup unbundle -h
 ---
 EOF
-  $hubctl backup unbundle -h
+  hubctl backup unbundle -h
 }
 
 if test ! -f "$HUB_WORKDIR/.env"; then
@@ -130,15 +119,15 @@ fi
 cat <<EOF
 * Running CLI command:
 
-  $ hubctl backup unbundle $HUB_OPTS -o $backup_path/params.yaml.gz
+  hubctl backup unbundle $HUB_OPTS -o $backup_path/params.yaml.gz
 
 EOF
 
 # shellcheck disable=SC2086
-$hubctl backup unbundle $HUB_OPTS -o "$backup_path/params.yaml.gz"
+hubctl backup unbundle $HUB_OPTS -o "$backup_path/params.yaml.gz"
 gunzip -c "$backup_path/params.yaml.gz" > "$backup_path/params.yaml"
 
-$hubctl stack elaborate --hub-files "$HUB_FILES $backup_path/params.yaml"
+hubctl stack elaborate --hub-files "$HUB_FILES $backup_path/params.yaml"
 echo "Updating $HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"
 if test -L "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"; then
   unlink "$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/.elaborate"

@@ -12,17 +12,6 @@ HUB_EXTENSION="$(basename "$0" | sed -e 's/hub-/hubctl /g' -e 's/-/ /g')"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 usage() {
 cat << EOF
 
@@ -76,4 +65,4 @@ elif test -n "$KUBECONFIG" -a -f "$KUBECONFIG"; then
 fi
 
 # shellcheck disable=SC2086
-$hubctl invoke -m "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
+hubctl invoke -m "$HUB_ELABORATE" -s "$HUB_STATE" $HUB_OPTS
