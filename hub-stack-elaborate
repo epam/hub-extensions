@@ -132,7 +132,7 @@ Error: cannot find hubctl definition files (HUB_FILES)"
 Probably because stack has not been configured for deployment yet!
 
 Example:
-  $ hubctl configure -f hub.yaml
+  $ hubctl stack init
 
 END
   exit 2

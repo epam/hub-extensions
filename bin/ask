@@ -13,16 +13,6 @@ ask="suggested hubstate random history default env empty"
 brief=""
 message=""
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 usage() {
   cat << EOF
 Asks user to enter value interactively and provides suggestion
@@ -275,7 +265,7 @@ for hint in $priority; do
       hint_val="$(dotenv -f "$HISTORY_FILE" get "$ENV")"
     ;;
     "hubstate" )
-      hint_val=$($hubctl show -q ".parameters.$PARAM" -- -rM 2>/dev/null || echo "")
+      hint_val=$(hubctl show -- -rM ".parameters.$PARAM" 2>/dev/null || echo "")
     ;;
     "random" )
       hint_val="$(gen_random 32)"

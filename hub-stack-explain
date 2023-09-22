@@ -41,17 +41,6 @@ Or low-level command:
 
 END
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  color warn "CLI name 'hub' is deprecated. It will be renamed to 'hubctl' in future releases"
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 HUB_OPTS=
 while [ "$1" != "" ]; do
     case $1 in
@@ -72,4 +61,4 @@ fi
 eval "$(dotenv export -f "$HUB_WORKDIR/.env")"
 
 # shellcheck disable=SC2086
-$hubctl explain "$HUB_ELABORATE" "$HUB_STATE" $HUB_OPTS | less -R
+hubctl explain "$HUB_ELABORATE" "$HUB_STATE" $HUB_OPTS | less -R

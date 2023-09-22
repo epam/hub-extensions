@@ -10,16 +10,6 @@ HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
 export PATH HUB_HOME HUB_EXTENSION
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 CURRENT=""
 if test -f "$HUB_WORKDIR/.env"; then
   CURRENT=$(basename "$(readlink "$HUB_WORKDIR/.env")" .env)
@@ -82,9 +72,9 @@ print_stacks() {
         err_log="$(temp_file err)"
         out_log="$(temp_file)"
         if test "$HUB_STACK_LS_SUPPRESS_WARN" = "0"; then
-          $hubctl explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}' 1>"$out_log"
+          hubctl explain "$hubstate" --json | jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}' 1>"$out_log"
         else
-          $hubctl explain "$hubstate" --json 2>"$err_log"| jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}' 1>"$out_log"
+          hubctl explain "$hubstate" --json 2>"$err_log"| jq -cMr '{timestamp: .timestamp|split(".")|first, status: .status}' 1>"$out_log"
         fi
         status=$(jq -cMr '.status' "$out_log")
         ts=$(jq -cMr '.timestamp' "$out_log")

@@ -8,16 +8,6 @@
 HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
 dotenv="dotenv -f $HUB_WORKDIR/.env"
 
-hubctl="$(which hubctl 2>/dev/null || true)"
-if test -z "$hubctl"; then
-  # backward compatibility
-  hubctl="$(which hub 2>/dev/null || true)"
-fi
-if test -z "$hubctl"; then
-  color error "hubctl not found in PATH. Please install hubctl first."
-  exit 1
-fi
-
 checkCluster() {
   _checkCluster_KUBECONTEXT=
   if test -n "$1";then
@@ -105,7 +95,7 @@ EOF
   export KUBECONFIG="$_temp"
   # shellcheck disable=SC2064
   trap "rm -f $_temp" EXIT
-  if $hubctl kubeconfig -k "$HUB_STATE" -c "$HUB_DOMAIN_NAME"; then
+  if hubctl kubeconfig -k "$HUB_STATE" -c "$HUB_DOMAIN_NAME"; then
     if checkClusterAndSave "$KUBECONFIG" ; then
       exit 0
     fi
