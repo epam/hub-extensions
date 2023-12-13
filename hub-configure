@@ -299,7 +299,7 @@ See: https://hubctl.io/hubctl/cli/hubctl-stack-deploy/#executors"
   ask env HUB_DEPLOY_PROFILE -m "executor" -a "hub.executor" --suggest "local" --brief "$BRIEF"
 fi
 
-if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" -e >/dev/null; then
+if files find-in-path "profiles/$HUB_DEPLOY_PROFILE" --dir -e >/dev/null; then
   echo "* Deployment profile: $HUB_DEPLOY_PROFILE"
 else
   color e "Error: cannot find executor: $HUB_DEPLOY_PROFILE" | ident
