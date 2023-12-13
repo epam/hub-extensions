@@ -7,7 +7,7 @@
 
 # shellcheck disable=SC2046,SC2086
 
-HUB_PARENT_DOMAIN="epam.devops.delivery"
+HUB_PARENT_DOMAIN="${HUB_PARENT_DOMAIN:-"epam.devops.delivery"}"
 while [ "$1" != "" ]; do
   case $1 in
     --parent-domain )   shift
