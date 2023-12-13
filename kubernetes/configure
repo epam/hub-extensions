@@ -75,21 +75,18 @@ if test -z "$KUBECONTEXT"; then
   KUBECONTEXT="_"
 fi
 
-if
-    test -n "$HUB_KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" \
-    && kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
+if test -f "$HUB_KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG"; then
   printf "* Using kubeconfig from env: "
   color b "HUB_KUBECONFIG"
-elif
-    test -n "$KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG" \
-    && kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1; then
+  kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1
+elif test -f "$KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG"; then
   printf "* Using kubeconfig from env: "
   color b "KUBECONFIG"
-elif kubeconfig test -c "$KUBECONTEXT" -f "$HOME/.kube/config" \
-    && kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" -o "$TEMP" > /dev/null 2>&1; then : #pass
+  kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1
+elif test -f "$HOME/.kube/config" && kubeconfig test -c "$KUBECONTEXT" -f "$HOME/.kube/config"; then : #pass
   printf "* Using kubeconfig from default location: "
-  # shellcheck disable=SC2016
-  color b '$HOME/.kube/config'
+  color b "\$HOME/.kube/config"
+  kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" -o "$TEMP" > /dev/null 2>&1
 elif $(dirname $0)/configure-local-sa --save-to "$TEMP"; then : #pass
   printf "* Using kubeconfig service account"
 else
