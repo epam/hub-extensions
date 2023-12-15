@@ -7,11 +7,11 @@
 
 # shellcheck disable=SC2046,SC2086
 
-HUB_PARENT_DOMAIN="epam.devops.delivery"
+HUB_BASE_DOMAIN="${HUB_BASE_DOMAIN:-"epam.devops.delivery"}"
 while [ "$1" != "" ]; do
   case $1 in
     --parent-domain )   shift
-                        HUB_PARENT_DOMAIN="$1"
+                        HUB_BASE_DOMAIN="$1"
                         ;;
     --output )          shift
                         DOT_ENV="$1"
@@ -25,7 +25,7 @@ if test "$VERBOSE" = "true"; then
 fi
 
 printf "* Using parent domain: "
-color h "$HUB_PARENT_DOMAIN"
+color h "$HUB_BASE_DOMAIN"
 TEMP=$(mktemp /tmp/superhub.XXXXXX) || exit 1
 # shellcheck disable=SC2064
 trap "rm -f $TEMP" EXIT
@@ -37,7 +37,7 @@ HTTP_CODE=$( \
       -w "%{http_code}" \
       -o "$TEMP" \
       -H 'Content-Type: application/json;charset=UTF-8' \
-      -d "{\"baseDomain\": \"$HUB_PARENT_DOMAIN\"}" \
+      -d "{\"baseDomain\": \"$HUB_BASE_DOMAIN\"}" \
 )
 
 # checking if http code is 2**

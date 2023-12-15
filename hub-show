@@ -61,10 +61,9 @@ FORMAT="${FORMAT:-yaml}"
 hub_state=
 while [ "$1" != "" ]; do
     case $1 in
-        -c | --component )  deprecated "argument $1 $2" "hubctl show $1"
+        -c | --component )  deprecated "argument $1 $2" "hubctl show $2"
                             shift
-                            hub_state="$1"
-                            deprecated
+                            component="$1"
                             ;;
         -s | --state )      shift
                             hub_state="$1"
