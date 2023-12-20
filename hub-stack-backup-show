@@ -68,6 +68,8 @@ fi
 
 if test -z "$HUB_BACKUP_DIR"; then
   HUB_BACKUP_DIR="$HUB_WORKDIR/.hub/backups"
+else
+  HUB_BACKUP_DIR=$(files abspath "$HUB_BACKUP_DIR")
 fi
 
 backup_path="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$HUB_BACKUP_NAME"
