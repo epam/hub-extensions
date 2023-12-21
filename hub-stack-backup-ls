@@ -43,7 +43,7 @@ EOF
   for d in "$working_dir"/*; do
     if test ! -d "$d"; then continue; fi
     tags="$(find_tags "$d")"
-    if test "$elaborated" == "$(files abspath "$d")"; then
+    if test -n "$elaborated" -a "$elaborated" = "$(files abspath "$d")"; then
       star="*"
     else
       star=" "

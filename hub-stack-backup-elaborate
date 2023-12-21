@@ -84,6 +84,8 @@ EOF
 
 if test -z "$HUB_BACKUP_DIR"; then
   HUB_BACKUP_DIR="$HUB_WORKDIR/.hub/backups"
+else
+  HUB_BACKUP_DIR=$(files abspath "$HUB_BACKUP_DIR")
 fi
 
 # maybe tag?
