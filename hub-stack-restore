@@ -1,0 +1,148 @@
+#!/bin/sh -e
+# Copyright (c) 2023 EPAM Systems, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/.
+
+HUB_HOME="${HUB_HOME:-$(dirname "$0")}"
+HUB_WORKDIR="${HUB_WORKDIR:-$(pwd)}"
+PATH="$HUB_HOME:$HUB_HOME/bin:$HUB_WORKDIR:$HUB_WORKDIR/bin:$PATH"
+DOT_ENV="$(files abspath "$HUB_WORKDIR/.env")"
+export PATH HUB_WORKDIR HUB_HOME DOT_ENV
+
+usage() {
+cat << EOF
+
+Restore from a stack backup
+
+Usage:
+$ hubctl stack restore <backup_name_or_backup_tag>
+
+Restores from a backup of an entire stack
+
+$ hubctl stack restore <backup_name_or_backup_tag> -c component1,component2
+
+Restores from a backup of two components: component1 and component2
+
+Parameters:
+    -c  --component    Components to restore (comma-separated list)
+    -V  --verbose      Verbose outputs for debug purpose
+    --tty              Use TTY (terminal) mode for hubctl
+    --no-tty           Do not use TTY (terminal) mode for hubctl
+    -h  --help         Print this message
+
+EOF
+}
+
+HUB_OPTS=""
+HUB_COMPONENT=""
+VERBOSE=${VERBOSE:-""}
+
+HUB_BACKUP_NAME=""
+
+while test -n "$1"; do
+    case $1 in
+        -c | --component )
+          shift
+          HUB_OPTS="$HUB_OPTS --include-only $1"
+          HUB_COMPONENT="$1"
+          ;;
+        --tty )
+          HUB_OPTS="$HUB_OPTS --tty true"
+          ;;
+        --no-tty )
+          HUB_OPTS="$HUB_OPTS --tty false"
+          ;;
+        -V | --verbose )
+          VERBOSE="--verbose"
+          ;;
+        -h | --help )
+          usage
+          exit
+          ;;
+        * )
+          HUB_BACKUP_NAME="$1"
+    esac
+    shift
+done
+
+if test "$VERBOSE" = "--verbose"; then
+  set -x
+fi
+
+if test ! -f "$DOT_ENV"; then
+  color error "Error: cannot find .env file in $HUB_WORKDIR"
+  exit 1
+fi
+eval "$(dotenv export -f "$DOT_ENV")"
+
+if test -z "$HUB_BACKUP_DIR"; then
+  HUB_BACKUP_DIR="$HUB_WORKDIR/.hub/backups"
+else
+  HUB_BACKUP_DIR=$(files abspath "$HUB_BACKUP_DIR")
+fi
+
+if test -z "$HUB_BACKUP_NAME"; then
+  color e "Error: Backup name or tag not is provided"
+  exit 1
+fi
+
+echo "Restore from backup: $HUB_BACKUP_NAME"
+
+backup_path="$HUB_BACKUP_DIR/$HUB_DOMAIN_NAME/$HUB_BACKUP_NAME"
+if test ! -d "$backup_path"; then
+  backup_path="$HUB_BACKUP_DIR/tags/$HUB_BACKUP_NAME"
+
+  if test ! -d "$backup_path"; then
+    color error "Error: backup directory $backup_path not found"
+    exit 2
+  fi
+fi
+
+echo "* Prepare restore parameters"
+hub_bundle="$(mktemp)"
+trap 'rm -f $hub_bundle' EXIT
+
+if test -f "$backup_path/hub-bundle.yaml"; then
+  cat "$backup_path/hub-bundle.yaml" > "$hub_bundle"
+elif test -f "$backup_path/hub-bundle.yaml.gz"; then
+  gunzip -c "$backup_path/hub-bundle.yaml.gz" > "$hub_bundle"
+fi
+
+if test ! -s "$hub_bundle"; then
+  color e "Error: Backup bundle file is empty"
+  exit 3
+fi
+
+backup_params="$(mktemp)"
+trap 'rm -f $backup_params' EXIT
+
+hubctl backup unbundle "$hub_bundle" > "$backup_params"
+
+if test ! -s "$backup_params"; then
+  color e "Error: Unable to get backup parameters"
+  exit 4
+fi
+
+if test -z "$HUB_COMPONENT"; then
+  HUB_COMPONENT=$(yq -o=json "$backup_params" | jq -crM '.parameters | unique_by(.component) | [.[].component] | join(",")')
+fi
+
+HUB_COMPONENT=$(echo "$HUB_COMPONENT" | tr ',' '\n')
+
+echo "$HUB_COMPONENT" | while read -r component; do
+  env_vars=$(yq -o=json "$backup_params" | jq -crM --arg component "$component" '.parameters[] | select(.component == $component)' \
+| while read -r line; do
+    name=$(echo "$line" | jq -crM '.name' | sed -E 's/([^a-zA-Z0-9_])/_/g' | tr '[:lower:]' '[:upper:]')
+    value=$(echo "$line" | jq -crM '.value')
+    printf "%s=%s," "$name" "$value"
+  done)
+
+  if test -z "$env_vars"; then
+    echo "* Skipping restore for component \"$component\". No backup paramters."
+    continue
+  fi
+
+  hub-stack-invoke "$component" restore -e "$(echo "$env_vars" | head -c -2)" "$VERBOSE"
+done
