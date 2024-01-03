@@ -118,7 +118,7 @@ fi
 backup_params="$(mktemp)"
 trap 'rm -f $backup_params' EXIT
 
-hubctl backup unbundle "$hub_bundle" > "$backup_params"
+hubctl backup unbundle "$hub_bundle" --output="$backup_params" --compressed=false
 
 if test ! -s "$backup_params"; then
   color e "Error: Unable to get backup parameters"
