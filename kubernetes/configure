@@ -75,15 +75,15 @@ if test -z "$KUBECONTEXT"; then
   KUBECONTEXT="_"
 fi
 
-if test -f "$HUB_KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG"; then
+if test -n "$HUB_KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG"; then
   printf "* Using kubeconfig from env: "
   color b "HUB_KUBECONFIG"
   kubeconfig cp -e -c "$KUBECONTEXT" -f "$HUB_KUBECONFIG" -o "$TEMP" > /dev/null 2>&1
-elif test -f "$KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG"; then
+elif test -n "$KUBECONFIG" && kubeconfig test -c "$KUBECONTEXT" -f "$KUBECONFIG"; then
   printf "* Using kubeconfig from env: "
   color b "KUBECONFIG"
   kubeconfig cp -e -c "$KUBECONTEXT" -f "$KUBECONFIG" -o "$TEMP" > /dev/null 2>&1
-elif test -f "$HOME/.kube/config" && kubeconfig test -c "$KUBECONTEXT" -f "$HOME/.kube/config"; then : #pass
+elif test -f "$HOME/.kube/config" && kubeconfig test -c "$KUBECONTEXT" -f "$HOME/.kube/config"; then
   printf "* Using kubeconfig from default location: "
   color b "\$HOME/.kube/config"
   kubeconfig cp -e -c "$KUBECONTEXT" -f "$HOME/.kube/config" -o "$TEMP" > /dev/null 2>&1
