@@ -145,5 +145,5 @@ echo "$HUB_COMPONENT" | while read -r component; do
     continue
   fi
 
-  hub-stack-invoke "$component" restore -e "$(echo "$env_vars" | head -c -2)" "$VERBOSE"
+  hub-stack-invoke "$component" restore -e "$(echo "${env_vars%,}")" "$VERBOSE"
 done
