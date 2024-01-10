@@ -21,6 +21,8 @@ parameters:
   - name: test.hosts
     component: test3
     fromEnv: BATS_TEST_HOST
+  - name: bucket .accessKey
+    fromEnv: ARTIFACT_STORE_ACCESS_KEY
 EOF
 }
 
@@ -46,12 +48,12 @@ setup() {
 @test "ask env: should print messages if parameters need to set for different component discriminators" {
   run ask env "ARGO_HOST" -m "parameter ingress.hosts test1" +empty -d "$DOTENV_FILE" -ask-env --non-interactive
   assert_success
-  assert_output --partial "* Setting parameter ingress.hosts test1, ARGO"
+  assert_output --partial "* Setting parameter ingress.hosts test1"
   assert_output --partial "  ARGO_HOST saved"
 
   run ask env "KUBEFLOW_HOST" -m "parameter ingress.hosts test2" +empty -d "$DOTENV_FILE" -ask-env --non-interactive
   assert_success
-  assert_output --partial "* Setting parameter ingress.hosts test2, KUBEFLOW"
+  assert_output --partial "* Setting parameter ingress.hosts test2"
   assert_output --partial "  KUBEFLOW_HOST saved"
 }
 
@@ -63,12 +65,12 @@ setup() {
 @test "ask env: should print messages if parameters already set for different component discriminators" {
   run ask env "ARGO_HOST" -m "parameter ingress.hosts test1" +empty -d "$DOTENV_FILE" -ask-env
   assert_success
-  assert_output --partial "* Setting parameter ingress.hosts test1, ARGO_HOST"
+  assert_output --partial "* Setting parameter ingress.hosts test1"
   assert_output --partial "ARGO_HOST already set"
 
   run ask env "KUBEFLOW_HOST" -m "parameter ingress.hosts test2" +empty -d "$DOTENV_FILE" -ask-env
   assert_success
-  assert_output --partial "* Setting parameter ingress.hosts test2, KUBEFLOW_HOST"
+  assert_output --partial "* Setting parameter ingress.hosts test2"
   assert_output --partial "KUBEFLOW_HOST already set"
 }
 
@@ -76,15 +78,29 @@ setup() {
 @test "ask env: should print messages if parameter need to set without different component discriminators" {
   run ask env "BATS_TEST_HOST" -m "parameter test.hosts test3" +empty -d "$DOTENV_FILE" -ask-env --non-interactive
   assert_success
-  assert_output --partial "* Setting parameter test.hosts test3, BATS_TEST_HOST"
+  assert_output --partial "* Setting parameter test.hosts test3"
   assert_output --partial "BATS_TEST_HOST saved"
 }
 
 @test "ask env: should print messages if parameter already set without different component discriminators" {
   run ask env "BATS_TEST_HOST" -m "parameter test.hosts test3" +empty -d "$DOTENV_FILE" -ask-env
   assert_success
-  assert_output --partial "* Setting parameter test.hosts test3, BATS_TEST_HOST"
+  assert_output --partial "* Setting parameter test.hosts test3"
   assert_output --partial "BATS_TEST_HOST already set"
+}
+
+@test "ask env: should print messages if parameter need to set without the component" {
+  run ask env "ARTIFACT_STORE_ACCESS_KEY" -m "parameter test.hosts " +empty -d "$DOTENV_FILE" -ask-env --non-interactive
+  assert_success
+  assert_output --partial "* Setting parameter test.hosts"
+  assert_output --partial "ARTIFACT_STORE_ACCESS_KEY saved"
+}
+
+@test "ask env: should print messages if parameter already set without the component" {
+  run ask env "ARTIFACT_STORE_ACCESS_KEY" -m "parameter test.hosts " +empty -d "$DOTENV_FILE" -ask-env --non-interactive
+  assert_success
+  assert_output --partial "* Setting parameter test.hosts"
+  assert_output --partial "ARTIFACT_STORE_ACCESS_KEY already set"
 }
 
 teardown_file() {

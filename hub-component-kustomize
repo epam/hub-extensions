@@ -20,23 +20,45 @@ ident() {
   sed 's/^/  /'
 }
 
+apply_crd_file() {
+    max_di=$(yq e 'di' "$1" | tail -1)
+    for i in $(seq 0 "$max_di"); do
+        crd=$(yq e "select(di == $i).metadata.name" "$1")
+        if test -z "$crd" -o "$crd" = "null"; then
+            continue
+        fi
+        if $kubectl get crd "$crd" > /dev/null; then
+            echo "  $crd already exists"
+        else
+            $kubectl create -f "$1"
+        fi
+    done
+}
+
 OLD_NS="$(kubectl config view --minify --output 'jsonpath={..namespace}')"
 TEMP_DIR=$(mktemp -d || exit 1)
 mkdir -p "$TEMP_DIR"
+ERR=""
 
 finalize() {
   rv=$?
   if test -n "$1"; then
     rm -rf "$1"
   fi
-  if test -n "$2"; then
-    echo "Restoring previous namespace: $2"
+  current_ns="$(kubectl config view --minify --output 'jsonpath={..namespace}')"
+  if test -n "$2" -a "$2" != "$current_ns"; then
+    echo "Setting previous namespace: $2"
     kubectl config set-context --current --namespace="$2"
+  fi
+  if test -n "$3"; then
+    color err << END
+  Error: $3
+END
   fi
   exit $rv
 }
 
-trap 'finalize $TEMP_DIR $OLD_NS' EXIT
+trap 'finalize "$TEMP_DIR" "$OLD_NS" "$ERR"' EXIT
 
 temp_file() {
   echo "$TEMP_DIR/$(head -c 32 < /dev/urandom | base64 | tr -dc '[:lower:]')"
@@ -74,6 +96,7 @@ case "$VERB" in
 esac
 
 HUB_DOMAIN_NAME=${HUB_DOMAIN_NAME:?"Required variable HUB_DOMAIN_NAME has not been defined"}
+HUB_KUSTOMIZE_TARBALL_DIR="${HUB_KUSTOMIZE_TARBALL_DIR:-kustomize}"
 # NAMESPACE=${NAMESPACE:?"Required variable DOMAIN_NAME has not been defined"}
 
 apply_k8s_resources_file() {
@@ -124,26 +147,47 @@ if test "$VERB" = "deploy"; then
   fi
 fi
 
+
 if test -n "$HUB_KUSTOMIZE_TARBALL_URL"; then
+  #shellcheck disable=SC2153
+  HUB_KUSTOMIZE_TARBALL_SUBPATHS="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS $HUB_KUSTOMIZE_TARBALL_SUBPATH" | xargs)"
   echo "* Downloading component base from: $HUB_KUSTOMIZE_TARBALL_URL"
-  if test -n "$HUB_KUSTOMIZE_TARBALL_SUBPATH"; then
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATH"
-  elif test -n "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"; then
-    # HUB_KUSTOMIZE_TARBALL_SUBPATHS is an array of paths divided by space (tarball_source_path:destination_path tarball_source_path:destination_path)
-    rm -rf "$(pwd)/kustomize"
-    temp="$(mktemp)"
-    trap 'rm -rf $temp' EXIT
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$temp"
-    for subpath in $HUB_KUSTOMIZE_TARBALL_SUBPATHS; do
-      dst=${subpath#*:}
-      src=${subpath%?"$dst"}
-      dst="$(pwd)/kustomize/$dst"
-      mkdir -p "$dst"
-      cp -r "$temp/$src/" "$dst/"
-    done
+  count="$(echo "$HUB_KUSTOMIZE_TARBALL_SUBPATHS" | tr ':' ' ' | wc -w | xargs)"
+  target="$(files abspath $HUB_KUSTOMIZE_TARBALL_DIR)"
+  if test "$count" = "0"; then
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$target"
+  # elif test "$count" = "1"; then
+  #   files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/$HUB_KUSTOMIZE_TARBALL_DIR" --tar-subpath "$HUB_KUSTOMIZE_TARBALL_SUBPATHS"
   else
-    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$(pwd)/kustomize"
+    temp="$TEMP_DIR/content"
+    mkdir -p "$temp"
+    files download-tar "$HUB_KUSTOMIZE_TARBALL_URL" "$temp"
+    # HUB_KUSTOMIZE_TARBALL_SUBPATHS is an array of paths divided by space (tarball_source_path:destination_path tarball_source_path:destination_path)
+    for subpath in $HUB_KUSTOMIZE_TARBALL_SUBPATHS; do
+      src=$(echo "$subpath" | cut -d: -f1)
+      dest=$(echo "$subpath" | cut -d: -f2)
+      if test -z "$dest" -o "$dest" = "$src"; then
+        dest="$(basename "$src")"
+      fi
+      if test -f "$target/$dest"; then
+        color warn "File $dest already exists"
+      elif test -d "$temp/$src"; then
+        echo "  Extracting directory: $src to $HUB_KUSTOMIZE_TARBALL_DIR/$dest"
+        mkdir -p "$target/$dest"
+        cp -r "$temp/$src/" "$target/$dest"
+      elif test -f "$temp/$src"; then
+        echo "  Extracting file: $src to $HUB_KUSTOMIZE_TARBALL_DIR/$dest"
+        files copy "$temp/$src" "$target/$dest"
+      else
+        ERR="$ERR\n  - Not found: $src"
+        continue
+      fi
+    done
   fi
+fi
+
+if test -n "$ERR"; then
+  exit 1
 fi
 
 if test -n "$HUB_KUSTOMIZE_RESOURCES"; then
@@ -151,10 +195,10 @@ if test -n "$HUB_KUSTOMIZE_RESOURCES"; then
   for res in $HUB_KUSTOMIZE_RESOURCES; do
     if echo "$res" | grep -e '^https\?://' >/dev/null 2>&1; then
       echo "  Downloading from: $res"
-      files download "$res" "$(pwd)/kustomize/$(basename "$res")"
+      files download "$res" "$(pwd)/$HUB_KUSTOMIZE_TARBALL_DIR/$(basename "$res")"
     elif test -f "$res"; then
       echo "  Copying from: $res"
-      files copy "$res" "$(pwd)/kustomize/$(basename "$res")"
+      files copy "$res" "$(pwd)/$HUB_KUSTOMIZE_TARBALL_DIR/$(basename "$res")"
     else
       color w "  Warning: file not found ($res)"
     fi
