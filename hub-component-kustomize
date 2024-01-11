@@ -106,10 +106,10 @@ if test "$VERB" = "deploy"; then
             echo "* Downloading from $crd"
             temp=$(temp_file)
             files download "$crd" "$temp"
-            apply_crd_file "$temp"
+            apply_k8s_resources_file "$temp"
         elif test -f "$crd"; then
             echo "* Reading from: $crd"
-            apply_crd_file "$crd"
+            apply_k8s_resources_file "$crd"
         else
             color w "Warning: file not found ($CRD)"
         fi
